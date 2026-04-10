@@ -172,6 +172,20 @@ router.post('/manage/playlists', staff, async (req, res) => {
   }
 });
 
+// PUT /videos/manage/playlists/reorder — إعادة ترتيب القوائم (قبل /:id)
+router.put('/manage/playlists/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE playlists SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // PUT /videos/manage/playlists/:id — تعديل قائمة
 router.put('/manage/playlists/:id', staff, async (req, res) => {
   const { title, description, thumbnail, grade } = req.body;
@@ -181,21 +195,6 @@ router.put('/manage/playlists/:id', staff, async (req, res) => {
       [title, description||'', thumbnail||'', Number(grade), req.params.id]
     );
     res.json({ message: 'تم التعديل' });
-  } catch (err) {
-    res.status(500).json({ message: 'خطأ في السيرفر' });
-  }
-});
-
-// PUT /videos/manage/playlists/reorder — إعادة ترتيب القوائم
-router.put('/manage/playlists/reorder', staff, async (req, res) => {
-  // body: { ids: [3,1,2] } — ordered list of playlist ids
-  const { ids } = req.body;
-  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
-  try {
-    for (let i = 0; i < ids.length; i++) {
-      await pool.query('UPDATE playlists SET position=$1 WHERE id=$2', [i, ids[i]]);
-    }
-    res.json({ message: 'تم إعادة الترتيب' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
@@ -317,6 +316,20 @@ router.post('/manage/playlists/:id/items', staff, async (req, res) => {
   }
 });
 
+// PUT /videos/manage/items/reorder — إعادة ترتيب العناصر (قبل /:id)
+router.put('/manage/items/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE playlist_items SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // PUT /videos/manage/items/:id — تعديل عنصر
 router.put('/manage/items/:id', staff, async (req, res) => {
   const { title, description, youtube_url, exam_id, file_url } = req.body;
@@ -338,20 +351,6 @@ router.delete('/manage/items/:id', staff, async (req, res) => {
   try {
     await pool.query('DELETE FROM playlist_items WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });
-  } catch (err) {
-    res.status(500).json({ message: 'خطأ في السيرفر' });
-  }
-});
-
-// PUT /videos/manage/items/reorder — إعادة ترتيب العناصر
-router.put('/manage/items/reorder', staff, async (req, res) => {
-  const { ids } = req.body;
-  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
-  try {
-    for (let i = 0; i < ids.length; i++) {
-      await pool.query('UPDATE playlist_items SET position=$1 WHERE id=$2', [i, ids[i]]);
-    }
-    res.json({ message: 'تم إعادة الترتيب' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
@@ -393,6 +392,20 @@ router.post('/manage/playlists/:id/videos', staff, async (req, res) => {
   }
 });
 
+// PUT /videos/manage/videos/reorder — إعادة ترتيب الفيديوهات (قبل /:id)
+router.put('/manage/videos/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE videos SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // PUT /videos/manage/videos/:id — تعديل فيديو
 router.put('/manage/videos/:id', staff, async (req, res) => {
   const { title, youtube_url, description } = req.body;
@@ -404,20 +417,6 @@ router.put('/manage/videos/:id', staff, async (req, res) => {
       [title, youtube_url, description||'', req.params.id]
     );
     res.json({ message: 'تم التعديل' });
-  } catch (err) {
-    res.status(500).json({ message: 'خطأ في السيرفر' });
-  }
-});
-
-// PUT /videos/manage/videos/reorder — إعادة ترتيب الفيديوهات
-router.put('/manage/videos/reorder', staff, async (req, res) => {
-  const { ids } = req.body;
-  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
-  try {
-    for (let i = 0; i < ids.length; i++) {
-      await pool.query('UPDATE videos SET position=$1 WHERE id=$2', [i, ids[i]]);
-    }
-    res.json({ message: 'تم إعادة الترتيب' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
