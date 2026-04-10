@@ -35,6 +35,21 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE playlists ALTER COLUMN thumbnail TYPE TEXT;
     `);
+    // Add file upload columns to playlist_items
+    await pool.query(`
+      ALTER TABLE playlist_items ADD COLUMN IF NOT EXISTS file_name VARCHAR(200) DEFAULT '';
+    `);
+    await pool.query(`
+      ALTER TABLE playlist_items ADD COLUMN IF NOT EXISTS file_data TEXT DEFAULT '';
+    `);
+    // Remove 'assignment' from allowed types (safe — no existing data)
+    await pool.query(`
+      ALTER TABLE playlist_items DROP CONSTRAINT IF EXISTS playlist_items_type_check;
+    `);
+    await pool.query(`
+      ALTER TABLE playlist_items ADD CONSTRAINT playlist_items_type_check
+        CHECK (type IN ('video','exam','file'));
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

@@ -34,12 +34,11 @@ function getThumbnail(url) {
   return id ? `https://img.youtube.com/vi/${id}/mqdefault.jpg` : null;
 }
 
-const ITEM_ICONS = { video:'🎬', exam:'📝', assignment:'📋', file:'📄' };
-const ITEM_LABELS = { video:'فيديو', exam:'امتحان', assignment:'واجب', file:'ملف' };
+const ITEM_ICONS = { video:'🎬', exam:'📝', file:'📄' };
+const ITEM_LABELS = { video:'فيديو', exam:'امتحان', file:'ملف' };
 const ITEM_COLORS = {
   video:'bg-blue-100 text-blue-700',
   exam:'bg-purple-100 text-purple-700',
-  assignment:'bg-orange-100 text-orange-700',
   file:'bg-green-100 text-green-700',
 };
 
@@ -687,11 +686,10 @@ function ItemRow({ item, onEdit, onDelete, onMoveUp, onMoveDown }) {
           {item.type === 'exam' && item.exam_title && (
             <p className="text-xs text-purple-500 truncate">الامتحان: {item.exam_title}</p>
           )}
-          {(item.type === 'assignment' || item.type === 'file') && item.file_url && (
-            <a href={item.file_url} target="_blank" rel="noreferrer"
-              className="text-xs text-green-600 truncate hover:underline">
-              🔗 {item.file_url.slice(0,50)}...
-            </a>
+          {item.type === 'file' && (item.file_name || item.file_url) && (
+            <p className="text-xs text-green-600 truncate">
+              📎 {item.file_name || item.file_url}
+            </p>
           )}
           {item.type === 'video' && item.youtube_url && (
             <p className="text-xs text-blue-500 truncate mt-0.5">{item.youtube_url}</p>
@@ -715,17 +713,21 @@ function ItemRow({ item, onEdit, onDelete, onMoveUp, onMoveDown }) {
 
 // ── Item Add/Edit Modal ───────────────────────────────────────────────────
 function ItemModal({ item, playlistId, onClose, onSave }) {
-  const [type, setType]       = useState(item?.type || 'video');
-  const [form, setForm]       = useState({
+  const [type, setType]         = useState(item?.type || 'video');
+  const [form, setForm]         = useState({
     title:       item?.title || '',
     description: item?.description || '',
     youtube_url: item?.youtube_url || '',
     exam_id:     item?.exam_id || '',
     file_url:    item?.file_url || '',
+    file_name:   item?.file_name || '',
+    file_data:   '',
   });
-  const [exams, setExams]     = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [exams, setExams]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError]       = useState('');
+  const fileRef = useRef();
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   useEffect(() => {
@@ -733,6 +735,22 @@ function ItemModal({ item, playlistId, onClose, onSave }) {
   }, []);
 
   const previewThumb = type === 'video' ? getThumbnail(form.youtube_url) : null;
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      setError('حجم الملف أكبر من 10MB');
+      return;
+    }
+    setUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setForm(f => ({ ...f, file_data: ev.target.result, file_name: file.name, file_url: '' }));
+      setUploading(false);
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleSave = async () => {
     if (!form.title) return setError('العنوان مطلوب');
@@ -768,13 +786,11 @@ function ItemModal({ item, playlistId, onClose, onSave }) {
         {!item && (
           <div className="mb-5">
             <label className="block text-xs font-bold text-slate-500 mb-2">نوع المحتوى *</label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {Object.entries(ITEM_LABELS).map(([k, v]) => (
                 <button key={k} onClick={() => setType(k)}
-                  className={`p-2 rounded-xl border-2 text-center transition-all ${
-                    type === k
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-slate-200 hover:border-slate-300'
+                  className={`p-3 rounded-xl border-2 text-center transition-all ${
+                    type === k ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'
                   }`}>
                   <div className="text-2xl mb-1">{ITEM_ICONS[k]}</div>
                   <div className="text-xs font-bold text-slate-700">{v}</div>
@@ -791,7 +807,6 @@ function ItemModal({ item, playlistId, onClose, onSave }) {
             <input className="input" placeholder={
               type === 'video' ? 'مثال: شرح درس الكسور' :
               type === 'exam'  ? 'مثال: امتحان الفصل الأول' :
-              type === 'assignment' ? 'مثال: واجب الأسبوع الأول' :
               'مثال: ملخص الوحدة الأولى'
             } value={form.title} onChange={e=>set('title',e.target.value)}/>
           </div>
@@ -840,23 +855,42 @@ function ItemModal({ item, playlistId, onClose, onSave }) {
             </div>
           )}
 
-          {/* Assignment / File field */}
-          {(type === 'assignment' || type === 'file') && (
+          {/* File upload field */}
+          {type === 'file' && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1">
-                {type === 'assignment' ? 'رابط الواجب' : 'رابط الملف'} (اختياري)
-              </label>
-              <input className="input" placeholder="https://drive.google.com/... أو أي رابط"
-                value={form.file_url} onChange={e=>set('file_url',e.target.value)}/>
-              <p className="text-xs text-slate-400 mt-1">
-                يمكنك إضافة رابط Google Drive أو Dropbox أو أي رابط آخر
-              </p>
+              <label className="block text-xs font-bold text-slate-500 mb-2">الملف</label>
+              <input ref={fileRef} type="file" className="hidden" onChange={handleFileUpload}/>
+              <button type="button" onClick={() => fileRef.current?.click()}
+                disabled={uploading}
+                className="btn-secondary btn-sm w-full flex items-center justify-center gap-2 mb-3">
+                {uploading
+                  ? <><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"/> جاري الرفع...</>
+                  : <>📁 ارفع ملف من الجهاز (PDF, Word, ...)</>}
+              </button>
+              {form.file_name && (
+                <div className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg p-2 mb-2">
+                  <span className="text-lg">📎</span>
+                  <span className="text-sm text-green-700 font-semibold flex-1 truncate">{form.file_name}</span>
+                  <button onClick={() => setForm(f=>({...f,file_name:'',file_data:'',file_url:''}))}
+                    className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                </div>
+              )}
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-200"/></div>
+                <div className="relative flex justify-center"><span className="bg-white px-2 text-xs text-slate-400">أو</span></div>
+              </div>
+              <div className="mt-2">
+                <label className="block text-xs text-slate-500 mb-1">الصق رابط خارجي (Google Drive, ...)</label>
+                <input className="input text-xs" placeholder="https://drive.google.com/..."
+                  value={form.file_url} onChange={e=>{set('file_url',e.target.value); set('file_name',''); set('file_data','');}}/>
+              </div>
+              <p className="text-xs text-slate-400 mt-1">الحد الأقصى للملف المرفوع: 10MB</p>
             </div>
           )}
         </div>
 
         <div className="flex gap-3 mt-5">
-          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading}>
+          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading || uploading}>
             {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ'}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>

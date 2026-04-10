@@ -292,7 +292,7 @@ router.get('/manage/playlists/:id/items', staff, async (req, res) => {
 
 // POST /videos/manage/playlists/:id/items — إضافة عنصر
 router.post('/manage/playlists/:id/items', staff, async (req, res) => {
-  const { type, title, description, youtube_url, exam_id, file_url } = req.body;
+  const { type, title, description, youtube_url, exam_id, file_url, file_name, file_data } = req.body;
   if (!type || !title) return res.status(400).json({ message: 'النوع والعنوان مطلوبان' });
   if (type === 'video') {
     if (!youtube_url) return res.status(400).json({ message: 'رابط YouTube مطلوب' });
@@ -306,9 +306,12 @@ router.post('/manage/playlists/:id/items', staff, async (req, res) => {
     );
     const position = maxPos.rows[0].m + 1;
     const result = await pool.query(
-      `INSERT INTO playlist_items (playlist_id,type,title,description,position,youtube_url,exam_id,file_url)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-      [req.params.id, type, title, description||'', position, youtube_url||'', exam_id||null, file_url||'']
+      `INSERT INTO playlist_items
+         (playlist_id,type,title,description,position,youtube_url,exam_id,file_url,file_name,file_data)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+       RETURNING id,playlist_id,type,title,description,position,youtube_url,exam_id,file_url,file_name,created_at`,
+      [req.params.id, type, title, description||'', position,
+       youtube_url||'', exam_id||null, file_url||'', file_name||'', file_data||'']
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -332,15 +335,57 @@ router.put('/manage/items/reorder', staff, async (req, res) => {
 
 // PUT /videos/manage/items/:id — تعديل عنصر
 router.put('/manage/items/:id', staff, async (req, res) => {
-  const { title, description, youtube_url, exam_id, file_url } = req.body;
+  const { title, description, youtube_url, exam_id, file_url, file_name, file_data } = req.body;
   if (youtube_url && !getYouTubeId(youtube_url))
     return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
   try {
-    await pool.query(
-      'UPDATE playlist_items SET title=$1,description=$2,youtube_url=$3,exam_id=$4,file_url=$5 WHERE id=$6',
-      [title, description||'', youtube_url||'', exam_id||null, file_url||'', req.params.id]
-    );
+    // Only update file_data if provided (avoid overwriting with empty on edit)
+    if (file_data !== undefined && file_data !== '') {
+      await pool.query(
+        `UPDATE playlist_items
+         SET title=$1,description=$2,youtube_url=$3,exam_id=$4,file_url=$5,file_name=$6,file_data=$7
+         WHERE id=$8`,
+        [title, description||'', youtube_url||'', exam_id||null,
+         file_url||'', file_name||'', file_data, req.params.id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE playlist_items
+         SET title=$1,description=$2,youtube_url=$3,exam_id=$4,file_url=$5,file_name=$6
+         WHERE id=$7`,
+        [title, description||'', youtube_url||'', exam_id||null,
+         file_url||'', file_name||'', req.params.id]
+      );
+    }
     res.json({ message: 'تم التعديل' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// GET /videos/manage/items/:id/download — تنزيل ملف مرفوع
+router.get('/manage/items/:id/download', staff, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT file_name, file_data FROM playlist_items WHERE id=$1',
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ message: 'مش موجود' });
+    res.json({ file_name: result.rows[0].file_name, file_data: result.rows[0].file_data });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// GET /videos/items/:id/download — تنزيل ملف للطالب
+router.get('/items/:id/download', auth('student'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT file_name, file_data FROM playlist_items WHERE id=$1',
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ message: 'مش موجود' });
+    res.json({ file_name: result.rows[0].file_name, file_data: result.rows[0].file_data });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }

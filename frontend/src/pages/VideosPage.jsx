@@ -10,14 +10,8 @@ function getYouTubeId(url) {
   return match ? match[1] : null;
 }
 
-const ITEM_ICONS  = { video:'🎬', exam:'📝', assignment:'📋', file:'📄' };
-const ITEM_LABELS = { video:'فيديو', exam:'امتحان', assignment:'واجب', file:'ملف' };
-const ITEM_COLORS = {
-  video:'bg-blue-500/20 text-blue-300',
-  exam:'bg-purple-500/20 text-purple-300',
-  assignment:'bg-orange-500/20 text-orange-300',
-  file:'bg-green-500/20 text-green-300',
-};
+const ITEM_ICONS  = { video:'🎬', exam:'📝', file:'📄' };
+const ITEM_LABELS = { video:'فيديو', exam:'امتحان', file:'ملف' };
 
 // ── Main Page ──────────────────────────────────────────────────────────────
 export default function VideosPage() {
@@ -397,24 +391,42 @@ export default function VideosPage() {
 // ── Lesson Item Card (in items view) ─────────────────────────────────────
 function LessonItemCard({ item, idx, onPlayVideo, navigate }) {
   const thumb = item.type === 'video' ? getThumbnail(item.youtube_url) : null;
+  const [downloading, setDownloading] = useState(false);
 
-  const handleClick = () => {
-    if (item.type === 'video') {
-      onPlayVideo();
-    } else if (item.type === 'exam' && item.exam_id) {
-      navigate(`/take-exam/${item.exam_id}`);
-    } else if ((item.type === 'assignment' || item.type === 'file') && item.file_url) {
-      window.open(item.file_url, '_blank', 'noreferrer');
-    }
+  const downloadFile = async () => {
+    setDownloading(true);
+    try {
+      const { data } = await api.get(`/videos/items/${item.id}/download`);
+      if (data.file_data) {
+        const a = document.createElement('a');
+        a.href = data.file_data;
+        a.download = data.file_name || 'ملف';
+        a.click();
+      } else if (item.file_url) {
+        window.open(item.file_url, '_blank', 'noreferrer');
+      }
+    } finally { setDownloading(false); }
   };
 
+  const handleClick = () => {
+    if (item.type === 'video') onPlayVideo();
+    else if (item.type === 'exam' && item.exam_id) navigate(`/student/exam/${item.exam_id}`);
+    else if (item.type === 'file') downloadFile();
+  };
+
+  const hasFile = item.type === 'file' && (item.file_name || item.file_url);
   const isClickable = item.type === 'video' ||
     (item.type === 'exam' && item.exam_id) ||
-    ((item.type === 'assignment' || item.type === 'file') && item.file_url);
+    hasFile;
+
+  const badgeColor =
+    item.type === 'video' ? 'bg-blue-100 text-blue-700' :
+    item.type === 'exam'  ? 'bg-purple-100 text-purple-700' :
+                            'bg-green-100 text-green-700';
 
   return (
     <div
-      onClick={isClickable ? handleClick : undefined}
+      onClick={isClickable && !downloading ? handleClick : undefined}
       className={`card p-0 overflow-hidden transition-shadow ${isClickable ? 'cursor-pointer hover:shadow-md' : ''}`}>
       <div className="flex items-center gap-4 p-4">
         {/* Thumb or icon */}
@@ -429,33 +441,34 @@ function LessonItemCard({ item, idx, onPlayVideo, navigate }) {
               </div>
             </div>
           ) : (
-            <span className="text-3xl">{ITEM_ICONS[item.type]}</span>
+            <span className="text-3xl">{ITEM_ICONS[item.type] || '📄'}</span>
           )}
         </div>
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-              item.type === 'video'      ? 'bg-blue-100 text-blue-700' :
-              item.type === 'exam'       ? 'bg-purple-100 text-purple-700' :
-              item.type === 'assignment' ? 'bg-orange-100 text-orange-700' :
-                                           'bg-green-100 text-green-700'
-            }`}>
-              {ITEM_ICONS[item.type]} {ITEM_LABELS[item.type]}
-            </span>
-          </div>
+          <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${badgeColor} inline-block mb-1`}>
+            {ITEM_ICONS[item.type]} {ITEM_LABELS[item.type]}
+          </span>
           <h3 className="font-bold text-slate-800 truncate">{item.title}</h3>
           {item.description && <p className="text-xs text-slate-500 truncate mt-0.5">{item.description}</p>}
           {item.type === 'exam' && item.exam_title && (
             <p className="text-xs text-purple-600 mt-0.5">📝 {item.exam_title}</p>
           )}
-          {!isClickable && (item.type === 'assignment' || item.type === 'file') && (
-            <p className="text-xs text-slate-400 mt-0.5">لا يوجد رابط متاح</p>
+          {item.type === 'file' && item.file_name && (
+            <p className="text-xs text-green-600 mt-0.5">📎 {item.file_name}</p>
           )}
         </div>
 
-        {isClickable && (
+        {/* Action indicator */}
+        {item.type === 'file' && hasFile && (
+          <div className="flex-shrink-0">
+            {downloading
+              ? <span className="w-5 h-5 border-2 border-green-500 border-t-transparent rounded-full animate-spin block"/>
+              : <span className="text-green-600 text-lg">⬇️</span>}
+          </div>
+        )}
+        {item.type !== 'file' && isClickable && (
           <span className="text-slate-400 text-xl flex-shrink-0">←</span>
         )}
       </div>
@@ -465,13 +478,19 @@ function LessonItemCard({ item, idx, onPlayVideo, navigate }) {
 
 // ── Sidebar Item (inside video player view) ────────────────────────────
 function SidebarItem({ item, idx, isActive, thumb, onClick, navigate }) {
-  const handleClick = () => {
+  const handleClick = async () => {
     if (item.type === 'video') {
       onClick();
     } else if (item.type === 'exam' && item.exam_id) {
-      navigate(`/take-exam/${item.exam_id}`);
-    } else if ((item.type === 'assignment' || item.type === 'file') && item.file_url) {
-      window.open(item.file_url, '_blank', 'noreferrer');
+      navigate(`/student/exam/${item.exam_id}`);
+    } else if (item.type === 'file') {
+      const { data } = await api.get(`/videos/items/${item.id}/download`).catch(()=>({data:null}));
+      if (data?.file_data) {
+        const a = document.createElement('a');
+        a.href = data.file_data; a.download = data.file_name || 'ملف'; a.click();
+      } else if (item.file_url) {
+        window.open(item.file_url, '_blank', 'noreferrer');
+      }
     }
   };
 
