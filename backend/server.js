@@ -60,7 +60,7 @@ runMigrations();
 
 const app = express();
 app.use(cors({ origin: '*' }));
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
 
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/exams',       require('./routes/exams'));
