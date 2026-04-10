@@ -1,7 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 
 const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+
+// Resize & compress image → base64 JPEG (max 800px wide, 70% quality)
+function resizeImage(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const maxW = 800;
+        let w = img.width, h = img.height;
+        if (w > maxW) { h = Math.round(h * maxW / w); w = maxW; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.7));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 function getYouTubeId(url) {
   const regex = /(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|\S*?[?&]v=)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
@@ -178,9 +199,20 @@ function PlaylistModal({ playlist, onClose, onSave }) {
     thumbnail:   playlist?.thumbnail || '',
     grade:       playlist?.grade || 4,
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError]       = useState('');
+  const fileRef = useRef();
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const base64 = await resizeImage(file);
+    set('thumbnail', base64);
+    setUploading(false);
+  };
 
   const handleSave = async () => {
     if (!form.title) return setError('العنوان مطلوب');
@@ -226,18 +258,16 @@ function PlaylistModal({ playlist, onClose, onSave }) {
             <textarea className="input resize-none" rows={2} value={form.description}
               onChange={e=>set('description',e.target.value)}/>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">رابط صورة الغلاف (اختياري)</label>
-            <input className="input" placeholder="https://..." value={form.thumbnail}
-              onChange={e=>set('thumbnail',e.target.value)}/>
-            {form.thumbnail && (
-              <img src={form.thumbnail} alt="preview"
-                className="mt-2 w-full h-32 object-cover rounded-lg border border-slate-200"/>
-            )}
-          </div>
+          <ImageUploadField
+            value={form.thumbnail}
+            onChange={v => set('thumbnail', v)}
+            fileRef={fileRef}
+            uploading={uploading}
+            onFileChange={handleImageFile}
+          />
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading}>
+          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading || uploading}>
             {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ'}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
@@ -467,9 +497,20 @@ function SubPlaylistModal({ subPlaylist, parentId, onClose, onSave }) {
     description: subPlaylist?.description || '',
     thumbnail:   subPlaylist?.thumbnail || '',
   });
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState('');
+  const [loading, setLoading]   = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [error, setError]       = useState('');
+  const fileRef = useRef();
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const handleImageFile = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploading(true);
+    const base64 = await resizeImage(file);
+    set('thumbnail', base64);
+    setUploading(false);
+  };
 
   const handleSave = async () => {
     if (!form.title) return setError('العنوان مطلوب');
@@ -507,18 +548,16 @@ function SubPlaylistModal({ subPlaylist, parentId, onClose, onSave }) {
             <textarea className="input resize-none" rows={2} value={form.description}
               onChange={e=>set('description',e.target.value)}/>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">رابط صورة الغلاف (اختياري)</label>
-            <input className="input" placeholder="https://..." value={form.thumbnail}
-              onChange={e=>set('thumbnail',e.target.value)}/>
-            {form.thumbnail && (
-              <img src={form.thumbnail} alt="preview"
-                className="mt-2 w-full h-28 object-cover rounded-lg border border-slate-200"/>
-            )}
-          </div>
+          <ImageUploadField
+            value={form.thumbnail}
+            onChange={v => set('thumbnail', v)}
+            fileRef={fileRef}
+            uploading={uploading}
+            onFileChange={handleImageFile}
+          />
         </div>
         <div className="flex gap-3 mt-5">
-          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading}>
+          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading || uploading}>
             {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ'}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
@@ -823,6 +862,61 @@ function ItemModal({ item, playlistId, onClose, onSave }) {
           <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Reusable Image Upload Field ───────────────────────────────────────────
+function ImageUploadField({ value, onChange, fileRef, uploading, onFileChange }) {
+  return (
+    <div>
+      <label className="block text-xs font-bold text-slate-500 mb-1">صورة الغلاف (اختياري)</label>
+
+      {/* Upload from device */}
+      <input
+        ref={fileRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={onFileChange}
+      />
+      <div className="flex gap-2 mb-2">
+        <button
+          type="button"
+          onClick={() => fileRef.current?.click()}
+          disabled={uploading}
+          className="btn-secondary btn-sm flex items-center gap-1.5 flex-1"
+        >
+          {uploading
+            ? <><span className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"/> جاري الرفع...</>
+            : <>📁 ارفع من الجهاز</>}
+        </button>
+        {value && (
+          <button
+            type="button"
+            onClick={() => onChange('')}
+            className="btn-danger btn-sm px-2"
+            title="حذف الصورة"
+          >✕</button>
+        )}
+      </div>
+
+      {/* Or paste URL */}
+      <input
+        className="input text-xs"
+        placeholder="أو الصق رابط صورة https://..."
+        value={value?.startsWith('data:') ? '' : (value || '')}
+        onChange={e => onChange(e.target.value)}
+      />
+
+      {/* Preview */}
+      {value && (
+        <img
+          src={value}
+          alt="preview"
+          className="mt-2 w-full h-32 object-cover rounded-lg border border-slate-200"
+        />
+      )}
     </div>
   );
 }

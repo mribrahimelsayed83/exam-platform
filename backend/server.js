@@ -31,6 +31,10 @@ async function runMigrations() {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id);
     `);
+    // Make thumbnail column TEXT to support base64 image uploads
+    await pool.query(`
+      ALTER TABLE playlists ALTER COLUMN thumbnail TYPE TEXT;
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
