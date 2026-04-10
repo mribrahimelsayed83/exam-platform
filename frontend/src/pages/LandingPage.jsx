@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import api from '../utils/api';
-import mr from './mr.png'
+import mr from '../mr.png'
 
 export default function LandingPage() {
   const [data, setData]     = useState(null);
