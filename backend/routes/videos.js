@@ -15,16 +15,17 @@ function getYouTubeId(url) {
 // STUDENT — عرض القوائم والفيديوهات
 // ════════════════════════════════════════
 
-// GET /videos/playlists — قوائم الطالب حسب صفه
+// GET /videos/playlists — قوائم الطالب حسب صفه (top-level only)
 router.get('/playlists', auth('student'), async (req, res) => {
   try {
     const { grade } = req.user;
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.position,
-              COUNT(v.id)::int AS video_count
+              COUNT(v.id)::int AS video_count,
+              (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count
        FROM playlists p
        LEFT JOIN videos v ON v.playlist_id = p.id
-       WHERE p.grade = $1
+       WHERE p.grade = $1 AND p.parent_id IS NULL
        GROUP BY p.id
        ORDER BY p.position, p.created_at`,
       [grade]
@@ -36,12 +37,12 @@ router.get('/playlists', auth('student'), async (req, res) => {
   }
 });
 
-// GET /videos/playlists/:id — فيديوهات قائمة معينة
+// GET /videos/playlists/:id — فيديوهات أو سب-بلايليستات قائمة معينة
 router.get('/playlists/:id', auth('student'), async (req, res) => {
   try {
     const { grade } = req.user;
     const playlist = await pool.query(
-      'SELECT * FROM playlists WHERE id=$1 AND grade=$2',
+      'SELECT * FROM playlists WHERE id=$1 AND grade=$2 AND parent_id IS NULL',
       [req.params.id, grade]
     );
     if (!playlist.rows[0])
@@ -57,18 +58,77 @@ router.get('/playlists/:id', auth('student'), async (req, res) => {
   }
 });
 
+// GET /videos/playlists/:id/subs — سب-بلايليستات قائمة للطالب
+router.get('/playlists/:id/subs', auth('student'), async (req, res) => {
+  try {
+    const { grade } = req.user;
+    const parent = await pool.query(
+      'SELECT * FROM playlists WHERE id=$1 AND grade=$2 AND parent_id IS NULL',
+      [req.params.id, grade]
+    );
+    if (!parent.rows[0])
+      return res.status(404).json({ message: 'القائمة مش موجودة أو مش لصفك' });
+
+    const subs = await pool.query(
+      `SELECT p.id, p.title, p.description, p.thumbnail, p.position,
+              COUNT(pi.id)::int AS item_count
+       FROM playlists p
+       LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
+       WHERE p.parent_id = $1
+       GROUP BY p.id
+       ORDER BY p.position, p.created_at`,
+      [req.params.id]
+    );
+    res.json({ parent: parent.rows[0], subs: subs.rows });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// GET /videos/playlists/:id/items — محتوى سب-بلايليست للطالب
+router.get('/playlists/:id/items', auth('student'), async (req, res) => {
+  try {
+    const { grade } = req.user;
+    // verify this is a sub-playlist whose parent belongs to student's grade
+    const sub = await pool.query(
+      `SELECT p.*, pp.grade AS parent_grade
+       FROM playlists p
+       JOIN playlists pp ON pp.id = p.parent_id
+       WHERE p.id = $1 AND pp.grade = $2 AND p.parent_id IS NOT NULL`,
+      [req.params.id, grade]
+    );
+    if (!sub.rows[0])
+      return res.status(404).json({ message: 'الدرس مش موجود أو مش لصفك' });
+
+    const items = await pool.query(
+      `SELECT pi.*, e.title AS exam_title, e.grade AS exam_grade,
+              e.duration AS exam_duration, e.pass_score AS exam_pass_score
+       FROM playlist_items pi
+       LEFT JOIN exams e ON e.id = pi.exam_id
+       WHERE pi.playlist_id = $1
+       ORDER BY pi.position`,
+      [req.params.id]
+    );
+    res.json({ playlist: sub.rows[0], items: items.rows });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ════════════════════════════════════════
 // STAFF — إدارة القوائم والفيديوهات
 // ════════════════════════════════════════
 
-// GET /videos/manage/playlists — كل القوائم للمدرس
+// GET /videos/manage/playlists — القوائم الرئيسية للمدرس (top-level only)
 router.get('/manage/playlists', staff, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
-              COUNT(v.id)::int AS video_count
+              COUNT(v.id)::int AS video_count,
+              (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count
        FROM playlists p
        LEFT JOIN videos v ON v.playlist_id = p.id
+       WHERE p.parent_id IS NULL
        GROUP BY p.id
        ORDER BY p.grade, p.position, p.created_at`
     );
@@ -146,6 +206,164 @@ router.delete('/manage/playlists/:id', staff, async (req, res) => {
   try {
     await pool.query('DELETE FROM playlists WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ════════════════════════════════════════
+// STAFF — إدارة السب-بلايليستات (الدروس)
+// ════════════════════════════════════════
+
+// GET /videos/manage/playlists/:id/subs — سب-بلايليستات قائمة
+router.get('/manage/playlists/:id/subs', staff, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
+              COUNT(pi.id)::int AS item_count
+       FROM playlists p
+       LEFT JOIN playlist_items pi ON pi.playlist_id = p.id
+       WHERE p.parent_id = $1
+       GROUP BY p.id
+       ORDER BY p.position, p.created_at`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// POST /videos/manage/playlists/:id/subs — إنشاء سب-بلايليست
+router.post('/manage/playlists/:id/subs', staff, async (req, res) => {
+  const { title, description, thumbnail } = req.body;
+  if (!title) return res.status(400).json({ message: 'العنوان مطلوب' });
+  try {
+    const parent = await pool.query('SELECT grade FROM playlists WHERE id=$1', [req.params.id]);
+    if (!parent.rows[0]) return res.status(404).json({ message: 'القائمة الرئيسية مش موجودة' });
+    const maxPos = await pool.query(
+      'SELECT COALESCE(MAX(position),0) AS m FROM playlists WHERE parent_id=$1',
+      [req.params.id]
+    );
+    const position = maxPos.rows[0].m + 1;
+    const result = await pool.query(
+      'INSERT INTO playlists (title,description,thumbnail,grade,position,parent_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [title, description||'', thumbnail||'', parent.rows[0].grade, position, req.params.id]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// PUT /videos/manage/playlists/subs/reorder — إعادة ترتيب السب-بلايليستات
+router.put('/manage/playlists/subs/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE playlists SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ════════════════════════════════════════
+// STAFF — إدارة عناصر السب-بلايليست
+// ════════════════════════════════════════
+
+// GET /videos/manage/playlists/:id/items — محتوى سب-بلايليست
+router.get('/manage/playlists/:id/items', staff, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT pi.*, e.title AS exam_title, e.grade AS exam_grade
+       FROM playlist_items pi
+       LEFT JOIN exams e ON e.id = pi.exam_id
+       WHERE pi.playlist_id = $1
+       ORDER BY pi.position`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// POST /videos/manage/playlists/:id/items — إضافة عنصر
+router.post('/manage/playlists/:id/items', staff, async (req, res) => {
+  const { type, title, description, youtube_url, exam_id, file_url } = req.body;
+  if (!type || !title) return res.status(400).json({ message: 'النوع والعنوان مطلوبان' });
+  if (type === 'video') {
+    if (!youtube_url) return res.status(400).json({ message: 'رابط YouTube مطلوب' });
+    if (!getYouTubeId(youtube_url)) return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
+  }
+  if (type === 'exam' && !exam_id) return res.status(400).json({ message: 'اختر امتحاناً' });
+  try {
+    const maxPos = await pool.query(
+      'SELECT COALESCE(MAX(position),0) AS m FROM playlist_items WHERE playlist_id=$1',
+      [req.params.id]
+    );
+    const position = maxPos.rows[0].m + 1;
+    const result = await pool.query(
+      `INSERT INTO playlist_items (playlist_id,type,title,description,position,youtube_url,exam_id,file_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+      [req.params.id, type, title, description||'', position, youtube_url||'', exam_id||null, file_url||'']
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// PUT /videos/manage/items/:id — تعديل عنصر
+router.put('/manage/items/:id', staff, async (req, res) => {
+  const { title, description, youtube_url, exam_id, file_url } = req.body;
+  if (youtube_url && !getYouTubeId(youtube_url))
+    return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
+  try {
+    await pool.query(
+      'UPDATE playlist_items SET title=$1,description=$2,youtube_url=$3,exam_id=$4,file_url=$5 WHERE id=$6',
+      [title, description||'', youtube_url||'', exam_id||null, file_url||'', req.params.id]
+    );
+    res.json({ message: 'تم التعديل' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// DELETE /videos/manage/items/:id — حذف عنصر
+router.delete('/manage/items/:id', staff, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM playlist_items WHERE id=$1', [req.params.id]);
+    res.json({ message: 'تم الحذف' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// PUT /videos/manage/items/reorder — إعادة ترتيب العناصر
+router.put('/manage/items/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE playlist_items SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// GET /videos/manage/exams-list — قائمة الامتحانات للإضافة في السب-بلايليست
+router.get('/manage/exams-list', staff, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, title, grade FROM exams WHERE is_active=TRUE ORDER BY grade, created_at DESC'
+    );
+    res.json(result.rows);
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }

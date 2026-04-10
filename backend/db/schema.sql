@@ -119,6 +119,29 @@ CREATE TABLE IF NOT EXISTS videos (
 CREATE INDEX IF NOT EXISTS idx_playlists_grade ON playlists(grade);
 CREATE INDEX IF NOT EXISTS idx_videos_playlist ON videos(playlist_id);
 
+-- ── Sub-playlist support ──────────────────────────────────────────────────
+ALTER TABLE playlists ADD COLUMN IF NOT EXISTS parent_id INTEGER DEFAULT NULL
+  REFERENCES playlists(id) ON DELETE CASCADE;
+
+CREATE INDEX IF NOT EXISTS idx_playlists_parent ON playlists(parent_id);
+
+-- ── Playlist Items (mixed content inside sub-playlists) ───────────────────
+-- type: 'video' | 'exam' | 'assignment' | 'file'
+CREATE TABLE IF NOT EXISTS playlist_items (
+  id          SERIAL PRIMARY KEY,
+  playlist_id INTEGER NOT NULL REFERENCES playlists(id) ON DELETE CASCADE,
+  type        VARCHAR(20) NOT NULL CHECK (type IN ('video','exam','assignment','file')),
+  title       VARCHAR(200) NOT NULL,
+  description TEXT DEFAULT '',
+  position    INTEGER DEFAULT 0,
+  youtube_url VARCHAR(500) DEFAULT '',   -- for type='video'
+  exam_id     INTEGER REFERENCES exams(id) ON DELETE SET NULL, -- for type='exam'
+  file_url    VARCHAR(500) DEFAULT '',   -- for type='assignment' or 'file'
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_playlist_items_playlist ON playlist_items(playlist_id);
+
 -- ── Notifications ─────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS notifications (
   id         SERIAL PRIMARY KEY,

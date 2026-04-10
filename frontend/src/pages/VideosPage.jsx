@@ -10,22 +10,87 @@ function getYouTubeId(url) {
   return match ? match[1] : null;
 }
 
-export default function VideosPage() {
-  const [playlists, setPlaylists] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [selected, setSelected]   = useState(null);
-  const { user } = useAuth();
+const ITEM_ICONS  = { video:'🎬', exam:'📝', assignment:'📋', file:'📄' };
+const ITEM_LABELS = { video:'فيديو', exam:'امتحان', assignment:'واجب', file:'ملف' };
+const ITEM_COLORS = {
+  video:'bg-blue-500/20 text-blue-300',
+  exam:'bg-purple-500/20 text-purple-300',
+  assignment:'bg-orange-500/20 text-orange-300',
+  file:'bg-green-500/20 text-green-300',
+};
 
+// ── Main Page ──────────────────────────────────────────────────────────────
+export default function VideosPage() {
+  // view states: 'playlists' | 'subs' | 'items' | 'player'
+  const [view, setView]           = useState('playlists');
+  const [playlists, setPlaylists] = useState([]);
+  const [parentPlaylist, setParentPlaylist] = useState(null);
+  const [subs, setSubs]           = useState([]);
+  const [subPlaylist, setSubPlaylist] = useState(null);
+  const [items, setItems]         = useState([]);
+  const [currentVideo, setCurrentVideo] = useState(null);
+  const [loading, setLoading]     = useState(true);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  // Load top-level playlists on mount
   useEffect(() => {
     api.get('/videos/playlists')
       .then(r => setPlaylists(r.data))
       .finally(() => setLoading(false));
   }, []);
 
+  // ── Open a top-level playlist ──
   const openPlaylist = async (pl) => {
-    const { data } = await api.get(`/videos/playlists/${pl.id}`);
-    const videos = data.videos.sort((a,b) => a.position - b.position);
-    setSelected({ playlist: data.playlist, videos, currentVideo: videos[0] || null });
+    setLoading(true);
+    try {
+      if (pl.sub_count > 0) {
+        // Has sub-playlists → show sub-playlists view
+        const { data } = await api.get(`/videos/playlists/${pl.id}/subs`);
+        setParentPlaylist(data.parent);
+        setSubs(data.subs);
+        setView('subs');
+      } else {
+        // Legacy direct-videos playlist
+        const { data } = await api.get(`/videos/playlists/${pl.id}`);
+        const sorted = (data.videos || []).sort((a,b) => a.position - b.position);
+        setParentPlaylist(data.playlist);
+        setItems(sorted.map(v => ({ ...v, type: 'video' })));
+        setCurrentVideo(sorted[0] || null);
+        setView(sorted.length > 0 ? 'player' : 'items');
+      }
+    } finally { setLoading(false); }
+  };
+
+  // ── Open a sub-playlist ──
+  const openSub = async (sub) => {
+    setLoading(true);
+    try {
+      const { data } = await api.get(`/videos/playlists/${sub.id}/items`);
+      setSubPlaylist(data.playlist);
+      setItems(data.items || []);
+      // If first item is a video, go directly to player
+      const firstVideo = (data.items || []).find(i => i.type === 'video');
+      setCurrentVideo(firstVideo || null);
+      setView('items');
+    } finally { setLoading(false); }
+  };
+
+  // ── Back handlers ──
+  const goToPlaylists = () => {
+    setView('playlists');
+    setParentPlaylist(null);
+    setSubs([]);
+    setSubPlaylist(null);
+    setItems([]);
+    setCurrentVideo(null);
+  };
+
+  const goToSubs = () => {
+    setView('subs');
+    setSubPlaylist(null);
+    setItems([]);
+    setCurrentVideo(null);
   };
 
   if (loading) return (
@@ -36,25 +101,44 @@ export default function VideosPage() {
     </div>
   );
 
-  // ── Video Player ──────────────────────────────────────────────────────
-  if (selected) {
-    const { playlist, videos, currentVideo } = selected;
+  // ── Video Player view (legacy + items with active video) ──────────────
+  if (view === 'player' || (view === 'items' && currentVideo && currentVideo.type === 'video' && items.some(i=>i.type==='video'))) {
     const videoId    = getYouTubeId(currentVideo?.youtube_url);
-    const currentIdx = videos.findIndex(v => v.id === currentVideo?.id);
+    const videoItems = items.filter(i => i.type === 'video');
+    const currentIdx = videoItems.findIndex(v => v.id === currentVideo?.id);
 
     return (
       <div className="min-h-screen bg-slate-900">
         <Navbar/>
         <div className="max-w-6xl mx-auto px-4 py-6">
-          <button onClick={() => setSelected(null)}
-            className="text-slate-400 hover:text-white text-sm flex items-center gap-1 mb-4 transition-colors">
-            ← رجوع للقوائم
-          </button>
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm mb-4 flex-wrap">
+            <button onClick={goToPlaylists} className="text-slate-400 hover:text-white transition-colors">
+              ← الفيديوهات
+            </button>
+            {parentPlaylist && (
+              <>
+                <span className="text-slate-600">/</span>
+                <button onClick={view === 'items' ? goToSubs : goToPlaylists}
+                  className="text-slate-400 hover:text-white transition-colors">
+                  {parentPlaylist.title}
+                </button>
+              </>
+            )}
+            {subPlaylist && (
+              <>
+                <span className="text-slate-600">/</span>
+                <button onClick={() => setCurrentVideo(null)}
+                  className="text-slate-400 hover:text-white transition-colors">
+                  {subPlaylist.title}
+                </button>
+              </>
+            )}
+          </div>
 
           <div className="grid lg:grid-cols-3 gap-6">
             {/* Player + Comments */}
             <div className="lg:col-span-2 space-y-4">
-              {/* YouTube embed */}
               {videoId ? (
                 <div className="relative bg-black rounded-2xl overflow-hidden" style={{paddingTop:'56.25%'}}>
                   <iframe
@@ -70,52 +154,55 @@ export default function VideosPage() {
                 </div>
               )}
 
-              {/* Video info + like */}
-              <VideoInfo video={currentVideo} />
+              <VideoInfo video={currentVideo}/>
 
-              {/* Prev/Next */}
+              {/* Prev/Next among videos */}
               <div className="flex gap-3">
-                <button disabled={currentIdx===0}
-                  onClick={() => setSelected(s=>({...s,currentVideo:videos[currentIdx-1]}))}
+                <button disabled={currentIdx<=0}
+                  onClick={() => setCurrentVideo(videoItems[currentIdx-1])}
                   className="btn-secondary flex-1 disabled:opacity-40">← السابق</button>
-                <button disabled={currentIdx===videos.length-1}
-                  onClick={() => setSelected(s=>({...s,currentVideo:videos[currentIdx+1]}))}
+                <button disabled={currentIdx>=videoItems.length-1}
+                  onClick={() => setCurrentVideo(videoItems[currentIdx+1])}
                   className="btn-primary flex-1 disabled:opacity-40">التالي →</button>
               </div>
 
-              {/* Comments */}
+              {/* Back to lesson items */}
+              {view === 'items' && (
+                <button onClick={() => setCurrentVideo(null)}
+                  className="w-full btn-secondary">
+                  ← رجوع لمحتوى الدرس
+                </button>
+              )}
+
               {currentVideo && <VideoComments videoId={currentVideo.id} user={user}/>}
             </div>
 
-            {/* Playlist sidebar */}
+            {/* Sidebar: all items in the sub-playlist */}
             <div className="lg:col-span-1">
               <div className="bg-slate-800 rounded-2xl overflow-hidden sticky top-20">
                 <div className="p-4 border-b border-slate-700">
-                  <h3 className="font-bold text-white text-sm">{playlist.title}</h3>
-                  <p className="text-slate-400 text-xs mt-0.5">{videos.length} فيديو</p>
+                  <h3 className="font-bold text-white text-sm">
+                    {subPlaylist?.title || parentPlaylist?.title}
+                  </h3>
+                  <p className="text-slate-400 text-xs mt-0.5">{items.length} عنصر</p>
                 </div>
                 <div className="max-h-[500px] overflow-y-auto">
-                  {videos.map((v,idx) => {
-                    const tid = getYouTubeId(v.youtube_url);
+                  {items.map((item, idx) => {
+                    const isActiveVideo = item.type === 'video' && currentVideo?.id === item.id;
+                    const tid = item.type === 'video' ? getYouTubeId(item.youtube_url) : null;
                     const thumb = tid ? `https://img.youtube.com/vi/${tid}/mqdefault.jpg` : null;
-                    const isActive = currentVideo?.id === v.id;
                     return (
-                      <div key={v.id}
-                        onClick={() => setSelected(s=>({...s,currentVideo:v}))}
-                        className={`flex items-center gap-3 p-3 cursor-pointer transition-colors
-                          ${isActive?'bg-blue-600':'hover:bg-slate-700'}`}>
-                        <div className={`flex-shrink-0 text-xs font-bold w-5 text-center ${isActive?'text-white':'text-slate-500'}`}>
-                          {isActive?'▶':idx+1}
-                        </div>
-                        <div className="w-16 h-10 flex-shrink-0 bg-slate-700 rounded overflow-hidden">
-                          {thumb
-                            ? <img src={thumb} alt={v.title} className="w-full h-full object-cover"/>
-                            : <div className="w-full h-full flex items-center justify-center text-slate-500">🎥</div>}
-                        </div>
-                        <p className={`text-xs font-semibold truncate flex-1 ${isActive?'text-white':'text-slate-300'}`}>
-                          {v.title}
-                        </p>
-                      </div>
+                      <SidebarItem
+                        key={item.id}
+                        item={item}
+                        idx={idx}
+                        isActive={isActiveVideo}
+                        thumb={thumb}
+                        onClick={() => {
+                          if (item.type === 'video') setCurrentVideo(item);
+                        }}
+                        navigate={navigate}
+                      />
                     );
                   })}
                 </div>
@@ -127,7 +214,132 @@ export default function VideosPage() {
     );
   }
 
-  // ── Playlists Grid ─────────────────────────────────────────────────────
+  // ── Items view (lesson content, no active video) ──────────────────────
+  if (view === 'items') {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <Navbar/>
+        <div className="max-w-3xl mx-auto px-4 py-8">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-2 text-sm mb-6 flex-wrap">
+            <button onClick={goToPlaylists} className="text-slate-500 hover:text-slate-800 transition-colors">
+              الفيديوهات
+            </button>
+            {parentPlaylist && (
+              <>
+                <span className="text-slate-400">/</span>
+                <button onClick={goToSubs} className="text-slate-500 hover:text-slate-800 transition-colors">
+                  {parentPlaylist.title}
+                </button>
+              </>
+            )}
+            {subPlaylist && (
+              <>
+                <span className="text-slate-400">/</span>
+                <span className="text-slate-800 font-semibold">{subPlaylist.title}</span>
+              </>
+            )}
+          </div>
+
+          <h1 className="text-2xl font-extrabold text-slate-800 mb-1">{subPlaylist?.title}</h1>
+          {subPlaylist?.description && (
+            <p className="text-slate-500 text-sm mb-6">{subPlaylist.description}</p>
+          )}
+
+          {items.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-5xl mb-3">📭</div>
+              <p>لا يوجد محتوى في هذا الدرس بعد</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {items.map((item, idx) => (
+                <LessonItemCard
+                  key={item.id}
+                  item={item}
+                  idx={idx}
+                  onPlayVideo={() => setCurrentVideo(item)}
+                  navigate={navigate}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Sub-playlists view (lessons list) ────────────────────────────────
+  if (view === 'subs') {
+    return (
+      <div className="min-h-screen bg-slate-100">
+        <Navbar/>
+        <div className="max-w-3xl mx-auto px-4 py-8">
+          <button onClick={goToPlaylists}
+            className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1 mb-4 transition-colors">
+            ← رجوع للقوائم
+          </button>
+          {parentPlaylist?.thumbnail && (
+            <div className="relative rounded-2xl overflow-hidden aspect-video mb-6 max-h-48">
+              <img src={parentPlaylist.thumbnail} alt={parentPlaylist.title}
+                className="w-full h-full object-cover"/>
+              <div className="absolute inset-0 bg-black/40 flex items-end p-5">
+                <h1 className="text-2xl font-extrabold text-white">{parentPlaylist.title}</h1>
+              </div>
+            </div>
+          )}
+          {!parentPlaylist?.thumbnail && (
+            <h1 className="text-2xl font-extrabold text-slate-800 mb-6">{parentPlaylist?.title}</h1>
+          )}
+
+          {parentPlaylist?.description && (
+            <p className="text-slate-500 text-sm mb-5">{parentPlaylist.description}</p>
+          )}
+
+          <p className="text-sm text-slate-500 mb-4">{subs.length} درس</p>
+
+          {subs.length === 0 ? (
+            <div className="text-center py-16 text-slate-400">
+              <div className="text-5xl mb-3">📂</div>
+              <p>لا توجد دروس بعد</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[...subs].sort((a,b)=>a.position-b.position).map((sub, idx) => (
+                <div key={sub.id}
+                  onClick={() => openSub(sub)}
+                  className="card p-0 overflow-hidden cursor-pointer hover:shadow-md transition-shadow group">
+                  <div className="flex items-center gap-4 p-4">
+                    {sub.thumbnail ? (
+                      <div className="w-20 h-14 flex-shrink-0 rounded-xl overflow-hidden">
+                        <img src={sub.thumbnail} alt={sub.title} className="w-full h-full object-cover"/>
+                      </div>
+                    ) : (
+                      <div className="w-14 h-14 flex-shrink-0 bg-blue-100 rounded-xl flex items-center justify-center">
+                        <span className="text-2xl font-extrabold text-blue-600">{idx + 1}</span>
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">
+                        {sub.title}
+                      </h3>
+                      {sub.description && (
+                        <p className="text-xs text-slate-500 mt-0.5 truncate">{sub.description}</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-1">{sub.item_count} عنصر</p>
+                    </div>
+                    <span className="text-slate-400 group-hover:text-blue-500 transition-colors text-xl">←</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // ── Playlists Grid (default view) ────────────────────────────────────
   return (
     <div className="min-h-screen bg-slate-100">
       <Navbar/>
@@ -154,13 +366,19 @@ export default function VideosPage() {
                       </div>}
                   <div className="absolute inset-0 bg-black/20 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
                     <div className="w-14 h-14 bg-white/90 rounded-full flex items-center justify-center">
-                      <span className="text-blue-600 text-2xl">▶</span>
+                      <span className="text-blue-600 text-2xl">{pl.sub_count > 0 ? '📂' : '▶'}</span>
                     </div>
                   </div>
                   <div className="absolute bottom-2 left-2">
-                    <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
-                      {pl.video_count} فيديو
-                    </span>
+                    {pl.sub_count > 0 ? (
+                      <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                        {pl.sub_count} درس
+                      </span>
+                    ) : (
+                      <span className="bg-black/70 text-white text-xs px-2 py-0.5 rounded-full">
+                        {pl.video_count} فيديو
+                      </span>
+                    )}
                   </div>
                 </div>
                 <div className="p-4">
@@ -170,6 +388,119 @@ export default function VideosPage() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Lesson Item Card (in items view) ─────────────────────────────────────
+function LessonItemCard({ item, idx, onPlayVideo, navigate }) {
+  const thumb = item.type === 'video' ? getThumbnail(item.youtube_url) : null;
+
+  const handleClick = () => {
+    if (item.type === 'video') {
+      onPlayVideo();
+    } else if (item.type === 'exam' && item.exam_id) {
+      navigate(`/take-exam/${item.exam_id}`);
+    } else if ((item.type === 'assignment' || item.type === 'file') && item.file_url) {
+      window.open(item.file_url, '_blank', 'noreferrer');
+    }
+  };
+
+  const isClickable = item.type === 'video' ||
+    (item.type === 'exam' && item.exam_id) ||
+    ((item.type === 'assignment' || item.type === 'file') && item.file_url);
+
+  return (
+    <div
+      onClick={isClickable ? handleClick : undefined}
+      className={`card p-0 overflow-hidden transition-shadow ${isClickable ? 'cursor-pointer hover:shadow-md' : ''}`}>
+      <div className="flex items-center gap-4 p-4">
+        {/* Thumb or icon */}
+        <div className="w-20 h-14 flex-shrink-0 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+          {thumb ? (
+            <div className="relative w-full h-full">
+              <img src={thumb} alt={item.title} className="w-full h-full object-cover"/>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-8 h-8 bg-red-600/90 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm">▶</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <span className="text-3xl">{ITEM_ICONS[item.type]}</span>
+          )}
+        </div>
+
+        {/* Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+              item.type === 'video'      ? 'bg-blue-100 text-blue-700' :
+              item.type === 'exam'       ? 'bg-purple-100 text-purple-700' :
+              item.type === 'assignment' ? 'bg-orange-100 text-orange-700' :
+                                           'bg-green-100 text-green-700'
+            }`}>
+              {ITEM_ICONS[item.type]} {ITEM_LABELS[item.type]}
+            </span>
+          </div>
+          <h3 className="font-bold text-slate-800 truncate">{item.title}</h3>
+          {item.description && <p className="text-xs text-slate-500 truncate mt-0.5">{item.description}</p>}
+          {item.type === 'exam' && item.exam_title && (
+            <p className="text-xs text-purple-600 mt-0.5">📝 {item.exam_title}</p>
+          )}
+          {!isClickable && (item.type === 'assignment' || item.type === 'file') && (
+            <p className="text-xs text-slate-400 mt-0.5">لا يوجد رابط متاح</p>
+          )}
+        </div>
+
+        {isClickable && (
+          <span className="text-slate-400 text-xl flex-shrink-0">←</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar Item (inside video player view) ────────────────────────────
+function SidebarItem({ item, idx, isActive, thumb, onClick, navigate }) {
+  const handleClick = () => {
+    if (item.type === 'video') {
+      onClick();
+    } else if (item.type === 'exam' && item.exam_id) {
+      navigate(`/take-exam/${item.exam_id}`);
+    } else if ((item.type === 'assignment' || item.type === 'file') && item.file_url) {
+      window.open(item.file_url, '_blank', 'noreferrer');
+    }
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      className={`flex items-center gap-3 p-3 cursor-pointer transition-colors
+        ${isActive ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>
+      <div className={`flex-shrink-0 text-xs font-bold w-5 text-center ${isActive ? 'text-white' : 'text-slate-500'}`}>
+        {isActive ? '▶' : idx + 1}
+      </div>
+      <div className="w-16 h-10 flex-shrink-0 bg-slate-700 rounded overflow-hidden flex items-center justify-center">
+        {thumb
+          ? <img src={thumb} alt={item.title} className="w-full h-full object-cover"/>
+          : <span className="text-lg">{ITEM_ICONS[item.type]}</span>}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-xs font-semibold truncate ${isActive ? 'text-white' : 'text-slate-300'}`}>
+          {item.title}
+        </p>
+        {!isActive && (
+          <span className={`text-xs px-1.5 py-0.5 rounded-full mt-0.5 inline-block ${
+            item.type === 'video'      ? 'bg-blue-500/20 text-blue-300' :
+            item.type === 'exam'       ? 'bg-purple-500/20 text-purple-300' :
+            item.type === 'assignment' ? 'bg-orange-500/20 text-orange-300' :
+                                         'bg-green-500/20 text-green-300'
+          }`}>
+            {ITEM_LABELS[item.type]}
+          </span>
         )}
       </div>
     </div>
@@ -241,8 +572,6 @@ function VideoComments({ videoId, user }) {
       <h3 className="font-bold text-white mb-4 text-sm">
         التعليقات {comments.length > 0 && <span className="text-slate-400 font-normal">({comments.length})</span>}
       </h3>
-
-      {/* Comments list */}
       <div className="space-y-3 mb-4 max-h-60 overflow-y-auto">
         {loading ? (
           <div className="flex justify-center py-4">
@@ -268,8 +597,6 @@ function VideoComments({ videoId, user }) {
         )}
         <div ref={bottomRef}/>
       </div>
-
-      {/* Comment input */}
       <form onSubmit={send} className="flex gap-2">
         <div className="w-7 h-7 bg-blue-600 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold">
           {user?.name?.charAt(0)}
