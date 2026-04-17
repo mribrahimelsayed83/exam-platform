@@ -11,6 +11,7 @@ import ExamResultPage       from './pages/ExamResultPage';
 import TeacherDashboard     from './pages/TeacherDashboard';
 import VideosPage           from './pages/VideosPage';
 import LandingPage          from './pages/LandingPage';
+import StudentMyReport      from './pages/StudentMyReport';
 
 function RequireAuth({ role, children }) {
   const { user, loading } = useAuth();
@@ -48,6 +49,9 @@ export default function App() {
       }/>
       <Route path="/student/videos" element={
         <RequireAuth role="student"><VideosPage/></RequireAuth>
+      }/>
+      <Route path="/student/my-report" element={
+        <RequireAuth role="student"><StudentMyReport/></RequireAuth>
       }/>
 
       {/* المدرس والمساعد — نفس الـ dashboard */}

@@ -144,6 +144,47 @@ router.get('/mine/:id', auth('student'), async (req, res) => {
   }
 });
 
+// ── GET /submissions/my-report — full personal report for logged-in student ──
+router.get('/my-report', auth('student'), async (req, res) => {
+  const studentId = req.user.id;
+  try {
+    const [studentRes, subsRes, viewsRes] = await Promise.all([
+      pool.query(
+        `SELECT id, name, username, grade, phone, parent_phone, email, status, created_at
+         FROM students WHERE id=$1`,
+        [studentId]
+      ),
+      pool.query(
+        `SELECT s.id, s.mcq_score, s.mcq_correct, s.mcq_total,
+                s.essay_total, s.essay_graded, s.essay_score, s.essay_max,
+                s.final_score, s.grading_status, s.submitted_at, s.review,
+                e.title AS exam_title, e.pass_score, e.exam_comment, e.duration
+         FROM submissions s
+         JOIN exams e ON e.id = s.exam_id
+         WHERE s.student_id=$1
+         ORDER BY s.submitted_at DESC`,
+        [studentId]
+      ),
+      pool.query(
+        `SELECT vv.title, vv.viewed_at, vv.item_id
+         FROM video_views vv
+         WHERE vv.student_id=$1
+         ORDER BY vv.viewed_at DESC`,
+        [studentId]
+      ),
+    ]);
+    if (!studentRes.rows[0]) return res.status(404).json({ message: 'الطالب مش موجود' });
+    res.json({
+      student:     studentRes.rows[0],
+      submissions: subsRes.rows,
+      video_views: viewsRes.rows,
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── GET /submissions — staff sees all ────────────────────────────────────
 router.get('/', staff, async (req, res) => {
   try {

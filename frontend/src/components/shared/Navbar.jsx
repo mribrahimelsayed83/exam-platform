@@ -39,6 +39,10 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
               </p>
             )}
           </div>
+          <button onClick={() => go('/student/my-report')}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
+            📋 تقرير عني
+          </button>
           <button onClick={() => go('/student/videos')}
             className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
             🎬 الفيديوهات
