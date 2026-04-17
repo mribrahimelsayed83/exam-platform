@@ -70,6 +70,11 @@ export default function VideosPage() {
     } finally { setLoading(false); }
   };
 
+  // ── Track video view ──
+  const trackView = (item) => {
+    api.post('/videos/view', { item_id: item.id, title: item.title }).catch(() => {});
+  };
+
   // ── Back handlers ──
   const goToPlaylists = () => {
     setView('playlists');
@@ -153,10 +158,10 @@ export default function VideosPage() {
               {/* Prev/Next among videos */}
               <div className="flex gap-3">
                 <button disabled={currentIdx<=0}
-                  onClick={() => setCurrentVideo(videoItems[currentIdx-1])}
+                  onClick={() => { const v=videoItems[currentIdx-1]; setCurrentVideo(v); trackView(v); }}
                   className="btn-secondary flex-1 disabled:opacity-40">← السابق</button>
                 <button disabled={currentIdx>=videoItems.length-1}
-                  onClick={() => setCurrentVideo(videoItems[currentIdx+1])}
+                  onClick={() => { const v=videoItems[currentIdx+1]; setCurrentVideo(v); trackView(v); }}
                   className="btn-primary flex-1 disabled:opacity-40">التالي →</button>
               </div>
 
@@ -193,7 +198,7 @@ export default function VideosPage() {
                         isActive={isActiveVideo}
                         thumb={thumb}
                         onClick={() => {
-                          if (item.type === 'video') setCurrentVideo(item);
+                          if (item.type === 'video') { setCurrentVideo(item); trackView(item); }
                         }}
                         navigate={navigate}
                       />
@@ -251,7 +256,7 @@ export default function VideosPage() {
                 <LessonItemCard
                   key={item.id}
                   item={item}
-                  onPlayVideo={() => setCurrentVideo(item)}
+                  onPlayVideo={() => { setCurrentVideo(item); trackView(item); }}
                   navigate={navigate}
                 />
               ))}

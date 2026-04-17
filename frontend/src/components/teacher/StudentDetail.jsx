@@ -30,7 +30,7 @@ export default function StudentDetail({ studentId, onBack }) {
   );
   if (!data) return null;
 
-  const { student, submissions } = data;
+  const { student, submissions, video_views = [] } = data;
   const approved = submissions.filter(s => s.grading_status === 'fully_graded');
   const avgScore = approved.length
     ? Math.round(approved.reduce((a,s) => a + s.final_score, 0) / approved.length)
@@ -88,9 +88,33 @@ export default function StudentDetail({ studentId, onBack }) {
         </div>
       </div>
 
+      {/* Video Views */}
+      <div className="card mb-4">
+        <h3 className="font-bold text-slate-700 mb-3">🎬 الفيديوهات المفتوحة ({video_views.length})</h3>
+        {video_views.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-4">لم يفتح الطالب أي فيديو بعد</p>
+        ) : (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {video_views.map((v, i) => (
+              <div key={i} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-base flex-shrink-0">🎬</span>
+                  <span className="text-sm font-semibold text-slate-700 truncate">{v.title}</span>
+                </div>
+                <span className="text-xs text-slate-400 flex-shrink-0 mr-3">
+                  {new Date(v.viewed_at).toLocaleDateString('ar-EG', {
+                    month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
+                  })}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Submissions */}
       <h3 className="font-bold text-slate-700 mb-3">
-        الامتحانات المُنجزة ({submissions.length})
+        📝 الامتحانات المُنجزة ({submissions.length})
       </h3>
 
       {submissions.length === 0 ? (

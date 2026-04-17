@@ -33,7 +33,19 @@ router.get('/students/:id', staff, async (req, res) => {
       [req.params.id]
     );
 
-    res.json({ student: studentRes.rows[0], submissions: subsRes.rows });
+    const viewsRes = await pool.query(
+      `SELECT vv.title, vv.viewed_at, vv.item_id
+       FROM video_views vv
+       WHERE vv.student_id = $1
+       ORDER BY vv.viewed_at DESC`,
+      [req.params.id]
+    );
+
+    res.json({
+      student: studentRes.rows[0],
+      submissions: subsRes.rows,
+      video_views: viewsRes.rows,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });

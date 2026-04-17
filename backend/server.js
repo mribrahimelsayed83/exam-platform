@@ -62,6 +62,19 @@ async function runMigrations() {
       ) sub
       WHERE e.id = sub.id AND e.position = 0;
     `);
+    // Track which videos/items students open
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS video_views (
+        id         SERIAL PRIMARY KEY,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        item_id    INTEGER REFERENCES playlist_items(id) ON DELETE SET NULL,
+        title      VARCHAR(300) NOT NULL DEFAULT '',
+        viewed_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_video_views_student ON video_views(student_id);
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

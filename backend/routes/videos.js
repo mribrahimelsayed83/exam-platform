@@ -477,6 +477,21 @@ router.delete('/manage/videos/:id', staff, async (req, res) => {
   }
 });
 
+// ── POST /videos/view — student records opening a video/item ──────────────
+router.post('/view', auth('student'), async (req, res) => {
+  const { item_id, title } = req.body;
+  const studentId = req.user.id;
+  try {
+    await pool.query(
+      `INSERT INTO video_views (student_id, item_id, title) VALUES ($1, $2, $3)`,
+      [studentId, item_id || null, title || '']
+    );
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ' });
+  }
+});
+
 module.exports = router;
 
 // ════════════════════════════════════════
