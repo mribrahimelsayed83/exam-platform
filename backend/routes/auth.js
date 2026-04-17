@@ -139,7 +139,7 @@ router.get('/me', auth(), async (req, res) => {
     else if (role === 'assistant')
       result = await pool.query('SELECT id,name,username FROM assistants WHERE id=$1', [id]);
     else
-      result = await pool.query('SELECT id,name,username,grade,email FROM students WHERE id=$1', [id]);
+      result = await pool.query('SELECT id,name,username,grade,email,phone,created_at FROM students WHERE id=$1', [id]);
     if (!result.rows[0]) return res.status(404).json({ message: 'المستخدم مش موجود' });
     res.json({ ...result.rows[0], role });
   } catch (err) {

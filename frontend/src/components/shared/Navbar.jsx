@@ -32,6 +32,12 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
             <p className="text-xs text-slate-400">مرحباً</p>
             <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
             {user?.grade && <p className="text-xs text-blue-600 mt-0.5">{GRADES[user.grade]}</p>}
+            {user?.email && <p className="text-xs text-slate-400 mt-0.5 truncate">{user.email}</p>}
+            {user?.created_at && (
+              <p className="text-xs text-slate-400 mt-0.5">
+                انضم: {new Date(user.created_at).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric' })}
+              </p>
+            )}
           </div>
           <button onClick={() => go('/student/videos')}
             className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
