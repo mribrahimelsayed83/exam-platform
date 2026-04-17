@@ -59,7 +59,8 @@ router.get('/', auth('student'), async (req, res) => {
        FROM notifications n
        LEFT JOIN notification_reads nr
          ON nr.notification_id = n.id AND nr.student_id = $2
-       WHERE n.grade IS NULL OR n.grade = $1
+       WHERE (n.student_id IS NULL OR n.student_id = $2)
+         AND (n.grade IS NULL OR n.grade = $1)
        ORDER BY n.created_at DESC`,
       [grade, id]
     );
@@ -78,7 +79,8 @@ router.get('/unread-count', auth('student'), async (req, res) => {
        FROM notifications n
        LEFT JOIN notification_reads nr
          ON nr.notification_id = n.id AND nr.student_id = $2
-       WHERE (n.grade IS NULL OR n.grade = $1)
+       WHERE (n.student_id IS NULL OR n.student_id = $2)
+         AND (n.grade IS NULL OR n.grade = $1)
          AND nr.student_id IS NULL`,
       [grade, id]
     );
@@ -110,7 +112,8 @@ router.post('/read-all', auth('student'), async (req, res) => {
       `INSERT INTO notification_reads (notification_id, student_id)
        SELECT n.id, $2
        FROM notifications n
-       WHERE (n.grade IS NULL OR n.grade = $1)
+       WHERE (n.student_id IS NULL OR n.student_id = $2)
+         AND (n.grade IS NULL OR n.grade = $1)
        ON CONFLICT DO NOTHING`,
       [grade, id]
     );

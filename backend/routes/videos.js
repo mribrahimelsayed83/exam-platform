@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const notify = require('../utils/teacherNotif');
+const { notifyGrade } = require('../utils/studentNotif');
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 const staff  = auth.staff;
@@ -313,7 +314,14 @@ router.post('/manage/playlists/:id/items', staff, async (req, res) => {
       [req.params.id, type, title, description||'', position,
        youtube_url||'', exam_id||null, file_url||'', file_name||'', file_data||'']
     );
-    res.status(201).json(result.rows[0]);
+    const newItem = result.rows[0];
+    // fetch playlist grade to target the right students
+    const plRes = await pool.query('SELECT grade FROM playlists WHERE id=$1', [req.params.id]);
+    if (plRes.rows[0]) {
+      const typeLabel = type === 'video' ? '🎬 فيديو جديد' : type === 'file' ? '📎 ملف جديد' : '📝 محتوى جديد';
+      notifyGrade(plRes.rows[0].grade, typeLabel, `تم إضافة "${title}" — تفقد الدروس الآن`);
+    }
+    res.status(201).json(newItem);
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }

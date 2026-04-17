@@ -75,6 +75,11 @@ async function runMigrations() {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_video_views_student ON video_views(student_id);
     `);
+    // Add student_id to notifications for targeted (per-student) notifications
+    await pool.query(`
+      ALTER TABLE notifications
+        ADD COLUMN IF NOT EXISTS student_id INTEGER REFERENCES students(id) ON DELETE CASCADE;
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

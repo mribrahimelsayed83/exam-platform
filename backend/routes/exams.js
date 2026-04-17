@@ -2,6 +2,7 @@ const router = require('express').Router();
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 const staff  = auth.staff;
+const { notifyGrade } = require('../utils/studentNotif');
 
 router.get('/', auth('student'), async (req, res) => {
   try {
@@ -180,6 +181,7 @@ router.post('/', staff, async (req, res) => {
       }
     }
     await client.query('COMMIT');
+    notifyGrade(Number(grade), '📝 امتحان جديد', `تم إضافة امتحان جديد: ${title}`);
     res.status(201).json({ message: 'تم إنشاء الامتحان', examId });
   } catch (err) {
     await client.query('ROLLBACK');

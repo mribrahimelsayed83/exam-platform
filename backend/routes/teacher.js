@@ -2,6 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
+const { notifyStudent } = require('../utils/studentNotif');
 
 const staff = auth.staff;
 
@@ -91,6 +92,7 @@ router.put('/students/:id/approve', staff, async (req, res) => {
       `UPDATE students SET status='approved', ${col}=$1, approved_at=NOW() WHERE id=$2`,
       [id, req.params.id]
     );
+    notifyStudent(Number(req.params.id), '✅ تم قبول حسابك', 'مبروك! تم قبول حسابك في المنصة. يمكنك الآن الدخول والبدء في الدراسة.');
     res.json({ message: 'تم قبول الطالب' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
