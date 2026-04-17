@@ -59,7 +59,7 @@ router.get('/students', staff, async (req, res) => {
     const { status } = req.query;
     let query = `
       SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
-             st.status, st.created_at, st.approved_at,
+             st.email, st.status, st.created_at, st.approved_at,
              t.name AS approved_by_name,
              a.name AS approved_by_asst_name,
              COUNT(s.id)::int AS submission_count,
