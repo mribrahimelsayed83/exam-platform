@@ -30,21 +30,13 @@ export default function StudentDashboard() {
     <div className="min-h-screen bg-slate-100">
       <Navbar/>
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-800">
-              {view==='exams'?'الامتحانات المتاحة':'نتائجي'}
-            </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              {view==='exams'?'امتحانات صفك الدراسي':`${results.length} امتحان مُنجز`}
-            </p>
-          </div>
-          <button onClick={()=>setView(v=>v==='exams'?'results':'exams')} className="btn-secondary btn-sm">
-            {view==='exams'?'📊 نتائجي':'📚 الامتحانات'}
-          </button>
-          <button onClick={()=>navigate('/student/videos')} className="btn-secondary btn-sm">
-            🎬 الفيديوهات
-          </button>
+        <div className="mb-6">
+          <h1 className="text-2xl font-extrabold text-slate-800">
+            {view==='exams'?'الامتحانات المتاحة':'نتائجي'}
+          </h1>
+          <p className="text-slate-500 text-sm mt-1">
+            {view==='exams'?'امتحانات صفك الدراسي':`${results.length} امتحان مُنجز`}
+          </p>
         </div>
 
         {view==='exams' && (
