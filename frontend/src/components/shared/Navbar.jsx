@@ -70,16 +70,28 @@ export default function Navbar({ title }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
 
-  const handleLogout = () => { logout(); navigate('/login'); };
+  const handleLogout = () => {
+    const isStudent = user?.role === 'student';
+    logout();
+    navigate(isStudent ? '/' : '/login');
+  };
 
   return (
     <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
           <span className="font-extrabold text-blue-600 text-base">
             {title || 'منصة الامتحانات'}
           </span>
+          {user?.role === 'student' && (
+            <button
+              onClick={() => navigate('/')}
+              className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50"
+            >
+              🏠 الصفحة الرئيسية
+            </button>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {user?.role !== 'student' && user?.grade && (
