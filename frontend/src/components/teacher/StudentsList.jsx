@@ -183,54 +183,97 @@ export default function StudentsList() {
 
 function EditStudentModal({ student, onClose, onSave }) {
   const [form, setForm] = useState({
-    name: student.name, grade: student.grade,
-    phone: student.phone, parent_phone: student.parent_phone,
+    name:         student.name        || '',
+    username:     student.username    || '',
+    grade:        student.grade,
+    phone:        student.phone       || '',
+    parent_phone: student.parent_phone|| '',
+    email:        student.email       || '',
+    newPassword:  '',
   });
   const [loading, setLoading] = useState(false);
-  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const [error, setError]     = useState('');
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
   const handleSave = async () => {
+    setError('');
     setLoading(true);
-    try { await api.put(`/teacher/students/${student.id}`, form); onSave(); }
-    finally { setLoading(false); }
+    try {
+      await api.put(`/teacher/students/${student.id}`, form);
+      onSave();
+    } catch (err) {
+      setError(err.response?.data?.message || 'خطأ في الحفظ');
+    } finally {
+      setLoading(false);
+    }
   };
+
+  const Field = ({ label, children }) => (
+    <div>
+      <label className="block text-xs font-bold text-slate-500 mb-1">{label}</label>
+      {children}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h3 className="font-extrabold text-slate-800">تعديل بيانات الطالب</h3>
           <button onClick={onClose} className="btn-ghost btn-sm">✕</button>
         </div>
+
         <div className="space-y-3">
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">الاسم</label>
-            <input className="input" value={form.name} onChange={e=>set('name',e.target.value)}/>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">الصف</label>
-            <select className="input" value={form.grade} onChange={e=>set('grade',Number(e.target.value))}>
-              {Object.entries(GRADES).map(([k,v])=>(
+          <Field label="الاسم الكامل">
+            <input className="input" value={form.name} onChange={e => set('name', e.target.value)}/>
+          </Field>
+
+          <Field label="اسم المستخدم">
+            <input className="input" value={form.username}
+              onChange={e => set('username', e.target.value.replace(/\s/g, '').toLowerCase())}
+              dir="ltr"/>
+          </Field>
+
+          <Field label="الصف الدراسي">
+            <select className="input" value={form.grade} onChange={e => set('grade', Number(e.target.value))}>
+              {Object.entries(GRADES).map(([k, v]) => (
                 <option key={k} value={k}>{v}</option>
               ))}
             </select>
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="تليفون الطالب">
+              <input className="input" value={form.phone} inputMode="numeric" maxLength={11}
+                onChange={e => set('phone', e.target.value.replace(/\D/g, '').slice(0, 11))}/>
+            </Field>
+            <Field label="تليفون ولي الأمر">
+              <input className="input" value={form.parent_phone} inputMode="numeric" maxLength={11}
+                onChange={e => set('parent_phone', e.target.value.replace(/\D/g, '').slice(0, 11))}/>
+            </Field>
           </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">تليفون الطالب</label>
-            <input className="input" value={form.phone}
-              onChange={e=>set('phone',e.target.value.replace(/\D/g,'').slice(0,11))}
-              inputMode="numeric" maxLength={11}/>
-          </div>
-          <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">تليفون ولي الأمر</label>
-            <input className="input" value={form.parent_phone}
-              onChange={e=>set('parent_phone',e.target.value.replace(/\D/g,'').slice(0,11))}
-              inputMode="numeric" maxLength={11}/>
+
+          <Field label="البريد الإلكتروني">
+            <input className="input" type="email" value={form.email} dir="ltr"
+              onChange={e => set('email', e.target.value)}/>
+          </Field>
+
+          <div className="border-t border-slate-100 pt-3">
+            <Field label="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)">
+              <input className="input" type="password" value={form.newPassword}
+                placeholder="6 أحرف على الأقل"
+                onChange={e => set('newPassword', e.target.value)}/>
+            </Field>
           </div>
         </div>
+
+        {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
+
         <div className="flex gap-3 mt-5">
           <button onClick={handleSave} className="btn-primary flex-1" disabled={loading}>
-            {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : 'حفظ'}
+            {loading
+              ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"/>
+              : 'حفظ التعديلات'}
           </button>
           <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
         </div>

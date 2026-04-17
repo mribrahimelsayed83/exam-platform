@@ -111,14 +111,48 @@ router.put('/students/:id/reject', staff, async (req, res) => {
 
 // ── Edit ──────────────────────────────────────────────────────────────────
 router.put('/students/:id', staff, async (req, res) => {
-  const { name, grade, phone, parent_phone } = req.body;
+  const { name, grade, phone, parent_phone, email, username, newPassword } = req.body;
   try {
-    await pool.query(
-      `UPDATE students SET name=$1, grade=$2, phone=$3, parent_phone=$4 WHERE id=$5`,
-      [name, grade, phone, parent_phone, req.params.id]
-    );
+    // Check username uniqueness if changed
+    if (username) {
+      const dup = await pool.query(
+        'SELECT id FROM students WHERE username=$1 AND id!=$2',
+        [username.toLowerCase(), req.params.id]
+      );
+      if (dup.rows.length) return res.status(409).json({ message: 'اسم المستخدم مستخدم بالفعل' });
+    }
+    // Check email uniqueness if changed
+    if (email) {
+      const dup = await pool.query(
+        'SELECT id FROM students WHERE email=$1 AND id!=$2',
+        [email.toLowerCase(), req.params.id]
+      );
+      if (dup.rows.length) return res.status(409).json({ message: 'البريد الإلكتروني مستخدم بالفعل' });
+    }
+
+    if (newPassword) {
+      if (newPassword.length < 6) return res.status(400).json({ message: 'كلمة المرور 6 أحرف على الأقل' });
+      const hashed = await bcrypt.hash(newPassword, 10);
+      await pool.query(
+        `UPDATE students SET name=$1, grade=$2, phone=$3, parent_phone=$4,
+          email=COALESCE(NULLIF($5,''), email),
+          username=COALESCE(NULLIF($6,''), username),
+          password=$7
+         WHERE id=$8`,
+        [name, grade, phone, parent_phone, email||'', username||'', hashed, req.params.id]
+      );
+    } else {
+      await pool.query(
+        `UPDATE students SET name=$1, grade=$2, phone=$3, parent_phone=$4,
+          email=COALESCE(NULLIF($5,''), email),
+          username=COALESCE(NULLIF($6,''), username)
+         WHERE id=$7`,
+        [name, grade, phone, parent_phone, email||'', username||'', req.params.id]
+      );
+    }
     res.json({ message: 'تم تعديل بيانات الطالب' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
