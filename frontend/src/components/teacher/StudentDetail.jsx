@@ -85,6 +85,16 @@ export default function StudentDetail({ studentId, onBack }) {
             <span className="text-xs font-bold text-slate-400 block mb-0.5">تليفون ولي الأمر</span>
             <span className="text-slate-700">{student.parent_phone || '—'}</span>
           </div>
+          <div>
+            <span className="text-xs font-bold text-slate-400 block mb-0.5">الإيميل</span>
+            <span className="text-slate-700">{student.email || '—'}</span>
+          </div>
+          <div>
+            <span className="text-xs font-bold text-slate-400 block mb-0.5">تاريخ الانضمام</span>
+            <span className="text-slate-700">
+              {new Date(student.created_at).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
+            </span>
+          </div>
         </div>
       </div>
 

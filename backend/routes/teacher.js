@@ -10,7 +10,7 @@ router.get('/students/:id', staff, async (req, res) => {
   try {
     const studentRes = await pool.query(
       `SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
-              st.status, st.created_at,
+              st.email, st.status, st.created_at,
               t.name AS approved_by_name,
               a.name AS approved_by_asst_name
        FROM students st
