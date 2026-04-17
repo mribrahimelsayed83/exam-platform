@@ -4,8 +4,9 @@ import api from '../utils/api';
 import mr from '../mr.png'
 
 export default function LandingPage() {
-  const [data, setData]     = useState(null);
+  const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dark, setDark]       = useState(() => document.documentElement.classList.contains('dark'));
 
   useEffect(() => {
     api.get('/landing').then(r => setData(r.data)).finally(() => setLoading(false));
@@ -34,6 +35,16 @@ export default function LandingPage() {
             <span className="font-extrabold text-slate-800 text-lg">{data.platform_tagline || 'منصة الامتحانات'}</span>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                const isDark = document.documentElement.classList.toggle('dark');
+                localStorage.setItem('theme', isDark ? 'dark' : 'light');
+                setDark(isDark);
+              }}
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-lg"
+            >
+              {dark ? '☀️' : '🌙'}
+            </button>
             <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
               تسجيل الدخول
             </Link>
