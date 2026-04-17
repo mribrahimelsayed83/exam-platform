@@ -26,6 +26,14 @@ export default function ExamsList() {
   const toggleExam = async (id) => {
     await api.put(`/exams/${id}/toggle`); load();
   };
+  const moveExam = async (idx, dir) => {
+    const next = [...exams];
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= next.length) return;
+    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
+    setExams(next);
+    await api.put('/exams/reorder', { ids: next.map(e => e.id) }).catch(() => load());
+  };
 
   if (loading) return <Spinner />;
 
@@ -44,9 +52,20 @@ export default function ExamsList() {
         </div>
       ) : (
         <div className="space-y-3">
-          {exams.map(exam => (
+          {exams.map((exam, idx) => (
             <div key={exam.id} className="card">
-              <div className="flex items-start justify-between mb-2">
+              <div className="flex items-start gap-2 mb-2">
+                {/* Reorder arrows */}
+                <div className="flex flex-col gap-0.5 flex-shrink-0 pt-0.5">
+                  <button onClick={() => moveExam(idx, -1)} disabled={idx === 0}
+                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
+                    ▲
+                  </button>
+                  <button onClick={() => moveExam(idx, 1)} disabled={idx === exams.length - 1}
+                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
+                    ▼
+                  </button>
+                </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-bold text-slate-800">{exam.title}</h3>

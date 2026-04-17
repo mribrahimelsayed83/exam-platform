@@ -20,7 +20,7 @@ router.get('/', auth('student'), async (req, res) => {
          AND (e.starts_at IS NULL OR e.starts_at <= $3::timestamptz)
          AND (e.ends_at   IS NULL OR e.ends_at   >= $3::timestamptz)
        GROUP BY e.id, s.id
-       ORDER BY e.created_at DESC`,
+       ORDER BY e.position ASC, e.id ASC`,
       [grade, studentId, now]
     );
     res.json(exams.rows);
@@ -187,6 +187,24 @@ router.post('/', staff, async (req, res) => {
   } finally {
     client.release();
   }
+});
+
+// ── PUT /exams/reorder — reorder exams by teacher ──────────────────────────
+router.put('/reorder', staff, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids مطلوب' });
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    for (let i = 0; i < ids.length; i++) {
+      await client.query('UPDATE exams SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    await client.query('COMMIT');
+    res.json({ message: 'تم الترتيب' });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ message: 'خطأ في الترتيب' });
+  } finally { client.release(); }
 });
 
 // ── PUT /exams/:id — edit exam (title, description, grade, duration, passScore, times, comment) ──

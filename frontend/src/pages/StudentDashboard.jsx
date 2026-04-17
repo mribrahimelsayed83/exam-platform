@@ -107,7 +107,7 @@ export default function StudentDashboard() {
         {view === 'exams' && (
           exams.length === 0
             ? <Empty icon="📭" title="لا توجد امتحانات" desc="لم يتم إضافة امتحانات لصفك بعد"/>
-            : <div className="grid sm:grid-cols-2 gap-4">
+            : <div className="space-y-3">
                 {exams.map(exam => <ExamCard key={exam.id} exam={exam} onStart={() => navigate(`/student/exam/${exam.id}`)}/>)}
               </div>
         )}

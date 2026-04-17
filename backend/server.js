@@ -50,6 +50,18 @@ async function runMigrations() {
       ALTER TABLE playlist_items ADD CONSTRAINT playlist_items_type_check
         CHECK (type IN ('video','exam','file'));
     `);
+    // Add position column to exams for teacher-controlled ordering
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
+    `);
+    await pool.query(`
+      UPDATE exams e SET position = sub.rn
+      FROM (
+        SELECT id, (ROW_NUMBER() OVER (ORDER BY created_at ASC) - 1) AS rn
+        FROM exams
+      ) sub
+      WHERE e.id = sub.id AND e.position = 0;
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
