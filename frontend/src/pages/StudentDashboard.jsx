@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import api from '../utils/api';
 
@@ -10,9 +10,8 @@ export default function StudentDashboard() {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const location = useLocation();
-  const initTab  = new URLSearchParams(location.search).get('tab');
-  const [view, setView] = useState(initTab === 'results' ? 'results' : 'exams');
+  const [searchParams] = useSearchParams();
+  const view = searchParams.get('tab') === 'results' ? 'results' : 'exams';
 
   useEffect(() => {
     Promise.all([api.get('/exams'), api.get('/submissions/mine')])
