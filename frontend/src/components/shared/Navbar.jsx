@@ -1,9 +1,60 @@
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import TeacherNotificationBell from './TeacherNotificationBell';
 
 const GRADES = { 4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي', 7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي', 10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي' };
+
+function StudentProfileMenu({ user, navigate, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const go = (path) => { navigate(path); setOpen(false); };
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white text-base transition-colors"
+        title={user?.name}>
+        👤
+      </button>
+      {open && (
+        <div className="absolute left-0 top-10 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden min-w-[190px] z-[999]" dir="rtl">
+          <div className="px-4 py-3 border-b border-slate-100 bg-slate-50">
+            <p className="text-xs text-slate-400">مرحباً</p>
+            <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
+            {user?.grade && <p className="text-xs text-blue-600 mt-0.5">{GRADES[user.grade]}</p>}
+          </div>
+          <button onClick={() => go('/student/videos')}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
+            🎬 الفيديوهات
+          </button>
+          <button onClick={() => go('/student?tab=exams')}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
+            📝 امتحانات منفصلة
+          </button>
+          <button onClick={() => go('/student?tab=results')}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
+            📊 نتائجي
+          </button>
+          <div className="border-t border-slate-100"/>
+          <button onClick={onLogout}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors flex items-center gap-2">
+            🚪 خروج
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function Navbar({ title }) {
   const { user, logout } = useAuth();
@@ -21,7 +72,7 @@ export default function Navbar({ title }) {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          {user?.grade && (
+          {user?.role !== 'student' && user?.grade && (
             <span className="badge badge-blue text-xs">{GRADES[user.grade]}</span>
           )}
           {user?.role === 'teacher' && (
@@ -30,12 +81,18 @@ export default function Navbar({ title }) {
           {user?.role === 'assistant' && (
             <span className="badge badge-blue text-xs">🤝 مساعد</span>
           )}
-          <span className="text-sm font-semibold text-slate-600 hidden sm:block">{user?.name}</span>
+          {user?.role !== 'student' && (
+            <span className="text-sm font-semibold text-slate-600 hidden sm:block">{user?.name}</span>
+          )}
           {/* Bell only for students */}
           {user?.role === 'student' && <NotificationBell/>}
           {/* Bell for teacher and assistant */}
           {(user?.role === 'teacher' || user?.role === 'assistant') && <TeacherNotificationBell/>}
-          <button onClick={handleLogout} className="btn-ghost btn-sm">خروج</button>
+          {/* Profile dropdown for students */}
+          {user?.role === 'student'
+            ? <StudentProfileMenu user={user} navigate={navigate} onLogout={handleLogout}/>
+            : <button onClick={handleLogout} className="btn-ghost btn-sm">خروج</button>
+          }
         </div>
       </div>
     </nav>

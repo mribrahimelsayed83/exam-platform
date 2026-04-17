@@ -215,27 +215,24 @@ export default function VideosPage() {
         <Navbar/>
         <div className="max-w-3xl mx-auto px-4 py-8">
           {/* Breadcrumb */}
-          <div className="flex items-center justify-between gap-3 mb-6">
-            <div className="flex items-center gap-2 text-sm flex-wrap">
-              <button onClick={goToPlaylists} className="text-slate-500 hover:text-slate-800 transition-colors">
-                الفيديوهات
-              </button>
-              {parentPlaylist && (
-                <>
-                  <span className="text-slate-400">/</span>
-                  <button onClick={goToSubs} className="text-slate-500 hover:text-slate-800 transition-colors">
-                    {parentPlaylist.title}
-                  </button>
-                </>
-              )}
-              {subPlaylist && (
-                <>
-                  <span className="text-slate-400">/</span>
-                  <span className="text-slate-800 font-semibold">{subPlaylist.title}</span>
-                </>
-              )}
-            </div>
-            <ProfileDropdown user={user} navigate={navigate} />
+          <div className="flex items-center gap-2 text-sm mb-6 flex-wrap">
+            <button onClick={goToPlaylists} className="text-slate-500 hover:text-slate-800 transition-colors">
+              الفيديوهات
+            </button>
+            {parentPlaylist && (
+              <>
+                <span className="text-slate-400">/</span>
+                <button onClick={goToSubs} className="text-slate-500 hover:text-slate-800 transition-colors">
+                  {parentPlaylist.title}
+                </button>
+              </>
+            )}
+            {subPlaylist && (
+              <>
+                <span className="text-slate-400">/</span>
+                <span className="text-slate-800 font-semibold">{subPlaylist.title}</span>
+              </>
+            )}
           </div>
 
           <h1 className="text-2xl font-extrabold text-slate-800 mb-1">{subPlaylist?.title}</h1>
@@ -250,11 +247,10 @@ export default function VideosPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {items.map((item, idx) => (
+              {items.map((item) => (
                 <LessonItemCard
                   key={item.id}
                   item={item}
-                  idx={idx}
                   onPlayVideo={() => setCurrentVideo(item)}
                   navigate={navigate}
                 />
@@ -272,13 +268,10 @@ export default function VideosPage() {
       <div className="min-h-screen bg-slate-100">
         <Navbar/>
         <div className="max-w-3xl mx-auto px-4 py-8">
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={goToPlaylists}
-              className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1 transition-colors">
-              ← رجوع للقوائم
-            </button>
-            <ProfileDropdown user={user} navigate={navigate} />
-          </div>
+          <button onClick={goToPlaylists}
+            className="text-slate-500 hover:text-slate-800 text-sm flex items-center gap-1 mb-4 transition-colors">
+            ← رجوع للقوائم
+          </button>
           {parentPlaylist?.thumbnail && (
             <div className="relative rounded-2xl overflow-hidden aspect-video mb-6 max-h-48">
               <img src={parentPlaylist.thumbnail} alt={parentPlaylist.title}
@@ -344,12 +337,9 @@ export default function VideosPage() {
     <div className="min-h-screen bg-slate-100">
       <Navbar/>
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="mb-6 flex items-start justify-between gap-3">
-          <div>
-            <h1 className="text-2xl font-extrabold text-slate-800">الفيديوهات التعليمية</h1>
-            <p className="text-slate-500 text-sm mt-1">قوائم الفيديوهات لصفك الدراسي</p>
-          </div>
-          <ProfileDropdown user={user} navigate={navigate} />
+        <div className="mb-6">
+          <h1 className="text-2xl font-extrabold text-slate-800">الفيديوهات التعليمية</h1>
+          <p className="text-slate-500 text-sm mt-1">قوائم الفيديوهات لصفك الدراسي</p>
         </div>
         {playlists.length === 0 ? (
           <div className="text-center py-16 text-slate-400">
@@ -397,48 +387,8 @@ export default function VideosPage() {
   );
 }
 
-// ── Profile Dropdown ─────────────────────────────────────────────────────
-function ProfileDropdown({ user, navigate }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-
-  return (
-    <div className="relative flex-shrink-0" ref={ref}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-extrabold text-sm hover:bg-blue-700 transition-colors shadow-sm">
-        {user?.name?.charAt(0)?.toUpperCase() || '👤'}
-      </button>
-      {open && (
-        <div className="absolute left-0 top-12 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden min-w-[180px] z-50" dir="rtl">
-          <div className="px-4 py-2.5 border-b border-slate-100">
-            <p className="text-xs text-slate-500">مرحباً</p>
-            <p className="text-sm font-bold text-slate-800 truncate">{user?.name}</p>
-          </div>
-          <button
-            onClick={() => { navigate('/student?tab=results'); setOpen(false); }}
-            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
-            <span>📊</span> نتائجي
-          </button>
-          <button
-            onClick={() => { navigate('/student?tab=exams'); setOpen(false); }}
-            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
-            <span>📝</span> امتحانات منفصلة
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ── Lesson Item Card (in items view) ─────────────────────────────────────
-function LessonItemCard({ item, idx, onPlayVideo, navigate }) {
+function LessonItemCard({ item, onPlayVideo, navigate }) {
   const thumb = item.type === 'video' ? getThumbnail(item.youtube_url) : null;
   const [downloading, setDownloading] = useState(false);
 
