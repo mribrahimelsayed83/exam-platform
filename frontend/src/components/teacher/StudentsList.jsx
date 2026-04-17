@@ -189,7 +189,6 @@ function EditStudentModal({ student, onClose, onSave }) {
     phone:        student.phone       || '',
     parent_phone: student.parent_phone|| '',
     email:        student.email       || '',
-    newPassword:  '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -258,13 +257,6 @@ function EditStudentModal({ student, onClose, onSave }) {
               onChange={e => set('email', e.target.value)}/>
           </Field>
 
-          <div className="border-t border-slate-100 pt-3">
-            <Field label="كلمة مرور جديدة (اتركها فارغة لعدم التغيير)">
-              <input className="input" type="password" value={form.newPassword}
-                placeholder="6 أحرف على الأقل"
-                onChange={e => set('newPassword', e.target.value)}/>
-            </Field>
-          </div>
         </div>
 
         {error && <p className="text-red-500 text-sm mt-3 text-center">{error}</p>}
