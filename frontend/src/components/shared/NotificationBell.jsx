@@ -1,41 +1,64 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 
-function playNotifSound() {
-  try {
-    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
-    const gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    [0, 0.15].forEach((delay, i) => {
-      const osc = ctx.createOscillator();
-      osc.connect(gain);
-      osc.frequency.value = i === 0 ? 880 : 1100;
-      gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.25);
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.25);
-    });
-  } catch {}
-}
-
 export default function NotificationBell() {
-  const [count, setCount]       = useState(0);
-  const [notifs, setNotifs]     = useState([]);
-  const [open, setOpen]         = useState(false);
-  const [loading, setLoading]   = useState(false);
-  const ref      = useRef(null);
-  const prevCount = useRef(null);
+  const [count, setCount]     = useState(0);
+  const [notifs, setNotifs]   = useState([]);
+  const [open, setOpen]       = useState(false);
+  const [loading, setLoading] = useState(false);
+  const ref        = useRef(null);
+  const prevCount  = useRef(null);
+  const audioCtx   = useRef(null);
 
-  // جلب عدد الغير مقروء كل 30 ثانية
+  // Unlock AudioContext on first user interaction with the page
+  useEffect(() => {
+    const unlock = () => {
+      if (!audioCtx.current) {
+        audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.current.state === 'suspended') {
+        audioCtx.current.resume();
+      }
+    };
+    document.addEventListener('click', unlock, { once: false });
+    document.addEventListener('keydown', unlock, { once: false });
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
+  }, []);
+
+  const playSound = () => {
+    try {
+      const ctx = audioCtx.current;
+      if (!ctx) return;
+      if (ctx.state === 'suspended') { ctx.resume(); return; }
+      const gain = ctx.createGain();
+      gain.connect(ctx.destination);
+      [[0, 880], [0.18, 1100]].forEach(([delay, freq]) => {
+        const osc = ctx.createOscillator();
+        osc.connect(gain);
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.3, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.3);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.35);
+      });
+    } catch {}
+  };
+
+  // Poll every 5 seconds
   useEffect(() => {
     fetchCount();
-    const interval = setInterval(fetchCount, 30000);
+    const interval = setInterval(fetchCount, 5000);
     return () => clearInterval(interval);
   }, []);
 
-  // إغلاق عند الضغط خارج
+  // Close on outside click
   useEffect(() => {
-    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const handler = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
@@ -43,12 +66,13 @@ export default function NotificationBell() {
   const fetchCount = async () => {
     try {
       const { data } = await api.get('/notifications/unread-count');
+      const newCount = data.count;
       setCount(prev => {
-        if (prevCount.current !== null && data.count > prev) {
-          playNotifSound();
+        if (prevCount.current !== null && newCount > prev) {
+          playSound();
         }
-        prevCount.current = data.count;
-        return data.count;
+        prevCount.current = newCount;
+        return newCount;
       });
     } catch {}
   };
@@ -60,7 +84,9 @@ export default function NotificationBell() {
     try {
       const { data } = await api.get('/notifications');
       setNotifs(data);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const markAllRead = async () => {
@@ -69,16 +95,20 @@ export default function NotificationBell() {
     setNotifs(n => n.map(x => ({ ...x, is_read: true })));
   };
 
-  const markRead = async (id) => {
-    await api.post(`/notifications/${id}/read`);
-    setNotifs(n => n.map(x => x.id === id ? { ...x, is_read: true } : x));
-    setCount(c => Math.max(0, c - 1));
+  const markRead = async (notifId) => {
+    try {
+      await api.post(`/notifications/${notifId}/read`);
+      setNotifs(prev => prev.map(x => x.id === notifId ? { ...x, is_read: true } : x));
+      setCount(c => Math.max(0, c - 1));
+    } catch {}
   };
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={openPanel}
-        className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors">
+      <button
+        onClick={openPanel}
+        className="relative p-2 rounded-lg hover:bg-slate-100 transition-colors"
+      >
         <span className="text-xl">🔔</span>
         {count > 0 && (
           <span className="absolute -top-0.5 -right-0.5 w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
@@ -88,13 +118,12 @@ export default function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+        <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden" dir="rtl">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-sm">الإشعارات</h3>
             {count > 0 && (
-              <button onClick={markAllRead}
-                className="text-xs text-blue-600 hover:underline font-semibold">
+              <button onClick={markAllRead} className="text-xs text-blue-600 hover:underline font-semibold">
                 تعليم الكل كمقروء
               </button>
             )}
@@ -104,7 +133,7 @@ export default function NotificationBell() {
           <div className="max-h-80 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-6">
-                <div className="w-6 h-6 border-3 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+                <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
               </div>
             ) : notifs.length === 0 ? (
               <div className="text-center py-8 text-slate-400">
@@ -112,27 +141,32 @@ export default function NotificationBell() {
                 <p className="text-sm">لا توجد إشعارات</p>
               </div>
             ) : (
-              notifs.map(n => (
-                <div key={n.id}
-                  onClick={() => { if (!n.is_read) markRead(n.id); }}
-                  className={`px-4 py-3 border-b border-slate-50 transition-colors
-                    ${!n.is_read ? 'bg-blue-50 cursor-pointer hover:bg-blue-100' : 'hover:bg-slate-50'}`}>
-                  <div className="flex items-start gap-2">
-                    {!n.is_read && (
-                      <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"/>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm text-slate-800">{n.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
-                      <p className="text-xs text-slate-400 mt-1">
-                        {new Date(n.created_at).toLocaleDateString('ar-EG', {
-                          month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'
-                        })}
-                      </p>
+              notifs.map(n => {
+                const isRead = n.is_read === true || n.is_read === 'true';
+                return (
+                  <div
+                    key={n.id}
+                    onClick={() => { if (!isRead) markRead(n.id); }}
+                    className={`px-4 py-3 border-b border-slate-50 transition-colors
+                      ${!isRead ? 'bg-blue-50 cursor-pointer hover:bg-blue-100' : 'bg-white'}`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {!isRead && (
+                        <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1.5"/>
+                      )}
+                      <div className={`flex-1 min-w-0 ${isRead ? 'pr-4' : ''}`}>
+                        <p className="font-semibold text-sm text-slate-800">{n.title}</p>
+                        <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {new Date(n.created_at).toLocaleDateString('ar-EG', {
+                            month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit',
+                          })}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
