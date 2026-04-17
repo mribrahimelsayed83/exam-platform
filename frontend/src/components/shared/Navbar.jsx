@@ -86,7 +86,7 @@ export default function Navbar({ title }) {
           </span>
           {user?.role === 'student' && (
             <button
-              onClick={() => navigate('/')}
+              onClick={() => navigate('/student')}
               className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50"
             >
               🏠 الصفحة الرئيسية
