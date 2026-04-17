@@ -17,6 +17,7 @@ export default function StudentsList() {
   const [students, setStudents] = useState([]);
   const [filter, setFilter]         = useState('pending');
   const [gradeFilter, setGradeFilter] = useState('all');
+  const [scoreSort, setScoreSort]   = useState(null); // null | 'asc' | 'desc'
   const [loading, setLoading]       = useState(true);
   const [editing, setEditing]       = useState(null);
   const [detailId, setDetailId]     = useState(null);
@@ -36,9 +37,15 @@ export default function StudentsList() {
     await api.delete(`/teacher/students/${id}`); load();
   };
 
-  const filtered = gradeFilter === 'all'
+  const filtered = (gradeFilter === 'all'
     ? students
-    : students.filter(s => String(s.grade) === gradeFilter);
+    : students.filter(s => String(s.grade) === gradeFilter)
+  ).slice().sort((a, b) => {
+    if (!scoreSort) return 0;
+    const av = a.avg_score ?? -1;
+    const bv = b.avg_score ?? -1;
+    return scoreSort === 'asc' ? av - bv : bv - av;
+  });
 
   // Export CSV
   const exportExcel = () => {
@@ -124,9 +131,21 @@ export default function StudentsList() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات','المتوسط','إجراءات'].map(h=>(
+                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات'].map(h=>(
                             <th key={h} className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">{h}</th>
                           ))}
+                          <th className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">
+                            <button
+                              onClick={() => setScoreSort(s => s === 'desc' ? 'asc' : 'desc')}
+                              className="flex items-center gap-1 hover:text-blue-600 transition-colors"
+                            >
+                              المتوسط
+                              <span className="text-base leading-none">
+                                {scoreSort === 'desc' ? '↓' : scoreSort === 'asc' ? '↑' : '↕'}
+                              </span>
+                            </button>
+                          </th>
+                          <th className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">إجراءات</th>
                         </tr>
                       </thead>
                       <tbody>
