@@ -80,6 +80,11 @@ async function runMigrations() {
       ALTER TABLE notifications
         ADD COLUMN IF NOT EXISTS student_id INTEGER REFERENCES students(id) ON DELETE CASCADE;
     `);
+    // Ensure unique constraint on notification_reads so ON CONFLICT DO NOTHING works
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_notif_reads
+        ON notification_reads (notification_id, student_id);
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

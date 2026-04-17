@@ -6,11 +6,11 @@ export default function NotificationBell() {
   const [notifs, setNotifs]   = useState([]);
   const [open, setOpen]       = useState(false);
   const [loading, setLoading] = useState(false);
-  const ref        = useRef(null);
-  const prevCount  = useRef(null);
-  const audioCtx   = useRef(null);
+  const ref       = useRef(null);
+  const prevCount = useRef(null);
+  const audioCtx  = useRef(null);
 
-  // Unlock AudioContext on first user interaction with the page
+  // Create + unlock AudioContext on first user interaction
   useEffect(() => {
     const unlock = () => {
       if (!audioCtx.current) {
@@ -20,19 +20,32 @@ export default function NotificationBell() {
         audioCtx.current.resume();
       }
     };
-    document.addEventListener('click', unlock, { once: false });
-    document.addEventListener('keydown', unlock, { once: false });
+    document.addEventListener('click', unlock);
+    document.addEventListener('keydown', unlock);
     return () => {
       document.removeEventListener('click', unlock);
       document.removeEventListener('keydown', unlock);
     };
   }, []);
 
+  // Poll every 5 seconds — compare OUTSIDE setCount to avoid side-effects in updater
+  useEffect(() => {
+    fetchCount();
+    const id = setInterval(fetchCount, 5000);
+    return () => clearInterval(id);
+  }, []);
+
+  // Close on outside click
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
   const playSound = () => {
     try {
       const ctx = audioCtx.current;
-      if (!ctx) return;
-      if (ctx.state === 'suspended') { ctx.resume(); return; }
+      if (!ctx || ctx.state !== 'running') return;
       const gain = ctx.createGain();
       gain.connect(ctx.destination);
       [[0, 880], [0.18, 1100]].forEach(([delay, freq]) => {
@@ -47,33 +60,16 @@ export default function NotificationBell() {
     } catch {}
   };
 
-  // Poll every 5 seconds
-  useEffect(() => {
-    fetchCount();
-    const interval = setInterval(fetchCount, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Close on outside click
-  useEffect(() => {
-    const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
   const fetchCount = async () => {
     try {
       const { data } = await api.get('/notifications/unread-count');
-      const newCount = data.count;
-      setCount(prev => {
-        if (prevCount.current !== null && newCount > prev) {
-          playSound();
-        }
-        prevCount.current = newCount;
-        return newCount;
-      });
+      const newCount = Number(data.count);
+      // Compare BEFORE updating state — no side effects inside setCount
+      if (prevCount.current !== null && newCount > prevCount.current) {
+        playSound();
+      }
+      prevCount.current = newCount;
+      setCount(newCount);
     } catch {}
   };
 
@@ -90,17 +86,22 @@ export default function NotificationBell() {
   };
 
   const markAllRead = async () => {
-    await api.post('/notifications/read-all');
-    setCount(0);
+    // Optimistic update first
     setNotifs(n => n.map(x => ({ ...x, is_read: true })));
+    setCount(0);
+    prevCount.current = 0;
+    api.post('/notifications/read-all').catch(() => {});
   };
 
-  const markRead = async (notifId) => {
-    try {
-      await api.post(`/notifications/${notifId}/read`);
-      setNotifs(prev => prev.map(x => x.id === notifId ? { ...x, is_read: true } : x));
-      setCount(c => Math.max(0, c - 1));
-    } catch {}
+  const markRead = (notifId) => {
+    // Optimistic update immediately — don't wait for API
+    setNotifs(prev => prev.map(x => x.id === notifId ? { ...x, is_read: true } : x));
+    setCount(c => {
+      const next = Math.max(0, c - 1);
+      prevCount.current = next;
+      return next;
+    });
+    api.post(`/notifications/${notifId}/read`).catch(() => {});
   };
 
   return (
@@ -119,7 +120,6 @@ export default function NotificationBell() {
 
       {open && (
         <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden" dir="rtl">
-          {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <h3 className="font-bold text-slate-800 text-sm">الإشعارات</h3>
             {count > 0 && (
@@ -129,7 +129,6 @@ export default function NotificationBell() {
             )}
           </div>
 
-          {/* List */}
           <div className="max-h-80 overflow-y-auto">
             {loading ? (
               <div className="flex justify-center py-6">
@@ -142,18 +141,16 @@ export default function NotificationBell() {
               </div>
             ) : (
               notifs.map(n => {
-                const isRead = n.is_read === true || n.is_read === 'true';
+                const isRead = !!n.is_read;
                 return (
                   <div
                     key={n.id}
-                    onClick={() => { if (!isRead) markRead(n.id); }}
+                    onClick={() => !isRead && markRead(n.id)}
                     className={`px-4 py-3 border-b border-slate-50 transition-colors
                       ${!isRead ? 'bg-blue-50 cursor-pointer hover:bg-blue-100' : 'bg-white'}`}
                   >
                     <div className="flex items-start gap-2">
-                      {!isRead && (
-                        <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1.5"/>
-                      )}
+                      {!isRead && <span className="w-2 h-2 bg-blue-500 rounded-full shrink-0 mt-1.5"/>}
                       <div className={`flex-1 min-w-0 ${isRead ? 'pr-4' : ''}`}>
                         <p className="font-semibold text-sm text-slate-800">{n.title}</p>
                         <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{n.body}</p>
