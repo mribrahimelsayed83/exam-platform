@@ -2,22 +2,42 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import ImportExamModal from './ImportExamModal';
+import CreateExam from './CreateExam';
 
-const gradeLabel = { 1:'أول ثانوي', 2:'ثاني ثانوي', 3:'ثالث ثانوي' };
+const GRADE_LABELS = {
+  4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي',
+  7:'أول إعدادي',   8:'ثاني إعدادي',  9:'ثالث إعدادي',
+  10:'أول ثانوي',  11:'ثاني ثانوي',  12:'ثالث ثانوي',
+};
 
 export default function ExamsList() {
-  const [exams, setExams]     = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [exams, setExams]         = useState([]);
+  const [loading, setLoading]     = useState(true);
   const [commenting, setCommenting] = useState(null);
   const [editing, setEditing]       = useState(null);
   const [importing, setImporting]   = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [selectedGrade, setSelectedGrade] = useState(null);
   const navigate = useNavigate();
 
   const load = () => {
     setLoading(true);
-    api.get('/exams/all').then(r => setExams(r.data)).finally(() => setLoading(false));
+    api.get('/exams/all').then(r => {
+      const data = r.data;
+      setExams(data);
+      // default to first grade found
+      if (!selectedGrade && data.length > 0) {
+        const grades = [...new Set(data.map(e => e.grade))].sort((a,b)=>a-b);
+        setSelectedGrade(grades[0]);
+      }
+    }).finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const grades = [...new Set(exams.map(e => e.grade))].sort((a,b)=>a-b);
+  const filteredExams = selectedGrade !== null
+    ? exams.filter(e => e.grade === selectedGrade)
+    : exams;
 
   const deleteExam = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
@@ -27,49 +47,94 @@ export default function ExamsList() {
     await api.put(`/exams/${id}/toggle`); load();
   };
   const moveExam = async (idx, dir) => {
-    const next = [...exams];
+    const list = [...filteredExams];
     const swapIdx = idx + dir;
-    if (swapIdx < 0 || swapIdx >= next.length) return;
-    [next[idx], next[swapIdx]] = [next[swapIdx], next[idx]];
-    setExams(next);
-    await api.put('/exams/reorder', { ids: next.map(e => e.id) }).catch(() => load());
+    if (swapIdx < 0 || swapIdx >= list.length) return;
+    [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
+    await api.put('/exams/reorder', { ids: list.map(e => e.id) }).catch(() => {});
+    load();
   };
 
   if (loading) return <Spinner />;
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-extrabold text-slate-800">الامتحانات</h2>
-        <div className="flex gap-2"><button onClick={() => setImporting(true)} className="btn-secondary btn-sm">📊 استيراد Excel</button><button onClick={() => navigate('/teacher/create')} className="btn-primary btn-sm">+ امتحان جديد</button></div>
+        <div className="flex gap-2">
+          <button onClick={() => setImporting(true)} className="btn-secondary btn-sm">📊 استيراد Excel</button>
+          <button onClick={() => setShowCreate(v => !v)}
+            className={`btn-sm ${showCreate ? 'btn-secondary' : 'btn-primary'}`}>
+            {showCreate ? '✕ إغلاق' : '+ امتحان جديد'}
+          </button>
+        </div>
       </div>
 
-      {exams.length === 0 ? (
+      {/* Inline Create Form */}
+      {showCreate && (
+        <div className="card mb-5 border-2 border-blue-200 bg-blue-50/30">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-extrabold text-slate-800 text-lg">✏️ إنشاء امتحان جديد</h3>
+            <button onClick={() => setShowCreate(false)} className="btn-ghost btn-sm text-slate-400">✕</button>
+          </div>
+          <CreateExam onSuccess={() => { setShowCreate(false); load(); }} />
+        </div>
+      )}
+
+      {/* Grade filter tabs */}
+      {grades.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap mb-4">
+          {grades.map(g => (
+            <button key={g} onClick={() => setSelectedGrade(g)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${selectedGrade === g
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>
+              {GRADE_LABELS[g] || `صف ${g}`}
+            </button>
+          ))}
+          {grades.length > 1 && (
+            <button onClick={() => setSelectedGrade(null)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${selectedGrade === null
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-400'}`}>
+              الكل
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Exams list */}
+      {filteredExams.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
           <div className="text-5xl mb-3">📄</div>
           <h3 className="text-lg font-bold text-slate-600 mb-4">لا توجد امتحانات</h3>
-          <button onClick={() => navigate('/teacher/create')} className="btn-primary">إنشاء امتحان</button>
+          <button onClick={() => setShowCreate(true)} className="btn-primary">إنشاء امتحان</button>
         </div>
       ) : (
         <div className="space-y-3">
-          {exams.map((exam, idx) => (
+          {filteredExams.map((exam, idx) => (
             <div key={exam.id} className="card">
               <div className="flex items-start gap-2 mb-2">
-                {/* Reorder arrows */}
-                <div className="flex flex-col gap-0.5 flex-shrink-0 pt-0.5">
-                  <button onClick={() => moveExam(idx, -1)} disabled={idx === 0}
-                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
-                    ▲
-                  </button>
-                  <button onClick={() => moveExam(idx, 1)} disabled={idx === exams.length - 1}
-                    className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
-                    ▼
-                  </button>
-                </div>
+                {/* Reorder arrows — only when a single grade is selected */}
+                {selectedGrade !== null && (
+                  <div className="flex flex-col gap-0.5 flex-shrink-0 pt-0.5">
+                    <button onClick={() => moveExam(idx, -1)} disabled={idx === 0}
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
+                      ▲
+                    </button>
+                    <button onClick={() => moveExam(idx, 1)} disabled={idx === filteredExams.length - 1}
+                      className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-20 transition-colors text-sm">
+                      ▼
+                    </button>
+                  </div>
+                )}
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-bold text-slate-800">{exam.title}</h3>
-                    <span className="badge badge-blue">{gradeLabel[exam.grade]}</span>
+                    <span className="badge badge-blue">{GRADE_LABELS[exam.grade] || exam.grade}</span>
                     <span className={`badge ${exam.is_active ? 'badge-green' : 'badge-gray'}`}>
                       {exam.is_active ? '● مفعّل' : '○ موقوف'}
                     </span>
@@ -127,8 +192,6 @@ function EditExamModal({ exam, onClose, onSave }) {
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto shadow-2xl"
         onClick={e=>e.stopPropagation()}>
-
-        {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 pt-5 pb-0 rounded-t-2xl z-10">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-extrabold text-slate-800">تعديل: {exam.title}</h3>
@@ -144,8 +207,6 @@ function EditExamModal({ exam, onClose, onSave }) {
             ))}
           </div>
         </div>
-
-        {/* Content */}
         <div className="p-6">
           {tab==='info'      && <EditInfoTab      exam={exam} onSave={onSave}/>}
           {tab==='questions' && <EditQuestionsTab exam={exam} onSave={onSave}/>}
@@ -155,7 +216,6 @@ function EditExamModal({ exam, onClose, onSave }) {
   );
 }
 
-// ── Tab 1: بيانات الامتحان ────────────────────────────────────────────────
 function EditInfoTab({ exam, onSave }) {
   const [form, setForm] = useState({
     title:       exam.title,
@@ -199,15 +259,7 @@ function EditInfoTab({ exam, onSave }) {
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">الصف</label>
           <select className="input" value={form.grade} onChange={e=>set('grade',e.target.value)}>
-              <option value="4">رابع ابتدائي</option>
-              <option value="5">خامس ابتدائي</option>
-              <option value="6">سادس ابتدائي</option>
-              <option value="7">أول إعدادي</option>
-              <option value="8">ثاني إعدادي</option>
-              <option value="9">ثالث إعدادي</option>
-              <option value="10">أول ثانوي</option>
-              <option value="11">ثاني ثانوي</option>
-              <option value="12">ثالث ثانوي</option>
+            {Object.entries(GRADE_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
@@ -254,7 +306,6 @@ function EditInfoTab({ exam, onSave }) {
   );
 }
 
-// ── Tab 2: تعديل الأسئلة ─────────────────────────────────────────────────
 function EditQuestionsTab({ exam, onSave }) {
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading]     = useState(true);
@@ -264,9 +315,7 @@ function EditQuestionsTab({ exam, onSave }) {
   useEffect(() => {
     api.get(`/exams/${exam.id}/questions/edit`)
       .then(r => setQuestions(r.data.map(q => ({
-        ...q,
-        options: q.options || ['','','',''],
-        maxScore: q.max_score || 10,
+        ...q, options: q.options || ['','','',''], maxScore: q.max_score || 10,
       }))))
       .finally(() => setLoading(false));
   }, []);
@@ -274,7 +323,6 @@ function EditQuestionsTab({ exam, onSave }) {
   const addMCQ   = () => setQuestions(q=>[...q, {type:'mcq',   text:'', options:['','','',''], correct:0}]);
   const addEssay = () => setQuestions(q=>[...q, {type:'essay', text:'', maxScore:10}]);
   const removeQ  = (i) => { if(questions.length<=1){alert('لازم يكون فيه سؤال واحد على الأقل');return;} setQuestions(q=>q.filter((_,idx)=>idx!==i)); };
-
   const updateQ   = (i,k,v) => setQuestions(q=>q.map((x,idx)=>idx===i?{...x,[k]:v}:x));
   const updateOpt = (qi,oi,v) => setQuestions(q=>q.map((x,idx)=>idx===qi?{...x,options:x.options.map((o,i)=>i===oi?v:o)}:x));
 
@@ -312,26 +360,19 @@ function EditQuestionsTab({ exam, onSave }) {
           <button type="button" onClick={addEssay} className="btn-secondary btn-sm">+ مقالي</button>
         </div>
       </div>
-
       {error && <div className="alert alert-danger mb-4">{error}</div>}
-
       <div className="space-y-4 mb-5">
         {questions.map((q,qi)=>(
           <div key={qi} className={`rounded-xl border p-4 ${q.type==='essay'?'bg-amber-50 border-amber-200':'bg-slate-50 border-slate-200'}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className={`badge ${q.type==='mcq'?'badge-blue':'badge-amber'}`}>
-                  {q.type==='mcq'?'MCQ':'مقالي'}
-                </span>
+                <span className={`badge ${q.type==='mcq'?'badge-blue':'badge-amber'}`}>{q.type==='mcq'?'MCQ':'مقالي'}</span>
                 <span className="font-bold text-sm text-slate-600">السؤال {qi+1}</span>
               </div>
-              <button type="button" onClick={()=>removeQ(qi)}
-                className="text-red-500 hover:text-red-700 text-xs font-bold">حذف ✕</button>
+              <button type="button" onClick={()=>removeQ(qi)} className="text-red-500 hover:text-red-700 text-xs font-bold">حذف ✕</button>
             </div>
-
             <input className="input bg-white mb-3" placeholder="نص السؤال..."
               value={q.text} onChange={e=>updateQ(qi,'text',e.target.value)}/>
-
             {q.type==='mcq' ? (
               <>
                 <p className="text-xs font-bold text-slate-400 mb-2">الخيارات — اختر الصحيح</p>
@@ -339,8 +380,7 @@ function EditQuestionsTab({ exam, onSave }) {
                   <div key={oi} className="flex items-center gap-2 mb-2">
                     <label className="flex items-center gap-1.5 text-xs text-emerald-600 font-bold whitespace-nowrap cursor-pointer">
                       <input type="radio" name={`correct-${qi}`} checked={q.correct===oi}
-                        onChange={()=>updateQ(qi,'correct',oi)} className="accent-emerald-600"/>
-                      صحيح
+                        onChange={()=>updateQ(qi,'correct',oi)} className="accent-emerald-600"/>صحيح
                     </label>
                     <input className="input bg-white text-sm flex-1" placeholder={`الخيار ${oi+1}`}
                       value={opt} onChange={e=>updateOpt(qi,oi,e.target.value)}/>
@@ -357,11 +397,9 @@ function EditQuestionsTab({ exam, onSave }) {
           </div>
         ))}
       </div>
-
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
         ⚠️ تعديل الأسئلة مش هيأثر على الإجابات اللي اتسلمت قبل التعديل
       </div>
-
       <button onClick={handleSave} className="btn-primary w-full" disabled={saving}>
         {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ الأسئلة'}
       </button>
@@ -369,19 +407,14 @@ function EditQuestionsTab({ exam, onSave }) {
   );
 }
 
-// ── Comment Modal ─────────────────────────────────────────────────────────
 function CommentModal({ exam, onClose, onSave }) {
   const [comment, setComment] = useState(exam.exam_comment || '');
   const [loading, setLoading] = useState(false);
-
   const handleSave = async () => {
     setLoading(true);
-    try {
-      await api.put(`/exams/${exam.id}/comment`, { examComment: comment });
-      onSave();
-    } finally { setLoading(false); }
+    try { await api.put(`/exams/${exam.id}/comment`, { examComment: comment }); onSave(); }
+    finally { setLoading(false); }
   };
-
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>

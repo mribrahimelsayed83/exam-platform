@@ -6,7 +6,7 @@ const emptyMCQ   = () => ({ type:'mcq',   text:'', options:['','','',''], correc
 const emptyEssay = () => ({ type:'essay', text:'', maxScore:10 });
 const emptyTF    = () => ({ type:'truefalse', text:'', correct:0 }); // 0=صح, 1=خطأ
 
-export default function CreateExam() {
+export default function CreateExam({ onSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title:'', description:'', grade:'4', duration:30, passScore:50,
@@ -107,7 +107,8 @@ export default function CreateExam() {
           exam_id: created.examId,
         }).catch(() => {});
       }
-      navigate('/teacher/exams');
+      if (onSuccess) onSuccess();
+      else navigate('/teacher/exams');
     } catch(err) {
       setError(err.response?.data?.message||'خطأ في الحفظ');
     } finally { setLoading(false); }

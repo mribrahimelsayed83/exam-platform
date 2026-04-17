@@ -46,7 +46,7 @@ export default function TeacherHome() {
       <div className="card mb-4">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-bold text-slate-700">📄 آخر الامتحانات</h3>
-          <button onClick={() => navigate('/teacher/create')} className="btn-primary btn-sm">
+          <button onClick={() => navigate('/teacher/exams')} className="btn-primary btn-sm">
             + إنشاء
           </button>
         </div>

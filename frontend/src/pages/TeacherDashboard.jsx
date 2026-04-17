@@ -1,8 +1,8 @@
+import { useState } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import Navbar          from '../components/shared/Navbar';
 import TeacherHome     from '../components/teacher/TeacherHome';
-import CreateExam      from '../components/teacher/CreateExam';
 import ExamsList       from '../components/teacher/ExamsList';
 import SubmissionsList from '../components/teacher/SubmissionsList';
 import StudentsList    from '../components/teacher/StudentsList';
@@ -12,6 +12,30 @@ import VideosList            from '../components/teacher/VideosList';
 import NotificationsSender from '../components/teacher/NotificationsSender';
 import LandingEditor       from '../components/teacher/LandingEditor';
 
+// ── Combined Settings + Landing page ─────────────────────────────────────
+function CombinedSettings() {
+  const [tab, setTab] = useState('settings');
+  return (
+    <div>
+      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-5 w-fit">
+        {[
+          { k:'settings', label:'⚙️ إعدادات المنصة' },
+          { k:'landing',  label:'🌐 الصفحة الرئيسية' },
+        ].map(t => (
+          <button key={t.k} onClick={() => setTab(t.k)}
+            className={`px-4 py-2 text-sm font-bold rounded-lg transition-all
+              ${tab === t.k ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'settings' && <TeacherSettings />}
+      {tab === 'landing'  && <LandingEditor />}
+    </div>
+  );
+}
+
+// ── Teacher Dashboard ─────────────────────────────────────────────────────
 export default function TeacherDashboard() {
   const { user } = useAuth();
   const navigate  = useNavigate();
@@ -22,19 +46,16 @@ export default function TeacherDashboard() {
 
   const allNavItems = [
     { path:'',            label:'الرئيسية',    icon:'🏠',  teacherOnly: false },
-    { path:'create',      label:'إنشاء امتحان', icon:'✏️',  teacherOnly: false },
     { path:'exams',       label:'الامتحانات',   icon:'📄',  teacherOnly: false },
     { path:'submissions', label:'الإجابات',     icon:'📊',  teacherOnly: false },
     { path:'students',    label:'الطلاب',       icon:'👥',  teacherOnly: false },
-    { path:'videos',        label:'الفيديوهات',   icon:'🎬',  teacherOnly: false },
-    { path:'notifications', label:'الإشعارات',    icon:'🔔',  teacherOnly: false },
-    { path:'assistants',  label:'المساعدون',    icon:'🤝',  teacherOnly: false },
-    { path:'landing',     label:'الصفحة الرئيسية', icon:'🌐', teacherOnly: true  },
+    { path:'videos',      label:'الفيديوهات',   icon:'🎬',  teacherOnly: false },
+    { path:'notifications', label:'الإشعارات',  icon:'🔔',  teacherOnly: false },
+    { path:'assistants',  label:'المساعدون',    icon:'🤝',  teacherOnly: true  },
     { path:'settings',    label:'الإعدادات',    icon:'⚙️',  teacherOnly: true  },
   ];
 
   const navItems = allNavItems.filter(item => !item.teacherOnly || isTeacher);
-
   const go = (path) => navigate(path ? `/teacher/${path}` : '/teacher');
 
   return (
@@ -83,17 +104,15 @@ export default function TeacherDashboard() {
           {/* Main */}
           <main className="flex-1 min-w-0">
             <Routes>
-              <Route index           element={<TeacherHome />} />
-              <Route path="create"   element={<CreateExam />} />
-              <Route path="exams"    element={<ExamsList />} />
+              <Route index            element={<TeacherHome />} />
+              <Route path="exams"     element={<ExamsList />} />
               <Route path="submissions" element={<SubmissionsList />} />
-              <Route path="students" element={<StudentsList />} />
-              <Route path="videos"        element={<VideosList />} />
+              <Route path="students"  element={<StudentsList />} />
+              <Route path="videos"    element={<VideosList />} />
               <Route path="notifications" element={<NotificationsSender />} />
               {isTeacher && <>
                 <Route path="assistants" element={<AssistantsList />} />
-                <Route path="settings"   element={<TeacherSettings />} />
-                <Route path="landing"    element={<LandingEditor />} />
+                <Route path="settings"   element={<CombinedSettings />} />
               </>}
             </Routes>
           </main>
