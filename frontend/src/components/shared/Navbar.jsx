@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import TeacherNotificationBell from './TeacherNotificationBell';
 
@@ -69,6 +69,8 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
 export default function Navbar({ title }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const isStudentHome = location.pathname === '/student' && !location.search;
 
   const handleLogout = () => {
     const isStudent = user?.role === 'student';
@@ -84,7 +86,7 @@ export default function Navbar({ title }) {
           <span className="font-extrabold text-blue-600 text-base">
             {title || 'منصة الامتحانات'}
           </span>
-          {user?.role === 'student' && (
+          {user?.role === 'student' && !isStudentHome && (
             <button
               onClick={() => navigate('/student')}
               className="text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50"
