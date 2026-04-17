@@ -32,6 +32,16 @@ export default function SubmissionsList() {
 
   useEffect(load, [filterExam, filterGrade, filterStatus]);
 
+  const grades = [...new Set(exams.map(e => e.grade))].sort((a,b) => a-b);
+  const examsForGrade = filterGrade
+    ? exams.filter(e => e.grade === Number(filterGrade))
+    : exams;
+
+  const handleGradeChange = (grade) => {
+    setFilterGrade(grade);
+    setFilterExam(''); // reset exam when grade changes
+  };
+
   const openGrading = async (subId) => {
     const { data } = await api.get(`/submissions/${subId}`);
     setGrading(data);
@@ -42,23 +52,33 @@ export default function SubmissionsList() {
       <h2 className="text-xl font-extrabold text-slate-800 mb-2">إجابات الطلاب</h2>
       <p className="text-slate-500 text-sm mb-5">عرض وتصحيح إجابات الطلاب</p>
 
-      {/* Filters */}
+      {/* Grade tabs */}
+      {grades.length > 0 && (
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          <button onClick={() => handleGradeChange('')}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+              ${filterGrade === ''
+                ? 'bg-slate-700 text-white shadow-sm'
+                : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-400'}`}>
+            كل الصفوف
+          </button>
+          {grades.map(g => (
+            <button key={g} onClick={() => handleGradeChange(String(g))}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${filterGrade === String(g)
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>
+              {gradeLabel[g] || `صف ${g}`}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Exam + Status filters */}
       <div className="flex flex-wrap gap-3 mb-5">
         <select className="input max-w-xs" value={filterExam} onChange={e=>setFilterExam(e.target.value)}>
           <option value="">كل الامتحانات</option>
-          {exams.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}
-        </select>
-        <select className="input max-w-[160px]" value={filterGrade} onChange={e=>setFilterGrade(e.target.value)}>
-          <option value="">كل الصفوف</option>
-          <option value="4">رابع ابتدائي</option>
-          <option value="5">خامس ابتدائي</option>
-          <option value="6">سادس ابتدائي</option>
-          <option value="7">أول إعدادي</option>
-          <option value="8">ثاني إعدادي</option>
-          <option value="9">ثالث إعدادي</option>
-          <option value="10">أول ثانوي</option>
-          <option value="11">ثاني ثانوي</option>
-          <option value="12">ثالث ثانوي</option>
+          {examsForGrade.map(e=><option key={e.id} value={e.id}>{e.title}</option>)}
         </select>
         <select className="input max-w-[160px]" value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}>
           <option value="">كل الحالات</option>
