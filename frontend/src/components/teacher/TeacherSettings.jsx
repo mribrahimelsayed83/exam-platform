@@ -79,12 +79,13 @@ export default function TeacherSettings() {
 
         {/* WhatsApp Settings */}
         <div className="card mb-4">
-          <h3 className="font-bold text-slate-700 mb-1">📲 إعدادات واتساب (UltraMsg)</h3>
-          <p className="text-xs text-slate-400 mb-4">
-            لإرسال درجات الطلاب تلقائيًا لأولياء الأمور — اشترك على{' '}
-            <a href="https://ultramsg.com" target="_blank" rel="noreferrer" className="text-blue-500 underline">ultramsg.com</a>
-            {' '}واحصل على الـ Instance ID والـ Token
-          </p>
+          <h3 className="font-bold text-slate-700 mb-1">📲 إعدادات واتساب</h3>
+          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs text-green-800 space-y-1">
+            <p className="font-bold">🆓 مجاني — Green API (5000 رسالة/شهر)</p>
+            <p>١. اشترك مجانًا على <a href="https://console.green-api.com" target="_blank" rel="noreferrer" className="underline font-semibold">console.green-api.com</a></p>
+            <p>٢. أنشئ Instance جديد واسكن الـ QR بواتساب موبايلك</p>
+            <p>٣. انسخ الـ <strong>idInstance</strong> والـ <strong>apiTokenInstance</strong> وحطهم هنا</p>
+          </div>
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1.5">Instance ID</label>

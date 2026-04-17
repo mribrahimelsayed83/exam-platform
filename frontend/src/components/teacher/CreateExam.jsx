@@ -245,7 +245,7 @@ export default function CreateExam({ onSuccess }) {
             </div>
             <div>
               <p className="text-sm font-bold text-slate-700">📲 إرسال الدرجة لواتساب ولي الأمر</p>
-              <p className="text-xs text-slate-400">يتطلب ضبط بيانات UltraMsg في الإعدادات</p>
+              <p className="text-xs text-slate-400">يتطلب ضبط بيانات Green API في الإعدادات (مجاني)</p>
             </div>
           </label>
         </div>

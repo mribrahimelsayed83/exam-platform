@@ -1,29 +1,31 @@
-const https    = require('https');
-const qs       = require('querystring');
+const https = require('https');
 
 /**
- * Send a WhatsApp message via UltraMsg API.
- * @param {string} phone        - Egyptian phone number (01XXXXXXXXX)
+ * Send WhatsApp message via Green API (free: 5000 msg/month).
+ * Dashboard: https://console.green-api.com
+ *
+ * @param {string} phone        - Egyptian phone e.g. 01XXXXXXXXX
  * @param {string} message      - Message text
- * @param {string} instanceId   - UltraMsg instance ID
- * @param {string} token        - UltraMsg token
+ * @param {string} instanceId   - Green API instance ID
+ * @param {string} token        - Green API token
  */
 function sendWhatsApp(phone, message, instanceId, token) {
   if (!instanceId || !token || !phone) return Promise.resolve();
 
-  // Format: 01XXXXXXXXX → 201XXXXXXXXX
-  let to = phone.replace(/\D/g, '');
-  if (to.startsWith('0')) to = '2' + to;
+  // Format: 01XXXXXXXXX → 201XXXXXXXXX@c.us
+  let num = phone.replace(/\D/g, '');
+  if (num.startsWith('0')) num = '2' + num;
+  const chatId = `${num}@c.us`;
 
-  const body = qs.stringify({ token, to, body: message });
+  const body = JSON.stringify({ chatId, message });
 
   return new Promise((resolve) => {
     const options = {
-      hostname: 'api.ultramsg.com',
-      path:     `/${instanceId}/messages/chat`,
+      hostname: 'api.green-api.com',
+      path:     `/waInstance${instanceId}/sendMessage/${token}`,
       method:   'POST',
       headers:  {
-        'Content-Type':   'application/x-www-form-urlencoded',
+        'Content-Type':   'application/json',
         'Content-Length': Buffer.byteLength(body),
       },
     };
