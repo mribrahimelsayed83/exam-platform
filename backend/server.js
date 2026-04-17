@@ -85,6 +85,16 @@ async function runMigrations() {
       CREATE UNIQUE INDEX IF NOT EXISTS uq_notif_reads
         ON notification_reads (notification_id, student_id);
     `);
+    // WhatsApp parent notification feature
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS send_whatsapp BOOLEAN DEFAULT FALSE;
+    `);
+    await pool.query(`
+      ALTER TABLE teachers ADD COLUMN IF NOT EXISTS whatsapp_instance VARCHAR(100) DEFAULT '';
+    `);
+    await pool.query(`
+      ALTER TABLE teachers ADD COLUMN IF NOT EXISTS whatsapp_token VARCHAR(200) DEFAULT '';
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

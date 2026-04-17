@@ -10,7 +10,7 @@ export default function CreateExam({ onSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title:'', description:'', grade:'4', duration:30, passScore:50,
-    startsAt:'', endsAt:'', examComment:'',
+    startsAt:'', endsAt:'', examComment:'', sendWhatsapp: false,
   });
   const [questions, setQuestions]       = useState([emptyMCQ()]);
   const [useTimeWindow, setUseTimeWindow] = useState(false);
@@ -87,6 +87,7 @@ export default function CreateExam({ onSuccess }) {
         startsAt: useTimeWindow?form.startsAt:null,
         endsAt:   useTimeWindow?form.endsAt:null,
         examComment: form.examComment,
+        sendWhatsapp: form.sendWhatsapp,
         questions: questions.map(q=>
           q.type==='mcq'
             ? {type:'mcq',      text:q.text, options:q.options, correct:q.correct}
@@ -233,6 +234,22 @@ export default function CreateExam({ onSuccess }) {
             placeholder="تعليق هيظهر للطالب في نتيجته بعد التسليم..."
             value={form.examComment} onChange={e=>setF('examComment',e.target.value)}/>
         </div>
+        {/* WhatsApp parent notification */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div
+              onClick={() => setF('sendWhatsapp', !form.sendWhatsapp)}
+              className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${form.sendWhatsapp ? 'bg-green-500' : 'bg-slate-300'}`}
+            >
+              <span className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all duration-200 ${form.sendWhatsapp ? 'right-0.5' : 'left-0.5'}`}/>
+            </div>
+            <div>
+              <p className="text-sm font-bold text-slate-700">📲 إرسال الدرجة لواتساب ولي الأمر</p>
+              <p className="text-xs text-slate-400">يتطلب ضبط بيانات UltraMsg في الإعدادات</p>
+            </div>
+          </label>
+        </div>
+
         {/* Time window */}
         <div className="mt-4 pt-4 border-t border-slate-100">
           <label className="flex items-center gap-2 cursor-pointer mb-3">

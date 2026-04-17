@@ -2,17 +2,23 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 
 export default function TeacherSettings() {
-  const [form, setForm] = useState({ name: '', subject: '', platformName: '' });
+  const [form, setForm] = useState({
+    name: '', subject: '', platformName: '',
+    whatsappInstance: '', whatsappToken: '',
+  });
   const [success, setSuccess] = useState('');
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
+  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     api.get('/teacher/settings').then(r => {
       setForm({
-        name: r.data.name || '',
-        subject: r.data.subject || '',
-        platformName: r.data.platform_name || '',
+        name:             r.data.name              || '',
+        subject:          r.data.subject           || '',
+        platformName:     r.data.platform_name     || '',
+        whatsappInstance: r.data.whatsapp_instance || '',
+        whatsappToken:    r.data.whatsapp_token    || '',
       });
     });
   }, []);
@@ -69,6 +75,42 @@ export default function TeacherSettings() {
               : '💾 حفظ الإعدادات'
             }
           </button>
+        </div>
+
+        {/* WhatsApp Settings */}
+        <div className="card mb-4">
+          <h3 className="font-bold text-slate-700 mb-1">📲 إعدادات واتساب (UltraMsg)</h3>
+          <p className="text-xs text-slate-400 mb-4">
+            لإرسال درجات الطلاب تلقائيًا لأولياء الأمور — اشترك على{' '}
+            <a href="https://ultramsg.com" target="_blank" rel="noreferrer" className="text-blue-500 underline">ultramsg.com</a>
+            {' '}واحصل على الـ Instance ID والـ Token
+          </p>
+          <div className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">Instance ID</label>
+              <input className="input" dir="ltr" placeholder="مثال: instance12345"
+                value={form.whatsappInstance}
+                onChange={e => set('whatsappInstance', e.target.value)} />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">Token</label>
+              <div className="relative">
+                <input
+                  className="input pl-10"
+                  dir="ltr"
+                  type={showToken ? 'text' : 'password'}
+                  placeholder="••••••••••••"
+                  value={form.whatsappToken}
+                  onChange={e => set('whatsappToken', e.target.value)}
+                />
+                <button type="button"
+                  onClick={() => setShowToken(s => !s)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
+                  {showToken ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       </form>
 
