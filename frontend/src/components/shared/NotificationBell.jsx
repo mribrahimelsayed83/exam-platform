@@ -1,12 +1,30 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 
+function playNotifSound() {
+  try {
+    const ctx  = new (window.AudioContext || window.webkitAudioContext)();
+    const gain = ctx.createGain();
+    gain.connect(ctx.destination);
+    [0, 0.15].forEach((delay, i) => {
+      const osc = ctx.createOscillator();
+      osc.connect(gain);
+      osc.frequency.value = i === 0 ? 880 : 1100;
+      gain.gain.setValueAtTime(0.25, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.25);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.25);
+    });
+  } catch {}
+}
+
 export default function NotificationBell() {
   const [count, setCount]       = useState(0);
   const [notifs, setNotifs]     = useState([]);
   const [open, setOpen]         = useState(false);
   const [loading, setLoading]   = useState(false);
-  const ref = useRef(null);
+  const ref      = useRef(null);
+  const prevCount = useRef(null);
 
   // جلب عدد الغير مقروء كل 30 ثانية
   useEffect(() => {
@@ -25,7 +43,13 @@ export default function NotificationBell() {
   const fetchCount = async () => {
     try {
       const { data } = await api.get('/notifications/unread-count');
-      setCount(data.count);
+      setCount(prev => {
+        if (prevCount.current !== null && data.count > prev) {
+          playNotifSound();
+        }
+        prevCount.current = data.count;
+        return data.count;
+      });
     } catch {}
   };
 
@@ -90,9 +114,9 @@ export default function NotificationBell() {
             ) : (
               notifs.map(n => (
                 <div key={n.id}
-                  onClick={() => !n.is_read && markRead(n.id)}
-                  className={`px-4 py-3 border-b border-slate-50 cursor-pointer hover:bg-slate-50 transition-colors
-                    ${!n.is_read ? 'bg-blue-50' : ''}`}>
+                  onClick={() => { if (!n.is_read) markRead(n.id); }}
+                  className={`px-4 py-3 border-b border-slate-50 transition-colors
+                    ${!n.is_read ? 'bg-blue-50 cursor-pointer hover:bg-blue-100' : 'hover:bg-slate-50'}`}>
                   <div className="flex items-start gap-2">
                     {!n.is_read && (
                       <span className="w-2 h-2 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"/>
