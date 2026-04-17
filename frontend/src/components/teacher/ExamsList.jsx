@@ -148,6 +148,8 @@ export default function ExamsList() {
                     <span>•</span><span>{exam.submission_count} إجابة</span>
                     {exam.starts_at && <><span>•</span>
                       <span>من {new Date(exam.starts_at).toLocaleString('ar-EG',{hour:'2-digit',minute:'2-digit',month:'short',day:'numeric'})}</span></>}
+                    {exam.created_at && <><span>•</span>
+                      <span>📅 {new Date(exam.created_at).toLocaleDateString('ar-EG',{year:'numeric',month:'short',day:'numeric'})}</span></>}
                   </div>
                   {exam.exam_comment && (
                     <div className="mt-2 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
