@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 
@@ -16,6 +16,37 @@ export default function CreateExam() {
   const [useTimeWindow, setUseTimeWindow] = useState(false);
   const [error, setError]   = useState('');
   const [loading, setLoading] = useState(false);
+
+  // Exam type: standalone | lesson | playlist
+  const [examType, setExamType]               = useState('standalone');
+  const [allPlaylists, setAllPlaylists]       = useState([]);
+  const [selectedPlaylistId, setSelectedPlaylistId] = useState('');
+  const [allLessons, setAllLessons]           = useState([]);
+  const [selectedLessonId, setSelectedLessonId]     = useState('');
+  const [loadingPlaylists, setLoadingPlaylists] = useState(false);
+  const [loadingLessons, setLoadingLessons]     = useState(false);
+
+  useEffect(() => {
+    if (examType === 'standalone') return;
+    setLoadingPlaylists(true);
+    setSelectedPlaylistId('');
+    setAllLessons([]);
+    setSelectedLessonId('');
+    api.get('/videos/manage/playlists')
+      .then(r => setAllPlaylists(r.data || []))
+      .catch(() => setAllPlaylists([]))
+      .finally(() => setLoadingPlaylists(false));
+  }, [examType]);
+
+  useEffect(() => {
+    if (examType !== 'lesson' || !selectedPlaylistId) { setAllLessons([]); setSelectedLessonId(''); return; }
+    setLoadingLessons(true);
+    setSelectedLessonId('');
+    api.get(`/videos/manage/playlists/${selectedPlaylistId}/subs`)
+      .then(r => setAllLessons(r.data?.subs || r.data || []))
+      .catch(() => setAllLessons([]))
+      .finally(() => setLoadingLessons(false));
+  }, [selectedPlaylistId, examType]);
 
   const setF = (k,v) => setForm(f=>({...f,[k]:v}));
   const addMCQ   = () => setQuestions(q=>[...q, emptyMCQ()]);
@@ -42,9 +73,14 @@ export default function CreateExam() {
     if (useTimeWindow && new Date(form.startsAt) >= new Date(form.endsAt))
       return setError('وقت النهاية لازم بعد وقت البداية');
 
+    if (examType === 'lesson' && !selectedLessonId)
+      return setError('يرجى اختيار الدرس');
+    if (examType === 'playlist' && !selectedPlaylistId)
+      return setError('يرجى اختيار القائمة');
+
     setLoading(true);
     try {
-      await api.post('/exams', {
+      const { data: created } = await api.post('/exams', {
         title:form.title, description:form.description,
         grade:Number(form.grade), duration:Number(form.duration),
         passScore:Number(form.passScore),
@@ -59,6 +95,18 @@ export default function CreateExam() {
             : {type:'essay',    text:q.text, maxScore:Number(q.maxScore)}
         ),
       });
+      // Attach exam to lesson or playlist if needed
+      if (examType === 'lesson' && selectedLessonId && created.examId) {
+        await api.post(`/videos/manage/playlists/${selectedLessonId}/items`, {
+          type: 'exam', title: form.title, description: form.description,
+          exam_id: created.examId,
+        }).catch(() => {});
+      } else if (examType === 'playlist' && selectedPlaylistId && created.examId) {
+        await api.post(`/videos/manage/playlists/${selectedPlaylistId}/items`, {
+          type: 'exam', title: form.title, description: form.description,
+          exam_id: created.examId,
+        }).catch(() => {});
+      }
       navigate('/teacher/exams');
     } catch(err) {
       setError(err.response?.data?.message||'خطأ في الحفظ');
@@ -68,6 +116,75 @@ export default function CreateExam() {
   return (
     <form onSubmit={handleSubmit}>
       <h2 className="text-xl font-extrabold text-slate-800 mb-5">إنشاء امتحان جديد</h2>
+
+      {/* Exam Type */}
+      <div className="card mb-4">
+        <h3 className="font-bold text-slate-700 mb-4">نوع الامتحان</h3>
+        <div className="flex flex-wrap gap-3">
+          {[
+            { value:'standalone', label:'🔒 امتحان منفصل',      desc:'يظهر في قائمة الامتحانات المستقلة' },
+            { value:'lesson',     label:'📚 داخل درس',           desc:'يُضاف لمحتوى درس في وحدة' },
+            { value:'playlist',   label:'📂 داخل قائمة مباشرة', desc:'يُضاف مباشرةً لقائمة فيديوهات' },
+          ].map(opt => (
+            <label key={opt.value}
+              className={`flex-1 min-w-[120px] cursor-pointer p-3 rounded-xl border-2 transition-all
+                ${examType === opt.value ? 'border-blue-500 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+              <input type="radio" name="examType" value={opt.value}
+                checked={examType === opt.value}
+                onChange={() => setExamType(opt.value)}
+                className="sr-only"/>
+              <div className="font-bold text-sm text-slate-800">{opt.label}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{opt.desc}</div>
+            </label>
+          ))}
+        </div>
+
+        {/* Playlist selector */}
+        {examType !== 'standalone' && (
+          <div className="mt-4">
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">
+              {examType === 'lesson' ? 'اختر الوحدة / القائمة الأم' : 'اختر القائمة'}
+            </label>
+            {loadingPlaylists ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin inline-block"/>
+                جاري تحميل القوائم...
+              </div>
+            ) : (
+              <select className="input" value={selectedPlaylistId}
+                onChange={e => setSelectedPlaylistId(e.target.value)}>
+                <option value="">-- اختر قائمة --</option>
+                {allPlaylists.map(pl => (
+                  <option key={pl.id} value={pl.id}>{pl.title}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+
+        {/* Lesson selector */}
+        {examType === 'lesson' && selectedPlaylistId && (
+          <div className="mt-4">
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">اختر الدرس</label>
+            {loadingLessons ? (
+              <div className="flex items-center gap-2 text-sm text-slate-400">
+                <span className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin inline-block"/>
+                جاري تحميل الدروس...
+              </div>
+            ) : allLessons.length === 0 ? (
+              <p className="text-sm text-slate-400">لا توجد دروس في هذه القائمة</p>
+            ) : (
+              <select className="input" value={selectedLessonId}
+                onChange={e => setSelectedLessonId(e.target.value)}>
+                <option value="">-- اختر درس --</option>
+                {allLessons.map(sub => (
+                  <option key={sub.id} value={sub.id}>{sub.title}</option>
+                ))}
+              </select>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Info */}
       <div className="card mb-4">

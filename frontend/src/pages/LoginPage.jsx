@@ -27,7 +27,7 @@ export default function LoginPage() {
       const { data } = await api.post(endpoint, form);
       login(data.token, data.user);
       const role = data.user.role;
-      navigate(role==='student' ? '/student' : '/teacher', { replace:true });
+      navigate(role==='student' ? '/student/videos' : '/teacher', { replace:true });
     } catch(err) {
       setError(err.response?.data?.message || 'حدث خطأ');
     } finally { setLoading(false); }

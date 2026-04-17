@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import api from '../utils/api';
 
@@ -8,9 +8,11 @@ const gradeLabel = {1:'أول ثانوي',2:'ثاني ثانوي',3:'ثالث ث
 export default function StudentDashboard() {
   const [exams, setExams]     = useState([]);
   const [results, setResults] = useState([]);
-  const [view, setView]       = useState('exams');
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
+  const initTab  = new URLSearchParams(location.search).get('tab');
+  const [view, setView] = useState(initTab === 'results' ? 'results' : 'exams');
 
   useEffect(() => {
     Promise.all([api.get('/exams'), api.get('/submissions/mine')])
