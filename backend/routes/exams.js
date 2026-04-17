@@ -145,7 +145,7 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
 });
 
 router.post('/', staff, async (req, res) => {
-  const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment, sendWhatsapp } = req.body;
+  const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
 
@@ -153,9 +153,9 @@ router.post('/', staff, async (req, res) => {
   try {
     await client.query('BEGIN');
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,send_whatsapp)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
-      [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'', !!sendWhatsapp]
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+      [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'']
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {

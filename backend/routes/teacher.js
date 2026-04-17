@@ -224,8 +224,7 @@ router.get('/stats', staff, async (req, res) => {
 router.get('/settings', auth('teacher'), async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT name,subject,platform_name,whatsapp_instance,whatsapp_token FROM teachers WHERE id=$1',
-      [req.user.id]
+      'SELECT name,subject,platform_name FROM teachers WHERE id=$1', [req.user.id]
     );
     res.json(r.rows[0]);
   } catch (err) {
@@ -234,14 +233,11 @@ router.get('/settings', auth('teacher'), async (req, res) => {
 });
 
 router.put('/settings', auth('teacher'), async (req, res) => {
-  const { name, subject, platformName, whatsappInstance, whatsappToken } = req.body;
+  const { name, subject, platformName } = req.body;
   try {
     await pool.query(
-      `UPDATE teachers SET name=$1, subject=$2, platform_name=$3,
-        whatsapp_instance=$4, whatsapp_token=$5
-       WHERE id=$6`,
-      [name, subject||'', platformName||'منصة الامتحانات',
-       whatsappInstance||'', whatsappToken||'', req.user.id]
+      'UPDATE teachers SET name=$1, subject=$2, platform_name=$3 WHERE id=$4',
+      [name, subject||'', platformName||'منصة الامتحانات', req.user.id]
     );
     res.json({ message: 'تم حفظ الإعدادات' });
   } catch (err) {

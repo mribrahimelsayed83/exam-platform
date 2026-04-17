@@ -4,7 +4,8 @@
 
 @layer base {
   * { font-family: 'Cairo', sans-serif; }
-  body { @apply bg-slate-100 text-slate-900; }
+  body { @apply bg-slate-100 text-slate-900 transition-colors duration-200; }
+  .dark body { @apply bg-slate-900 text-slate-100; }
 }
 
 @layer components {
@@ -17,13 +18,15 @@
     @apply btn bg-blue-600 text-white hover:bg-blue-700 active:scale-95 shadow-sm hover:shadow-md;
   }
   .btn-secondary {
-    @apply btn bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-blue-400;
+    @apply btn bg-white text-slate-700 border border-slate-300 hover:bg-slate-50 hover:border-blue-400
+           dark:bg-slate-700 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-600;
   }
   .btn-danger {
     @apply btn bg-red-600 text-white hover:bg-red-700;
   }
   .btn-ghost {
-    @apply btn bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100;
+    @apply btn bg-transparent text-slate-500 hover:text-slate-800 hover:bg-slate-100
+           dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-700;
   }
   .btn-lg   { @apply text-base px-6 py-3; }
   .btn-sm   { @apply text-xs px-3 py-1.5; }
@@ -33,23 +36,31 @@
     @apply w-full px-3.5 py-2.5 border border-slate-300 rounded-lg text-sm
            outline-none transition-all bg-white text-slate-900
            focus:border-blue-500 focus:ring-2 focus:ring-blue-100
-           placeholder:text-slate-400;
+           placeholder:text-slate-400
+           dark:bg-slate-700 dark:border-slate-600 dark:text-slate-100
+           dark:placeholder:text-slate-400 dark:focus:ring-blue-900;
   }
 
-  .card { @apply bg-white rounded-2xl border border-slate-200 shadow-sm p-6; }
-  .card-sm { @apply bg-white rounded-xl border border-slate-200 shadow-sm p-4; }
+  .card {
+    @apply bg-white rounded-2xl border border-slate-200 shadow-sm p-6
+           dark:bg-slate-800 dark:border-slate-700;
+  }
+  .card-sm {
+    @apply bg-white rounded-xl border border-slate-200 shadow-sm p-4
+           dark:bg-slate-800 dark:border-slate-700;
+  }
 
   .badge {
     @apply inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold;
   }
-  .badge-blue   { @apply bg-blue-50 text-blue-700; }
-  .badge-green  { @apply bg-emerald-50 text-emerald-700; }
-  .badge-red    { @apply bg-red-50 text-red-700; }
-  .badge-amber  { @apply bg-amber-50 text-amber-700; }
-  .badge-gray   { @apply bg-slate-100 text-slate-600; }
+  .badge-blue   { @apply bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300; }
+  .badge-green  { @apply bg-emerald-50 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300; }
+  .badge-red    { @apply bg-red-50 text-red-700 dark:bg-red-900/40 dark:text-red-300; }
+  .badge-amber  { @apply bg-amber-50 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300; }
+  .badge-gray   { @apply bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300; }
 
   .alert        { @apply p-3 rounded-lg text-sm; }
-  .alert-danger { @apply bg-red-50 text-red-700 border border-red-200; }
-  .alert-success{ @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
-  .alert-info   { @apply bg-blue-50 text-blue-700 border border-blue-200; }
+  .alert-danger { @apply bg-red-50 text-red-700 border border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800; }
+  .alert-success{ @apply bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800; }
+  .alert-info   { @apply bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800; }
 }

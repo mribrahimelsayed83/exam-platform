@@ -66,11 +66,21 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
   );
 }
 
+function useDarkMode() {
+  const [dark, setDark] = useState(() => localStorage.getItem('theme') === 'dark');
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', dark);
+    localStorage.setItem('theme', dark ? 'dark' : 'light');
+  }, [dark]);
+  return [dark, setDark];
+}
+
 export default function Navbar({ title }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isStudentHome = location.pathname === '/student' && !location.search;
+  const [dark, setDark] = useDarkMode();
 
   const handleLogout = () => {
     const isStudent = user?.role === 'student';
@@ -79,7 +89,7 @@ export default function Navbar({ title }) {
   };
 
   return (
-    <nav className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
+    <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
@@ -108,6 +118,14 @@ export default function Navbar({ title }) {
           {user?.role !== 'student' && (
             <span className="text-sm font-semibold text-slate-600 hidden sm:block">{user?.name}</span>
           )}
+          {/* Dark mode toggle */}
+          <button
+            onClick={() => setDark(d => !d)}
+            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-lg"
+            title={dark ? 'الوضع النهاري' : 'الوضع الليلي'}
+          >
+            {dark ? '☀️' : '🌙'}
+          </button>
           {/* Bell only for students */}
           {user?.role === 'student' && <NotificationBell/>}
           {/* Bell for teacher and assistant */}

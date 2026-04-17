@@ -2,23 +2,17 @@ import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 
 export default function TeacherSettings() {
-  const [form, setForm] = useState({
-    name: '', subject: '', platformName: '',
-    whatsappInstance: '', whatsappToken: '',
-  });
+  const [form, setForm] = useState({ name: '', subject: '', platformName: '' });
   const [success, setSuccess] = useState('');
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
-  const [showToken, setShowToken] = useState(false);
 
   useEffect(() => {
     api.get('/teacher/settings').then(r => {
       setForm({
-        name:             r.data.name              || '',
-        subject:          r.data.subject           || '',
-        platformName:     r.data.platform_name     || '',
-        whatsappInstance: r.data.whatsapp_instance || '',
-        whatsappToken:    r.data.whatsapp_token    || '',
+        name:         r.data.name         || '',
+        subject:      r.data.subject      || '',
+        platformName: r.data.platform_name|| '',
       });
     });
   }, []);
@@ -75,43 +69,6 @@ export default function TeacherSettings() {
               : '💾 حفظ الإعدادات'
             }
           </button>
-        </div>
-
-        {/* WhatsApp Settings */}
-        <div className="card mb-4">
-          <h3 className="font-bold text-slate-700 mb-1">📲 إعدادات واتساب</h3>
-          <div className="bg-green-50 border border-green-200 rounded-xl p-3 mb-4 text-xs text-green-800 space-y-1">
-            <p className="font-bold">🆓 مجاني — Green API (5000 رسالة/شهر)</p>
-            <p>١. اشترك مجانًا على <a href="https://console.green-api.com" target="_blank" rel="noreferrer" className="underline font-semibold">console.green-api.com</a></p>
-            <p>٢. أنشئ Instance جديد واسكن الـ QR بواتساب موبايلك</p>
-            <p>٣. انسخ الـ <strong>idInstance</strong> والـ <strong>apiTokenInstance</strong> وحطهم هنا</p>
-          </div>
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5">Instance ID</label>
-              <input className="input" dir="ltr" placeholder="مثال: instance12345"
-                value={form.whatsappInstance}
-                onChange={e => set('whatsappInstance', e.target.value)} />
-            </div>
-            <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5">Token</label>
-              <div className="relative">
-                <input
-                  className="input pl-10"
-                  dir="ltr"
-                  type={showToken ? 'text' : 'password'}
-                  placeholder="••••••••••••"
-                  value={form.whatsappToken}
-                  onChange={e => set('whatsappToken', e.target.value)}
-                />
-                <button type="button"
-                  onClick={() => setShowToken(s => !s)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm">
-                  {showToken ? '🙈' : '👁️'}
-                </button>
-              </div>
-            </div>
-          </div>
         </div>
       </form>
 

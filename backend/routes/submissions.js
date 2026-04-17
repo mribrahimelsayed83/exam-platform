@@ -1,7 +1,6 @@
-const router        = require('express').Router();
-const notify        = require('../utils/teacherNotif');
-const sendWhatsApp  = require('../utils/sendWhatsApp');
-const pool          = require('../db/pool');
+const router = require('express').Router();
+const notify = require('../utils/teacherNotif');
+const pool   = require('../db/pool');
 const auth          = require('../middleware/auth');
 const staff         = auth.staff;
 
@@ -81,35 +80,13 @@ router.post('/', auth('student'), async (req, res) => {
     );
 
     // notify teacher
-    const stuRes = await pool.query(
-      'SELECT name, parent_phone FROM students WHERE id=$1', [studentId]
-    );
-    const stuName     = stuRes.rows[0]?.name        || 'طالب';
-    const parentPhone = stuRes.rows[0]?.parent_phone || '';
+    const stuRes = await pool.query('SELECT name FROM students WHERE id=$1', [studentId]);
+    const stuName = stuRes.rows[0]?.name || 'طالب';
     notify('submission',
       '📋 تسليم امتحان جديد',
       `${stuName} سلّم امتحان "${exam.title}" — الدرجة: ${finalScore !== null ? finalScore+'%' : 'قيد التصحيح'}`,
       'submission', result.rows[0].id
     );
-
-    // WhatsApp parent notification
-    if (exam.send_whatsapp && parentPhone) {
-      const teacherRes = await pool.query(
-        'SELECT whatsapp_instance, whatsapp_token FROM teachers LIMIT 1'
-      );
-      const { whatsapp_instance, whatsapp_token } = teacherRes.rows[0] || {};
-      if (whatsapp_instance && whatsapp_token) {
-        const scoreText = finalScore !== null
-          ? `الدرجة: ${finalScore}% — ${finalScore >= exam.pass_score ? '✅ ناجح' : '❌ راسب'}`
-          : `الدرجة: قيد التصحيح (المقالي لم يُصحَّح بعد)`;
-        const msg =
-          `📚 منصة الامتحانات\n` +
-          `مرحباً، نود إعلامكم أن ${stuName} أدّى امتحان "${exam.title}".\n` +
-          `${scoreText}\n` +
-          `درجة النجاح: ${exam.pass_score}%`;
-        sendWhatsApp(parentPhone, msg, whatsapp_instance, whatsapp_token);
-      }
-    }
     res.status(201).json({
       submissionId: result.rows[0].id,
       mcqScore, mcqCorrect, mcqTotal,
