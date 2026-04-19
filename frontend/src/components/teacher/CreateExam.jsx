@@ -10,7 +10,7 @@ export default function CreateExam({ onSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title:'', description:'', grade:'4', duration:30, passScore:50,
-    startsAt:'', endsAt:'', examComment:'',
+    startsAt:'', endsAt:'', examComment:'', price:0,
     shuffleQuestions: false, shuffleOptions: false,
   });
   const [questions, setQuestions]       = useState([emptyMCQ()]);
@@ -88,6 +88,7 @@ export default function CreateExam({ onSuccess }) {
         startsAt: useTimeWindow?form.startsAt:null,
         endsAt:   useTimeWindow?form.endsAt:null,
         examComment: form.examComment,
+        price:            Number(form.price) || 0,
         shuffleQuestions: form.shuffleQuestions,
         shuffleOptions:   form.shuffleOptions,
         questions: questions.map(q=>
@@ -221,6 +222,12 @@ export default function CreateExam({ onSuccess }) {
             <label className="block text-xs font-bold text-slate-500 mb-1.5">درجة النجاح (%)</label>
             <input type="number" className="input" min="1" max="100"
               value={form.passScore} onChange={e=>setF('passScore',e.target.value)}/>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">💰 سعر الامتحان (جنيه)</label>
+            <input type="number" className="input" min="0" placeholder="0 = مجاني"
+              value={form.price} onChange={e=>setF('price',e.target.value)}/>
+            <p className="text-xs text-slate-400 mt-1">اتركه 0 إذا كان الامتحان مجاني</p>
           </div>
         </div>
         <div className="mt-4">

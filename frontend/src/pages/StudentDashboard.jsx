@@ -116,7 +116,12 @@ export default function StudentDashboard() {
           exams.length === 0
             ? <Empty icon="📭" title="لا توجد امتحانات" desc="لم يتم إضافة امتحانات لصفك بعد"/>
             : <div className="space-y-3">
-                {exams.map(exam => <ExamCard key={exam.id} exam={exam} onStart={() => navigate(`/student/exam/${exam.id}`)}/>)}
+                {exams.map(exam => (
+                  <ExamCard key={exam.id} exam={exam}
+                    onStart={() => navigate(`/student/exam/${exam.id}`)}
+                    onPay={() => navigate(`/student/payment/${exam.id}`)}
+                  />
+                ))}
               </div>
         )}
 
@@ -146,18 +151,28 @@ function HomeBlock({ icon, title, desc, gradient, shadow, onClick }) {
 }
 
 // ── Exam Card ─────────────────────────────────────────────────────────────
-function ExamCard({ exam, onStart }) {
-  const done = !!exam.submission_id;
+function ExamCard({ exam, onStart, onPay }) {
+  const done         = !!exam.submission_id;
   const gradingStatus = exam.grading_status;
   const finalScore    = exam.final_score;
   const isPending     = done && gradingStatus && gradingStatus !== 'fully_graded';
+  const isPaid        = exam.is_paid || !exam.price || exam.price <= 0;
+  const needsPayment  = !done && exam.price > 0 && !isPaid;
 
   return (
-    <div className={`card border-r-4 ${done ? (isPending?'border-r-amber-400':'border-r-emerald-500') : 'border-r-blue-500'}`}>
+    <div className={`card border-r-4 ${
+      done       ? (isPending ? 'border-r-amber-400' : 'border-r-emerald-500')
+      : needsPayment ? 'border-r-orange-400'
+      : 'border-r-blue-500'}`}>
       <div className="flex items-start justify-between mb-3">
-        <span className={`badge ${done?(isPending?'badge-amber':'badge-green'):'badge-blue'}`}>
-          {done?(isPending?'⏳ قيد التصحيح':'✅ مُنجز'):'🔵 جديد'}
-        </span>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className={`badge ${done?(isPending?'badge-amber':'badge-green'):needsPayment?'badge-amber':'badge-blue'}`}>
+            {done ? (isPending ? '⏳ قيد التصحيح' : '✅ مُنجز') : needsPayment ? '💰 مدفوع' : '🔵 جديد'}
+          </span>
+          {exam.price > 0 && (
+            <span className="badge badge-amber text-xs">{exam.price} جنيه</span>
+          )}
+        </div>
         <span className="text-xs text-slate-400">{exam.duration} دقيقة</span>
       </div>
       <h3 className="font-bold text-slate-800 mb-1">{exam.title}</h3>
@@ -170,7 +185,13 @@ function ExamCard({ exam, onStart }) {
                 {finalScore}% — {finalScore>=exam.pass_score?'ناجح ✓':'راسب ✗'}
               </span>
             : <span className="text-xs text-amber-600 font-bold">المقالي قيد التصحيح</span>
-          : <button onClick={onStart} className="btn-primary btn-sm">ابدأ الامتحان ←</button>
+          : needsPayment
+            ? <button onClick={onPay}
+                className="btn-sm font-bold text-white px-4 py-2 rounded-lg"
+                style={{background:'#f97316'}}>
+                💳 ادفع الآن {exam.price} جنيه
+              </button>
+            : <button onClick={onStart} className="btn-primary btn-sm">ابدأ الامتحان ←</button>
         }
       </div>
     </div>

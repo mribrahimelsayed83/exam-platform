@@ -10,17 +10,20 @@ router.get('/', auth('student'), async (req, res) => {
     const now = new Date().toISOString();
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
-              e.starts_at, e.ends_at, e.created_at,
+              e.starts_at, e.ends_at, e.created_at, e.price,
               COUNT(q.id)::int AS question_count,
               s.id AS submission_id, s.mcq_score, s.final_score,
-              s.grading_status, s.submitted_at
+              s.grading_status, s.submitted_at,
+              (e.price > 0 AND p.id IS NULL) AS needs_payment,
+              (p.status = 'paid') AS is_paid
        FROM exams e
-       LEFT JOIN questions q  ON q.exam_id = e.id
-       LEFT JOIN submissions s ON s.exam_id = e.id AND s.student_id = $2
+       LEFT JOIN questions q    ON q.exam_id = e.id
+       LEFT JOIN submissions s  ON s.exam_id = e.id AND s.student_id = $2
+       LEFT JOIN payments p     ON p.exam_id = e.id AND p.student_id = $2 AND p.status = 'paid'
        WHERE e.grade = $1 AND e.is_active = TRUE
          AND (e.starts_at IS NULL OR e.starts_at <= $3::timestamptz)
          AND (e.ends_at   IS NULL OR e.ends_at   >= $3::timestamptz)
-       GROUP BY e.id, s.id
+       GROUP BY e.id, s.id, p.id
        ORDER BY e.position ASC, e.id ASC`,
       [grade, studentId, now]
     );
@@ -36,6 +39,7 @@ router.get('/all', staff, async (req, res) => {
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
               e.is_active, e.starts_at, e.ends_at, e.exam_comment, e.created_at,
+              e.price, e.shuffle_questions, e.shuffle_options,
               COUNT(DISTINCT q.id)::int  AS question_count,
               COUNT(DISTINCT s.id)::int  AS submission_count,
               COUNT(DISTINCT q.id) FILTER (WHERE q.type='essay')::int AS essay_count
@@ -121,6 +125,17 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
     if (!examRes.rows[0])
       return res.status(404).json({ message: 'الامتحان مش متاح دلوقتي أو مش لصفك' });
 
+    // Payment guard — block access if exam has a price and student hasn't paid
+    const examRow = examRes.rows[0];
+    if (examRow.price && examRow.price > 0) {
+      const { rows: payRows } = await pool.query(
+        `SELECT id FROM payments WHERE exam_id=$1 AND student_id=$2 AND status='paid'`,
+        [req.params.id, studentId]
+      );
+      if (!payRows.length)
+        return res.status(402).json({ message: 'هذا الامتحان مدفوع — يرجى الدفع أولاً', needsPayment: true, price: examRow.price });
+    }
+
     const subCheck = await pool.query(
       'SELECT id FROM submissions WHERE exam_id=$1 AND student_id=$2',
       [req.params.id, studentId]
@@ -148,7 +163,7 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
 
 router.post('/', staff, async (req, res) => {
   const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions } = req.body;
+          shuffleQuestions, shuffleOptions, price } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
 
@@ -156,10 +171,10 @@ router.post('/', staff, async (req, res) => {
   try {
     await client.query('BEGIN');
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
       [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions]
+       !!shuffleQuestions, !!shuffleOptions, Number(price)||0]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
@@ -216,17 +231,17 @@ router.put('/reorder', staff, async (req, res) => {
 // ── PUT /exams/:id — edit exam (title, description, grade, duration, passScore, times, comment) ──
 router.put('/:id', staff, async (req, res) => {
   const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions } = req.body;
+          shuffleQuestions, shuffleOptions, price } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
   try {
     await pool.query(
       `UPDATE exams SET title=$1, description=$2, grade=$3, duration=$4,
               pass_score=$5, starts_at=$6, ends_at=$7, exam_comment=$8,
-              shuffle_questions=$9, shuffle_options=$10
-       WHERE id=$11`,
+              shuffle_questions=$9, shuffle_options=$10, price=$11
+       WHERE id=$12`,
       [title, description||'', Number(grade), duration||30,
        passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, req.params.id]
+       !!shuffleQuestions, !!shuffleOptions, Number(price)||0, req.params.id]
     );
     res.json({ message: 'تم تعديل الامتحان' });
   } catch (err) {

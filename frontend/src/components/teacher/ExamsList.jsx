@@ -228,6 +228,7 @@ function EditInfoTab({ exam, onSave }) {
     examComment:      exam.exam_comment || '',
     startsAt:         exam.starts_at ? exam.starts_at.slice(0,16) : '',
     endsAt:           exam.ends_at   ? exam.ends_at.slice(0,16)   : '',
+    price:            exam.price || 0,
     shuffleQuestions: !!exam.shuffle_questions,
     shuffleOptions:   !!exam.shuffle_options,
   });
@@ -245,6 +246,7 @@ function EditInfoTab({ exam, onSave }) {
         grade: Number(form.grade), duration: Number(form.duration),
         passScore: Number(form.passScore), examComment: form.examComment,
         startsAt: useTime?form.startsAt:null, endsAt: useTime?form.endsAt:null,
+        price:            Number(form.price) || 0,
         shuffleQuestions: form.shuffleQuestions,
         shuffleOptions:   form.shuffleOptions,
       });
@@ -275,6 +277,10 @@ function EditInfoTab({ exam, onSave }) {
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">درجة النجاح (%)</label>
           <input type="number" className="input" value={form.passScore} onChange={e=>set('passScore',e.target.value)}/>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-1">💰 السعر (جنيه — 0 = مجاني)</label>
+          <input type="number" className="input" min="0" value={form.price} onChange={e=>set('price',e.target.value)}/>
         </div>
       </div>
       <div>

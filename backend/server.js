@@ -95,6 +95,31 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE teachers ADD COLUMN IF NOT EXISTS whatsapp_token VARCHAR(200) DEFAULT '';
     `);
+    // Exam price (0 = free)
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 0;
+    `);
+    // Payments table
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS payments (
+        id                     SERIAL PRIMARY KEY,
+        student_id             INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        exam_id                INTEGER NOT NULL REFERENCES exams(id)    ON DELETE CASCADE,
+        amount                 INTEGER NOT NULL,
+        paymob_order_id        VARCHAR(100),
+        paymob_transaction_id  VARCHAR(100),
+        status                 VARCHAR(20) DEFAULT 'pending',
+        paid_at                TIMESTAMPTZ,
+        created_at             TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE (student_id, exam_id)
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_payments_student ON payments(student_id);
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_payments_exam ON payments(exam_id);
+    `);
     // Shuffle settings per exam
     await pool.query(`
       ALTER TABLE exams ADD COLUMN IF NOT EXISTS shuffle_questions BOOLEAN DEFAULT FALSE;
@@ -139,6 +164,7 @@ app.use('/api/videos',        require('./routes/videos'));
 app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/landing',        require('./routes/landing'));
 app.use('/api/personal-exam', require('./routes/personalExam'));
+app.use('/api/payments',      require('./routes/payments'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));
