@@ -12,50 +12,84 @@ function shuffleArr(arr) {
   return a;
 }
 
-// Shuffle questions order + shuffle each MCQ/TF option order, respecting
-// per-exam flags (shuffle_questions / shuffle_options).
-// Stores _shuffleMap on each question so answers can be remapped to original
-// indices before submission (backend grades against original indices).
 function shuffleExamData(data) {
   const { shuffle_questions, shuffle_options } = data.exam;
-
   let questions = shuffle_questions ? shuffleArr(data.questions) : [...data.questions];
-
   questions = questions.map(q => {
     if (!shuffle_options || q.type === 'essay' || !q.options?.length) return q;
     const origIndices = q.options.map((_, i) => i);
     const shuffledMap = shuffleArr(origIndices);
-    return {
-      ...q,
-      options:     shuffledMap.map(i => q.options[i]),
-      _shuffleMap: shuffledMap,
-    };
+    return { ...q, options: shuffledMap.map(i => q.options[i]), _shuffleMap: shuffledMap };
   });
-
   return { ...data, questions };
+}
+
+// ── Draft persistence (localStorage) ─────────────────────────────────────────
+const draftKey = (examId) => `exam_draft_${examId}`;
+
+function loadDraft(examId) {
+  try { return JSON.parse(localStorage.getItem(draftKey(examId))); }
+  catch { return null; }
+}
+function saveDraft(examId, data) {
+  try { localStorage.setItem(draftKey(examId), JSON.stringify(data)); }
+  catch {}
+}
+function clearDraft(examId) {
+  try { localStorage.removeItem(draftKey(examId)); }
+  catch {}
 }
 
 export default function TakeExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [examData, setExamData]   = useState(null);
-  const [answers, setAnswers]     = useState({});   // stores DISPLAY indices
-  const [timeLeft, setTimeLeft]   = useState(0);
-  const [loading, setLoading]     = useState(true);
+  const [examData, setExamData]     = useState(null);
+  const [answers, setAnswers]       = useState({});
+  const [timeLeft, setTimeLeft]     = useState(0);
+  const [loading, setLoading]       = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError]         = useState('');
-  const timerRef = useRef(null);
+  const [error, setError]           = useState('');
+  const [resumed, setResumed]       = useState(false);
+  const timerRef    = useRef(null);
+  const examDataRef = useRef(null);   // stable ref for handleSubmit
+  const answersRef  = useRef({});
+
+  // Keep refs in sync so handleSubmit always sees latest values
+  useEffect(() => { examDataRef.current = examData; }, [examData]);
+  useEffect(() => { answersRef.current  = answers;  }, [answers]);
 
   useEffect(() => {
     api.get(`/exams/${id}/questions`)
       .then(r => {
-        const shuffled = shuffleExamData(r.data);
-        setExamData(shuffled);
-        setTimeLeft(r.data.exam.duration * 60);
+        const duration = r.data.exam.duration * 60;
+        const draft    = loadDraft(id);
+
+        if (draft && draft.startedAt) {
+          // Restore: recalc time from wall-clock start
+          const elapsed   = Math.floor((Date.now() - draft.startedAt) / 1000);
+          const remaining = Math.max(0, duration - elapsed);
+          setExamData(draft.examData);
+          setAnswers(draft.answers || {});
+          setTimeLeft(remaining);
+          setResumed(true);
+        } else {
+          // Fresh start
+          const shuffled = shuffleExamData(r.data);
+          setExamData(shuffled);
+          setTimeLeft(duration);
+          saveDraft(id, { examData: shuffled, answers: {}, startedAt: Date.now() });
+        }
       })
       .catch(err => setError(err.response?.data?.message || 'خطأ في تحميل الامتحان'))
       .finally(() => setLoading(false));
   }, [id]);
+
+  // Persist answers on every change
+  useEffect(() => {
+    if (!examData) return;
+    const draft = loadDraft(id);
+    if (draft) saveDraft(id, { ...draft, answers });
+  }, [answers, id, examData]);
 
   useEffect(() => {
     if (!examData || timeLeft <= 0) return;
@@ -73,19 +107,22 @@ export default function TakeExamPage() {
     clearInterval(timerRef.current);
     setSubmitting(true);
     try {
+      const currentAnswers  = answersRef.current;
+      const currentExamData = examDataRef.current;
       // Remap display indices → original indices for backend grading
       const remapped = {};
-      for (const [qId, displayIdx] of Object.entries(answers)) {
-        const q = examData.questions.find(q => String(q.id) === String(qId));
+      for (const [qId, displayIdx] of Object.entries(currentAnswers)) {
+        const q = currentExamData?.questions.find(q => String(q.id) === String(qId));
         remapped[qId] = q?._shuffleMap ? q._shuffleMap[displayIdx] : displayIdx;
       }
+      clearDraft(id);
       const { data } = await api.post('/submissions', { examId: Number(id), answers: remapped });
       navigate(`/student/result/${data.submissionId}`, { state: data });
     } catch (err) {
       setError(err.response?.data?.message || 'خطأ في التسليم');
       setSubmitting(false);
     }
-  }, [answers, examData, id, submitting, navigate]);
+  }, [id, submitting, navigate]);
 
   const mcqQuestions   = examData?.questions?.filter(q => q.type === 'mcq')   || [];
   const essayQuestions = examData?.questions?.filter(q => q.type === 'essay') || [];
@@ -132,6 +169,13 @@ export default function TakeExamPage() {
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-4">
+        {/* Resume banner */}
+        {resumed && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 text-blue-700 text-sm font-semibold flex items-center gap-2">
+            <span>🔄</span>
+            <span>تم استكمال الامتحان من حيث توقفت — إجاباتك محفوظة</span>
+          </div>
+        )}
         {/* MCQ Section */}
         {mcqQuestions.length > 0 && (
           <div>
