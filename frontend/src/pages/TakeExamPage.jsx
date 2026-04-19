@@ -64,20 +64,18 @@ export default function TakeExamPage() {
         const duration = r.data.exam.duration * 60;
         const draft    = loadDraft(id);
 
-        if (draft && draft.startedAt) {
-          // Restore: recalc time from wall-clock start
-          const elapsed   = Math.floor((Date.now() - draft.startedAt) / 1000);
-          const remaining = Math.max(0, duration - elapsed);
+        if (draft && draft.examData) {
+          // Restore saved session — timer resumes from saved timeLeft
           setExamData(draft.examData);
           setAnswers(draft.answers || {});
-          setTimeLeft(remaining);
+          setTimeLeft(draft.timeLeft ?? duration);
           setResumed(true);
         } else {
           // Fresh start
           const shuffled = shuffleExamData(r.data);
           setExamData(shuffled);
           setTimeLeft(duration);
-          saveDraft(id, { examData: shuffled, answers: {}, startedAt: Date.now() });
+          saveDraft(id, { examData: shuffled, answers: {}, timeLeft: duration });
         }
       })
       .catch(err => setError(err.response?.data?.message || 'خطأ في تحميل الامتحان'))
@@ -90,6 +88,13 @@ export default function TakeExamPage() {
     const draft = loadDraft(id);
     if (draft) saveDraft(id, { ...draft, answers });
   }, [answers, id, examData]);
+
+  // Persist timeLeft every 10 seconds
+  useEffect(() => {
+    if (!examData || timeLeft <= 0) return;
+    const draft = loadDraft(id);
+    if (draft) saveDraft(id, { ...draft, timeLeft });
+  }, [Math.floor(timeLeft / 10), id, examData]); // eslint-disable-line
 
   useEffect(() => {
     if (!examData || timeLeft <= 0) return;
