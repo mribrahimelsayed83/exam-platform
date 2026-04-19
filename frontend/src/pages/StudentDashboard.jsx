@@ -50,8 +50,8 @@ export default function StudentDashboard() {
             <p className="text-slate-500 mt-3 text-base">ماذا تريد أن تفعل اليوم؟</p>
           </div>
 
-          {/* 3 Big Blocks */}
-          <div className="grid sm:grid-cols-3 gap-5">
+          {/* 4 Big Blocks */}
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <HomeBlock
               icon="🎬"
               title="الفيديوهات"
@@ -75,6 +75,14 @@ export default function StudentDashboard() {
               gradient="from-emerald-500 to-emerald-700"
               shadow="shadow-emerald-200"
               onClick={() => navigate('/student?tab=results')}
+            />
+            <HomeBlock
+              icon="🎯"
+              title="امتحانك الخاص"
+              desc="أسئلة من إجاباتك الخاطئة"
+              gradient="from-amber-500 to-orange-600"
+              shadow="shadow-amber-200"
+              onClick={() => navigate('/student/personal-exam')}
             />
           </div>
         </div>

@@ -11,7 +11,10 @@ import ExamResultPage       from './pages/ExamResultPage';
 import TeacherDashboard     from './pages/TeacherDashboard';
 import VideosPage           from './pages/VideosPage';
 import LandingPage          from './pages/LandingPage';
-import StudentMyReport      from './pages/StudentMyReport';
+import StudentMyReport          from './pages/StudentMyReport';
+import PersonalExamPage         from './pages/PersonalExamPage';
+import TakePersonalExamPage     from './pages/TakePersonalExamPage';
+import PersonalExamResultPage   from './pages/PersonalExamResultPage';
 
 function RequireAuth({ role, children }) {
   const { user, loading } = useAuth();
@@ -52,6 +55,15 @@ export default function App() {
       }/>
       <Route path="/student/my-report" element={
         <RequireAuth role="student"><StudentMyReport/></RequireAuth>
+      }/>
+      <Route path="/student/personal-exam" element={
+        <RequireAuth role="student"><PersonalExamPage/></RequireAuth>
+      }/>
+      <Route path="/student/personal-exam/take" element={
+        <RequireAuth role="student"><TakePersonalExamPage/></RequireAuth>
+      }/>
+      <Route path="/student/personal-exam/result/:id" element={
+        <RequireAuth role="student"><PersonalExamResultPage/></RequireAuth>
       }/>
 
       {/* المدرس والمساعد — نفس الـ dashboard */}

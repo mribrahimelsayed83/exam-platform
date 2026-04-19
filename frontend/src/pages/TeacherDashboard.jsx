@@ -64,7 +64,7 @@ export default function TeacherDashboard() {
       <div className="max-w-6xl mx-auto px-4 py-6">
         <div className="flex gap-5 items-start">
 
-          {/* Sidebar */}
+          {/* Desktop Sidebar */}
           <aside className="w-52 flex-shrink-0 hidden md:block">
             <div className="card-sm">
               <div className="text-center pb-4 mb-3 border-b border-slate-100">
@@ -88,21 +88,8 @@ export default function TeacherDashboard() {
             </div>
           </aside>
 
-          {/* Mobile nav */}
-          <div className="md:hidden w-full mb-2">
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {navItems.map(item=>(
-                <button key={item.path} onClick={()=>go(item.path)}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all
-                    ${activePath===item.path?'bg-blue-600 text-white':'bg-white text-slate-500 border border-slate-200'}`}>
-                  <span>{item.icon}</span>{item.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Main */}
-          <main className="flex-1 min-w-0">
+          {/* Main — extra bottom padding on mobile so content clears the fixed nav */}
+          <main className="flex-1 min-w-0 pb-20 md:pb-0">
             <Routes>
               <Route index            element={<TeacherHome />} />
               <Route path="exams"     element={<ExamsList />} />
@@ -118,6 +105,24 @@ export default function TeacherDashboard() {
           </main>
         </div>
       </div>
+
+      {/* Mobile bottom navigation bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] dark:bg-slate-800 dark:border-slate-700">
+        <div className="flex">
+          {navItems.map(item => (
+            <button key={item.path} onClick={() => go(item.path)}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 py-2 min-w-0 transition-colors
+                ${activePath === item.path
+                  ? 'text-blue-600 bg-blue-50 dark:bg-slate-700'
+                  : 'text-slate-400 hover:text-slate-600 dark:text-slate-500'}`}>
+              <span className="text-xl leading-none">{item.icon}</span>
+              <span className="text-[10px] font-bold truncate w-full text-center px-0.5 leading-tight">
+                {item.label}
+              </span>
+            </button>
+          ))}
+        </div>
+      </nav>
     </div>
   );
 }

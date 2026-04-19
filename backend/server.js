@@ -95,6 +95,23 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE teachers ADD COLUMN IF NOT EXISTS whatsapp_token VARCHAR(200) DEFAULT '';
     `);
+    // Personal exam submissions (per-student practice from wrong answers)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS personal_exam_submissions (
+        id            SERIAL PRIMARY KEY,
+        student_id    INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        answers       JSONB DEFAULT '{}',
+        review        JSONB DEFAULT '[]',
+        score         INTEGER DEFAULT 0,
+        total         INTEGER DEFAULT 0,
+        correct_count INTEGER DEFAULT 0,
+        submitted_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_personal_exam_student
+        ON personal_exam_submissions(student_id);
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
@@ -113,9 +130,8 @@ app.use('/api/submissions', require('./routes/submissions'));
 app.use('/api/teacher',     require('./routes/teacher'));
 app.use('/api/videos',        require('./routes/videos'));
 app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/landing',       require('./routes/landing'));
-app.use('/api/landing',       require('./routes/landing'));
-app.use('/api/landing',       require('./routes/landing'));
+app.use('/api/landing',        require('./routes/landing'));
+app.use('/api/personal-exam', require('./routes/personalExam'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));
