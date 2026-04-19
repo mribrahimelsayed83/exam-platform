@@ -322,8 +322,9 @@ function EditQuestionsTab({ exam, onSave }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const addMCQ   = () => setQuestions(q=>[...q, {type:'mcq',   text:'', options:['','','',''], correct:0}]);
-  const addEssay = () => setQuestions(q=>[...q, {type:'essay', text:'', maxScore:10}]);
+  const addMCQ   = () => setQuestions(q=>[...q, {type:'mcq',      text:'', options:['','','',''], correct:0}]);
+  const addTF    = () => setQuestions(q=>[...q, {type:'truefalse', text:'', correct:0}]);
+  const addEssay = () => setQuestions(q=>[...q, {type:'essay',     text:'', maxScore:10}]);
   const removeQ  = (i) => { if(questions.length<=1){alert('لازم يكون فيه سؤال واحد على الأقل');return;} setQuestions(q=>q.filter((_,idx)=>idx!==i)); };
   const updateQ   = (i,k,v) => setQuestions(q=>q.map((x,idx)=>idx===i?{...x,[k]:v}:x));
   const updateOpt = (qi,oi,v) => setQuestions(q=>q.map((x,idx)=>idx===qi?{...x,options:x.options.map((o,i)=>i===oi?v:o)}:x));
@@ -341,8 +342,10 @@ function EditQuestionsTab({ exam, onSave }) {
       await api.put(`/exams/${exam.id}/questions`, {
         questions: questions.map(q=>
           q.type==='mcq'
-            ? {type:'mcq',   text:q.text, options:q.options, correct:q.correct}
-            : {type:'essay', text:q.text, maxScore:Number(q.maxScore)}
+            ? {type:'mcq',      text:q.text, options:q.options, correct:q.correct}
+            : q.type==='truefalse'
+            ? {type:'truefalse', text:q.text, options:['صح','خطأ'], correct:Number(q.correct)}
+            : {type:'essay',    text:q.text, maxScore:Number(q.maxScore)}
         )
       });
       onSave();
@@ -359,16 +362,19 @@ function EditQuestionsTab({ exam, onSave }) {
         <span className="text-sm font-bold text-slate-600">{questions.length} سؤال</span>
         <div className="flex gap-2">
           <button type="button" onClick={addMCQ}   className="btn-primary btn-sm">+ MCQ</button>
+          <button type="button" onClick={addTF}    className="btn-secondary btn-sm">+ صح/خطأ</button>
           <button type="button" onClick={addEssay} className="btn-secondary btn-sm">+ مقالي</button>
         </div>
       </div>
       {error && <div className="alert alert-danger mb-4">{error}</div>}
       <div className="space-y-4 mb-5">
         {questions.map((q,qi)=>(
-          <div key={qi} className={`rounded-xl border p-4 ${q.type==='essay'?'bg-amber-50 border-amber-200':'bg-slate-50 border-slate-200'}`}>
+          <div key={qi} className={`rounded-xl border p-4 ${q.type==='essay'?'bg-amber-50 border-amber-200':q.type==='truefalse'?'bg-emerald-50 border-emerald-200':'bg-slate-50 border-slate-200'}`}>
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
-                <span className={`badge ${q.type==='mcq'?'badge-blue':'badge-amber'}`}>{q.type==='mcq'?'MCQ':'مقالي'}</span>
+                <span className={`badge ${q.type==='mcq'?'badge-blue':q.type==='truefalse'?'badge-green':'badge-amber'}`}>
+                  {q.type==='mcq'?'MCQ':q.type==='truefalse'?'صح/خطأ':'مقالي'}
+                </span>
                 <span className="font-bold text-sm text-slate-600">السؤال {qi+1}</span>
               </div>
               <button type="button" onClick={()=>removeQ(qi)} className="text-red-500 hover:text-red-700 text-xs font-bold">حذف ✕</button>
@@ -389,6 +395,17 @@ function EditQuestionsTab({ exam, onSave }) {
                   </div>
                 ))}
               </>
+            ) : q.type==='truefalse' ? (
+              <div className="flex gap-3">
+                {['صح','خطأ'].map((opt,oi)=>(
+                  <label key={oi} className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 cursor-pointer transition-all
+                    ${Number(q.correct)===oi?'border-emerald-500 bg-emerald-100 text-emerald-700':'border-slate-200 hover:border-slate-300'}`}>
+                    <input type="radio" name={`tf-${qi}`} checked={Number(q.correct)===oi}
+                      onChange={()=>updateQ(qi,'correct',oi)} className="accent-emerald-600"/>
+                    <span className="font-bold text-sm">{opt}</span>
+                  </label>
+                ))}
+              </div>
             ) : (
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1">الدرجة القصوى</label>
