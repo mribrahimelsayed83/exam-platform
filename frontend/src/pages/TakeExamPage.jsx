@@ -2,11 +2,38 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 
+// ── Shuffle helpers ───────────────────────────────────────────────────────────
+function shuffleArr(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Shuffle questions order + shuffle each MCQ/TF option order.
+// Stores _shuffleMap on each question so answers can be remapped to original
+// indices before submission (backend grades against original indices).
+function shuffleExamData(data) {
+  const shuffledQuestions = shuffleArr(data.questions).map(q => {
+    if (q.type === 'essay' || !q.options?.length) return q;
+    const origIndices  = q.options.map((_, i) => i);   // [0,1,2,3]
+    const shuffledMap  = shuffleArr(origIndices);        // e.g. [2,0,3,1]
+    return {
+      ...q,
+      options:     shuffledMap.map(i => q.options[i]), // reorder options
+      _shuffleMap: shuffledMap,                         // displayPos → origIdx
+    };
+  });
+  return { ...data, questions: shuffledQuestions };
+}
+
 export default function TakeExamPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [examData, setExamData]   = useState(null);
-  const [answers, setAnswers]     = useState({});
+  const [answers, setAnswers]     = useState({});   // stores DISPLAY indices
   const [timeLeft, setTimeLeft]   = useState(0);
   const [loading, setLoading]     = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -15,7 +42,11 @@ export default function TakeExamPage() {
 
   useEffect(() => {
     api.get(`/exams/${id}/questions`)
-      .then(r => { setExamData(r.data); setTimeLeft(r.data.exam.duration * 60); })
+      .then(r => {
+        const shuffled = shuffleExamData(r.data);
+        setExamData(shuffled);
+        setTimeLeft(r.data.exam.duration * 60);
+      })
       .catch(err => setError(err.response?.data?.message || 'خطأ في تحميل الامتحان'))
       .finally(() => setLoading(false));
   }, [id]);
@@ -36,13 +67,19 @@ export default function TakeExamPage() {
     clearInterval(timerRef.current);
     setSubmitting(true);
     try {
-      const { data } = await api.post('/submissions', { examId: Number(id), answers });
+      // Remap display indices → original indices for backend grading
+      const remapped = {};
+      for (const [qId, displayIdx] of Object.entries(answers)) {
+        const q = examData.questions.find(q => String(q.id) === String(qId));
+        remapped[qId] = q?._shuffleMap ? q._shuffleMap[displayIdx] : displayIdx;
+      }
+      const { data } = await api.post('/submissions', { examId: Number(id), answers: remapped });
       navigate(`/student/result/${data.submissionId}`, { state: data });
     } catch (err) {
       setError(err.response?.data?.message || 'خطأ في التسليم');
       setSubmitting(false);
     }
-  }, [answers, id, submitting, navigate]);
+  }, [answers, examData, id, submitting, navigate]);
 
   const mcqQuestions   = examData?.questions?.filter(q => q.type === 'mcq')   || [];
   const essayQuestions = examData?.questions?.filter(q => q.type === 'essay') || [];
