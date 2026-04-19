@@ -95,15 +95,26 @@ export default function TakeExamPage() {
     if (!examData || timeLeft <= 0) return;
     timerRef.current = setInterval(() => {
       setTimeLeft(t => {
-        if (t <= 1) { clearInterval(timerRef.current); handleSubmit(); return 0; }
+        if (t <= 1) { clearInterval(timerRef.current); handleSubmit(true); return 0; }
         return t - 1;
       });
     }, 1000);
     return () => clearInterval(timerRef.current);
   }, [examData]);
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(async (forced = false) => {
     if (submitting) return;
+    // Block manual submit if any question unanswered
+    if (!forced) {
+      const q = examDataRef.current?.questions || [];
+      const a = answersRef.current;
+      const incomplete = q.some(question =>
+        question.type === 'essay'
+          ? !a[question.id]?.trim()
+          : a[question.id] === undefined
+      );
+      if (incomplete) return;
+    }
     clearInterval(timerRef.current);
     setSubmitting(true);
     try {
@@ -126,9 +137,14 @@ export default function TakeExamPage() {
 
   const mcqQuestions   = examData?.questions?.filter(q => q.type === 'mcq')   || [];
   const essayQuestions = examData?.questions?.filter(q => q.type === 'essay') || [];
-  const answered = Object.keys(answers).length;
   const total    = examData?.questions?.length || 0;
-  const pct      = total ? Math.round((answered / total) * 100) : 0;
+  const answered = examData?.questions?.filter(q =>
+    q.type === 'essay'
+      ? answers[q.id]?.trim()?.length > 0
+      : answers[q.id] !== undefined
+  ).length ?? 0;
+  const allAnswered = answered === total && total > 0;
+  const pct = total ? Math.round((answered / total) * 100) : 0;
   const mins = String(Math.floor(timeLeft / 60)).padStart(2,'0');
   const secs = String(timeLeft % 60).padStart(2,'0');
 
@@ -207,14 +223,22 @@ export default function TakeExamPage() {
         )}
 
         <div className="pt-2 text-center">
-          <button onClick={handleSubmit} disabled={submitting} className="btn-primary btn-lg px-10">
+          <button onClick={handleSubmit}
+            disabled={submitting || !allAnswered}
+            className={`btn-lg px-10 font-bold rounded-xl transition-all ${
+              allAnswered
+                ? 'btn-primary'
+                : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+            }`}>
             {submitting
               ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/>
               : '✅ تسليم الامتحان'
             }
           </button>
-          {answered < total && (
-            <p className="text-xs text-amber-600 mt-2">⚠️ {total - answered} سؤال لم تجب عليه</p>
+          {!allAnswered && (
+            <p className="text-sm text-red-500 font-semibold mt-3">
+              ⚠️ يجب الإجابة على جميع الأسئلة أولاً — باقي {total - answered} سؤال
+            </p>
           )}
         </div>
       </div>
