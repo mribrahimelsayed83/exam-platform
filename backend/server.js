@@ -95,6 +95,13 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE teachers ADD COLUMN IF NOT EXISTS whatsapp_token VARCHAR(200) DEFAULT '';
     `);
+    // Shuffle settings per exam
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS shuffle_questions BOOLEAN DEFAULT FALSE;
+    `);
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS shuffle_options BOOLEAN DEFAULT FALSE;
+    `);
     // Personal exam submissions (per-student practice from wrong answers)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS personal_exam_submissions (

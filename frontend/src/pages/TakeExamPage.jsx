@@ -12,21 +12,27 @@ function shuffleArr(arr) {
   return a;
 }
 
-// Shuffle questions order + shuffle each MCQ/TF option order.
+// Shuffle questions order + shuffle each MCQ/TF option order, respecting
+// per-exam flags (shuffle_questions / shuffle_options).
 // Stores _shuffleMap on each question so answers can be remapped to original
 // indices before submission (backend grades against original indices).
 function shuffleExamData(data) {
-  const shuffledQuestions = shuffleArr(data.questions).map(q => {
-    if (q.type === 'essay' || !q.options?.length) return q;
-    const origIndices  = q.options.map((_, i) => i);   // [0,1,2,3]
-    const shuffledMap  = shuffleArr(origIndices);        // e.g. [2,0,3,1]
+  const { shuffle_questions, shuffle_options } = data.exam;
+
+  let questions = shuffle_questions ? shuffleArr(data.questions) : [...data.questions];
+
+  questions = questions.map(q => {
+    if (!shuffle_options || q.type === 'essay' || !q.options?.length) return q;
+    const origIndices = q.options.map((_, i) => i);
+    const shuffledMap = shuffleArr(origIndices);
     return {
       ...q,
-      options:     shuffledMap.map(i => q.options[i]), // reorder options
-      _shuffleMap: shuffledMap,                         // displayPos → origIdx
+      options:     shuffledMap.map(i => q.options[i]),
+      _shuffleMap: shuffledMap,
     };
   });
-  return { ...data, questions: shuffledQuestions };
+
+  return { ...data, questions };
 }
 
 export default function TakeExamPage() {

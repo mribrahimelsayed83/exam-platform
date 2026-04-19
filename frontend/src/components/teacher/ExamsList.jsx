@@ -220,14 +220,16 @@ function EditExamModal({ exam, onClose, onSave }) {
 
 function EditInfoTab({ exam, onSave }) {
   const [form, setForm] = useState({
-    title:       exam.title,
-    description: exam.description || '',
-    grade:       exam.grade,
-    duration:    exam.duration,
-    passScore:   exam.pass_score,
-    examComment: exam.exam_comment || '',
-    startsAt:    exam.starts_at ? exam.starts_at.slice(0,16) : '',
-    endsAt:      exam.ends_at   ? exam.ends_at.slice(0,16)   : '',
+    title:            exam.title,
+    description:      exam.description || '',
+    grade:            exam.grade,
+    duration:         exam.duration,
+    passScore:        exam.pass_score,
+    examComment:      exam.exam_comment || '',
+    startsAt:         exam.starts_at ? exam.starts_at.slice(0,16) : '',
+    endsAt:           exam.ends_at   ? exam.ends_at.slice(0,16)   : '',
+    shuffleQuestions: !!exam.shuffle_questions,
+    shuffleOptions:   !!exam.shuffle_options,
   });
   const [useTime, setUseTime] = useState(!!(exam.starts_at||exam.ends_at));
   const [loading, setLoading] = useState(false);
@@ -243,6 +245,8 @@ function EditInfoTab({ exam, onSave }) {
         grade: Number(form.grade), duration: Number(form.duration),
         passScore: Number(form.passScore), examComment: form.examComment,
         startsAt: useTime?form.startsAt:null, endsAt: useTime?form.endsAt:null,
+        shuffleQuestions: form.shuffleQuestions,
+        shuffleOptions:   form.shuffleOptions,
       });
       onSave();
     } catch(err) {
@@ -281,6 +285,21 @@ function EditInfoTab({ exam, onSave }) {
         <label className="block text-xs font-bold text-slate-500 mb-1">💬 تعليق على الامتحان</label>
         <textarea className="input resize-none" rows={2} value={form.examComment}
           onChange={e=>set('examComment',e.target.value)} placeholder="يظهر للطالب في نتيجته..."/>
+      </div>
+      <div className="pt-2 border-t border-slate-100">
+        <p className="text-xs font-bold text-slate-500 mb-3">🔀 الترتيب العشوائي</p>
+        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="accent-blue-600 w-4 h-4"
+              checked={form.shuffleQuestions} onChange={e=>set('shuffleQuestions',e.target.checked)}/>
+            <span className="text-sm font-semibold text-slate-700">ترتيب الأسئلة عشوائي</span>
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="accent-blue-600 w-4 h-4"
+              checked={form.shuffleOptions} onChange={e=>set('shuffleOptions',e.target.checked)}/>
+            <span className="text-sm font-semibold text-slate-700">ترتيب الإجابات عشوائي</span>
+          </label>
+        </div>
       </div>
       <div className="pt-2 border-t border-slate-100">
         <label className="flex items-center gap-2 cursor-pointer mb-3">

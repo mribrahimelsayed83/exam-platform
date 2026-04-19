@@ -136,7 +136,9 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
     const exam = examRes.rows[0];
     res.json({
       exam: { id: exam.id, title: exam.title, description: exam.description,
-              duration: exam.duration, ends_at: exam.ends_at },
+              duration: exam.duration, ends_at: exam.ends_at,
+              shuffle_questions: !!exam.shuffle_questions,
+              shuffle_options:   !!exam.shuffle_options },
       questions: questions.rows,
     });
   } catch (err) {
@@ -145,7 +147,8 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
 });
 
 router.post('/', staff, async (req, res) => {
-  const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment } = req.body;
+  const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment,
+          shuffleQuestions, shuffleOptions } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
 
@@ -153,9 +156,10 @@ router.post('/', staff, async (req, res) => {
   try {
     await client.query('BEGIN');
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
-      [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'']
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
+      [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'',
+       !!shuffleQuestions, !!shuffleOptions]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
@@ -211,15 +215,18 @@ router.put('/reorder', staff, async (req, res) => {
 
 // ── PUT /exams/:id — edit exam (title, description, grade, duration, passScore, times, comment) ──
 router.put('/:id', staff, async (req, res) => {
-  const { title, description, grade, duration, passScore, startsAt, endsAt, examComment } = req.body;
+  const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
+          shuffleQuestions, shuffleOptions } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
   try {
     await pool.query(
       `UPDATE exams SET title=$1, description=$2, grade=$3, duration=$4,
-              pass_score=$5, starts_at=$6, ends_at=$7, exam_comment=$8
-       WHERE id=$9`,
+              pass_score=$5, starts_at=$6, ends_at=$7, exam_comment=$8,
+              shuffle_questions=$9, shuffle_options=$10
+       WHERE id=$11`,
       [title, description||'', Number(grade), duration||30,
-       passScore||50, startsAt||null, endsAt||null, examComment||'', req.params.id]
+       passScore||50, startsAt||null, endsAt||null, examComment||'',
+       !!shuffleQuestions, !!shuffleOptions, req.params.id]
     );
     res.json({ message: 'تم تعديل الامتحان' });
   } catch (err) {

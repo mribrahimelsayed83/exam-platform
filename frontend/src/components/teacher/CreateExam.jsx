@@ -11,6 +11,7 @@ export default function CreateExam({ onSuccess }) {
   const [form, setForm] = useState({
     title:'', description:'', grade:'4', duration:30, passScore:50,
     startsAt:'', endsAt:'', examComment:'',
+    shuffleQuestions: false, shuffleOptions: false,
   });
   const [questions, setQuestions]       = useState([emptyMCQ()]);
   const [useTimeWindow, setUseTimeWindow] = useState(false);
@@ -87,6 +88,8 @@ export default function CreateExam({ onSuccess }) {
         startsAt: useTimeWindow?form.startsAt:null,
         endsAt:   useTimeWindow?form.endsAt:null,
         examComment: form.examComment,
+        shuffleQuestions: form.shuffleQuestions,
+        shuffleOptions:   form.shuffleOptions,
         questions: questions.map(q=>
           q.type==='mcq'
             ? {type:'mcq',      text:q.text, options:q.options, correct:q.correct}
@@ -233,6 +236,23 @@ export default function CreateExam({ onSuccess }) {
             placeholder="تعليق هيظهر للطالب في نتيجته بعد التسليم..."
             value={form.examComment} onChange={e=>setF('examComment',e.target.value)}/>
         </div>
+        {/* Shuffle settings */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <p className="text-xs font-bold text-slate-500 mb-3">🔀 إعدادات الترتيب العشوائي</p>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" className="accent-blue-600 w-4 h-4"
+                checked={form.shuffleQuestions} onChange={e=>setF('shuffleQuestions',e.target.checked)}/>
+              <span className="text-sm font-semibold text-slate-700">ترتيب الأسئلة عشوائي</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" className="accent-blue-600 w-4 h-4"
+                checked={form.shuffleOptions} onChange={e=>setF('shuffleOptions',e.target.checked)}/>
+              <span className="text-sm font-semibold text-slate-700">ترتيب الإجابات عشوائي</span>
+            </label>
+          </div>
+        </div>
+
         {/* Time window */}
         <div className="mt-4 pt-4 border-t border-slate-100">
           <label className="flex items-center gap-2 cursor-pointer mb-3">
