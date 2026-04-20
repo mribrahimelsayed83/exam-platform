@@ -311,4 +311,19 @@ router.put('/:id/grade-essay', staff, async (req, res) => {
   }
 });
 
+// ── DELETE /submissions/:id/retake — staff deletes submission to allow retake
+router.delete('/:id/retake', staff, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM submissions WHERE id=$1 RETURNING id, student_id, exam_id',
+      [req.params.id]
+    );
+    if (!result.rows[0]) return res.status(404).json({ message: 'الإجابة مش موجودة' });
+    res.json({ message: 'تم السماح بإعادة الامتحان' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 module.exports = router;

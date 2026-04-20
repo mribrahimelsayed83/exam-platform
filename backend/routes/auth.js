@@ -189,6 +189,31 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// ── Change Password (logged-in student) ───────────────────────────────────
+router.post('/change-password', auth('student'), async (req, res) => {
+  const { oldPassword, newPassword } = req.body;
+  if (!oldPassword || !newPassword)
+    return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+  if (newPassword.length < 6)
+    return res.status(400).json({ message: 'كلمة المرور الجديدة 6 حروف على الأقل' });
+
+  try {
+    const result = await pool.query('SELECT password FROM students WHERE id=$1', [req.user.id]);
+    const student = result.rows[0];
+    if (!student) return res.status(404).json({ message: 'الحساب غير موجود' });
+
+    const valid = await bcrypt.compare(oldPassword, student.password);
+    if (!valid) return res.status(400).json({ message: 'كلمة المرور القديمة غلط' });
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE students SET password=$1 WHERE id=$2', [hashed, req.user.id]);
+    res.json({ message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── Reset Password ─────────────────────────────────────────────────────────
 router.post('/reset-password', async (req, res) => {
   const { token, password } = req.body;

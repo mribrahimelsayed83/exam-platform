@@ -47,6 +47,12 @@ export default function SubmissionsList() {
     setGrading(data);
   };
 
+  const allowRetake = async (sub) => {
+    if (!confirm(`السماح لـ "${sub.student_name}" بإعادة امتحان "${sub.exam_title}"؟\nسيتم حذف إجابته الحالية.`)) return;
+    await api.delete(`/submissions/${sub.id}/retake`);
+    load();
+  };
+
   return (
     <div>
       <h2 className="text-xl font-extrabold text-slate-800 mb-2">إجابات الطلاب</h2>
@@ -134,10 +140,16 @@ export default function SubmissionsList() {
                       </td>
                       <td className="px-4 py-3"><span className={`badge ${st.cls} text-xs`}>{st.label}</span></td>
                       <td className="px-4 py-3">
-                        <button onClick={()=>openGrading(s.id)}
-                          className={`btn-sm ${s.grading_status==='fully_graded'?'btn-secondary':'btn-primary'}`}>
-                          {s.grading_status==='fully_graded'?'عرض':'تصحيح'}
-                        </button>
+                        <div className="flex gap-1.5">
+                          <button onClick={()=>openGrading(s.id)}
+                            className={`btn-sm ${s.grading_status==='fully_graded'?'btn-secondary':'btn-primary'}`}>
+                            {s.grading_status==='fully_graded'?'عرض':'تصحيح'}
+                          </button>
+                          <button onClick={()=>allowRetake(s)}
+                            className="btn-sm btn-danger" title="إعادة الامتحان">
+                            🔄
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
