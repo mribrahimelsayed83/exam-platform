@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 
 const typeIcons = {
@@ -9,12 +10,19 @@ const typeIcons = {
   like:       '❤️',
 };
 
+const linkTypeToPath = {
+  student:    '/teacher/students',
+  submission: '/teacher/submissions',
+  video:      '/teacher/videos',
+};
+
 export default function TeacherNotificationBell() {
   const [count, setCount]   = useState(0);
   const [notifs, setNotifs] = useState([]);
   const [open, setOpen]     = useState(false);
   const [loading, setLoading] = useState(false);
   const ref = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchCount();
@@ -51,9 +59,25 @@ export default function TeacherNotificationBell() {
     setNotifs(n => n.map(x => ({ ...x, is_read: true })));
   };
 
+  const handleNotifClick = async (notif) => {
+    if (!notif.is_read) {
+      try {
+        await api.post(`/teacher/my-notifications/${notif.id}/read`);
+        setNotifs(n => n.map(x => x.id === notif.id ? { ...x, is_read: true } : x));
+        setCount(c => Math.max(0, c - 1));
+      } catch {}
+    }
+    setOpen(false);
+    if (notif.link_type && linkTypeToPath[notif.link_type]) {
+      navigate(linkTypeToPath[notif.link_type]);
+    }
+  };
+
   const deleteNotif = async (id, e) => {
     e.stopPropagation();
     await api.delete(`/teacher/my-notifications/${id}`);
+    const deleted = notifs.find(x => x.id === id);
+    if (deleted && !deleted.is_read) setCount(c => Math.max(0, c - 1));
     setNotifs(n => n.filter(x => x.id !== id));
   };
 
@@ -95,8 +119,9 @@ export default function TeacherNotificationBell() {
             ) : (
               notifs.map(n => (
                 <div key={n.id}
-                  className={`flex items-start gap-3 px-4 py-3 border-b border-slate-50 hover:bg-slate-50 transition-colors
-                    ${!n.is_read ? 'bg-blue-50' : ''}`}>
+                  onClick={() => handleNotifClick(n)}
+                  className={`flex items-start gap-3 px-4 py-3 border-b border-slate-50 transition-colors cursor-pointer
+                    ${!n.is_read ? 'bg-blue-50 hover:bg-blue-100' : 'hover:bg-slate-50'}`}>
                   <span className="text-xl flex-shrink-0 mt-0.5">{typeIcons[n.type] || '🔔'}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">

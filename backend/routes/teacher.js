@@ -286,6 +286,16 @@ router.post('/my-notifications/read-all', staff, async (req, res) => {
   }
 });
 
+// POST /teacher/my-notifications/:id/read
+router.post('/my-notifications/:id/read', staff, async (req, res) => {
+  try {
+    await pool.query('UPDATE teacher_notifications SET is_read=TRUE WHERE id=$1', [req.params.id]);
+    res.json({ message: 'ok' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // DELETE /teacher/my-notifications/:id
 router.delete('/my-notifications/:id', staff, async (req, res) => {
   try {
