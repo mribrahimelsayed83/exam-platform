@@ -165,16 +165,16 @@ export default function StudentDashboard() {
 function HomeBlock({ icon, title, desc, gradient, shadow, onClick, badge }) {
   return (
     <div onClick={onClick}
-      className={`relative cursor-pointer rounded-3xl bg-gradient-to-br ${gradient} p-8 text-white text-center
+      className={`relative cursor-pointer rounded-3xl bg-gradient-to-br ${gradient} p-5 text-white text-center
         hover:shadow-2xl hover:-translate-y-2 transition-all duration-200 shadow-lg ${shadow}`}>
       {badge && (
         <span className="absolute top-3 left-3 min-w-[22px] h-[22px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1 shadow-lg">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
-      <div className="text-6xl mb-4 drop-shadow">{icon}</div>
-      <h2 className="text-xl font-extrabold mb-2">{title}</h2>
-      <p className="text-white/70 text-sm leading-relaxed">{desc}</p>
+      <div className="text-4xl mb-3 drop-shadow">{icon}</div>
+      <h2 className="text-base font-extrabold mb-1.5 leading-tight">{title}</h2>
+      <p className="text-white/70 text-xs leading-relaxed">{desc}</p>
     </div>
   );
 }
