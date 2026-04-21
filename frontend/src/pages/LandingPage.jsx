@@ -1,12 +1,64 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
-import mr from '../mr.png'
+import mr from '../mr.png';
+import { useAuth } from '../context/AuthContext';
+
+function UserNavMenu({ user, bg, onLogout }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, []);
+
+  const dest = user.role === 'student' ? '/student' : '/teacher';
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90"
+        style={{ background: bg }}>
+        <span>👤</span>
+        <span className="hidden sm:block max-w-[120px] truncate">{user.name}</span>
+        <span className="text-xs opacity-70">▾</span>
+      </button>
+      {open && (
+        <div className="absolute left-0 top-12 bg-white rounded-2xl shadow-2xl border border-slate-100 min-w-[180px] z-50 overflow-hidden" dir="rtl">
+          <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+            <p className="text-xs text-slate-400">مرحباً</p>
+            <p className="font-bold text-slate-800 text-sm truncate">{user.name}</p>
+          </div>
+          <button onClick={() => { navigate(dest); setOpen(false); }}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+            🏠 ادخل المنصة
+          </button>
+          {user.role === 'student' && (
+            <button onClick={() => { navigate('/student?tab=results'); setOpen(false); }}
+              className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+              📊 نتائجي
+            </button>
+          )}
+          <div className="border-t border-slate-100"/>
+          <button onClick={onLogout}
+            className="w-full text-right px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 flex items-center gap-2">
+            🚪 خروج
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
   const [dark, setDark]       = useState(() => document.documentElement.classList.contains('dark'));
+  const { user, logout }      = useAuth();
+  const navigate              = useNavigate();
 
   useEffect(() => {
     api.get('/landing').then(r => setData(r.data)).finally(() => setLoading(false));
@@ -41,18 +93,24 @@ export default function LandingPage() {
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 setDark(isDark);
               }}
-              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors text-lg"
+              className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-lg"
             >
               {dark ? '☀️' : '🌙'}
             </button>
-            <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
-              تسجيل الدخول
-            </Link>
-            <Link to="/register"
-              className="text-sm font-bold text-white px-4 py-2 rounded-xl transition-all hover:opacity-90"
-              style={{background:bg}}>
-              سجّل الآن
-            </Link>
+            {user ? (
+              <UserNavMenu user={user} bg={bg} onLogout={() => { logout(); }} />
+            ) : (
+              <>
+                <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
+                  تسجيل الدخول
+                </Link>
+                <Link to="/register"
+                  className="text-sm font-bold text-white px-4 py-2 rounded-xl transition-all hover:opacity-90"
+                  style={{background:bg}}>
+                  سجّل الآن
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -78,17 +136,33 @@ export default function LandingPage() {
               <p className="text-lg lg:text-xl text-white/80 mb-8 max-w-lg leading-relaxed">
                 {data.hero_desc}
               </p>
-              <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
-                <Link to="/register"
-                  className="bg-white font-bold px-8 py-3 rounded-xl text-base hover:shadow-lg transition-all hover:-translate-y-0.5"
-                  style={{color:bg}}>
-                  ابدأ الآن مجاناً ←
-                </Link>
-                <Link to="/login"
-                  className="border-2 border-white/60 text-white font-bold px-8 py-3 rounded-xl text-base hover:bg-white/10 transition-all">
-                  تسجيل الدخول
-                </Link>
-              </div>
+              {user ? (
+                <div className="flex flex-col items-center lg:items-start gap-4">
+                  <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur px-4 py-2 rounded-full text-white/90 text-sm font-semibold">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"/>
+                    أهلاً، {user.name}! أنت مسجل دخولك
+                  </div>
+                  <button
+                    onClick={() => navigate(user.role === 'student' ? '/student' : '/teacher')}
+                    className="group flex items-center gap-3 bg-white font-extrabold px-10 py-4 rounded-2xl text-lg shadow-2xl hover:shadow-white/30 hover:-translate-y-1 transition-all duration-200"
+                    style={{color:bg}}>
+                    <span>ادخل المنصة الآن</span>
+                    <span className="text-xl group-hover:translate-x-[-4px] transition-transform">←</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
+                  <Link to="/register"
+                    className="bg-white font-bold px-8 py-3 rounded-xl text-base hover:shadow-lg transition-all hover:-translate-y-0.5"
+                    style={{color:bg}}>
+                    ابدأ الآن مجاناً ←
+                  </Link>
+                  <Link to="/login"
+                    className="border-2 border-white/60 text-white font-bold px-8 py-3 rounded-xl text-base hover:bg-white/10 transition-all">
+                    تسجيل الدخول
+                  </Link>
+                </div>
+              )}
             </div>
 
             {/* Teacher image / avatar */}
@@ -195,13 +269,26 @@ export default function LandingPage() {
       {/* ── CTA ────────────────────────────────────────────────────────── */}
       <section className="py-20" style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}cc 100%)`}}>
         <div className="max-w-3xl mx-auto px-4 text-center text-white">
-          <h2 className="text-3xl lg:text-4xl font-extrabold mb-4">{data.cta_title}</h2>
-          <p className="text-white/80 text-lg mb-8">{data.cta_desc}</p>
-          <Link to="/register"
-            className="inline-block bg-white font-bold px-10 py-4 rounded-xl text-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
-            style={{color:bg}}>
-            سجّل مجاناً الآن ←
-          </Link>
+          <h2 className="text-3xl lg:text-4xl font-extrabold mb-4">
+            {user ? `أهلاً بك، ${user.name}!` : data.cta_title}
+          </h2>
+          <p className="text-white/80 text-lg mb-8">
+            {user ? 'كل شيء جاهز لك — ادخل المنصة وابدأ' : data.cta_desc}
+          </p>
+          {user ? (
+            <button
+              onClick={() => navigate(user.role === 'student' ? '/student' : '/teacher')}
+              className="inline-flex items-center gap-3 bg-white font-extrabold px-12 py-4 rounded-2xl text-lg hover:shadow-2xl transition-all hover:-translate-y-1"
+              style={{color:bg}}>
+              ادخل المنصة الآن ←
+            </button>
+          ) : (
+            <Link to="/register"
+              className="inline-block bg-white font-bold px-10 py-4 rounded-xl text-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+              style={{color:bg}}>
+              سجّل مجاناً الآن ←
+            </Link>
+          )}
         </div>
       </section>
 
