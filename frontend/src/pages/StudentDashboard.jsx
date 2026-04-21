@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '../components/shared/Navbar';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import StudentChat from '../components/shared/StudentChat';
 
 const GRADES = { 4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي', 7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي', 10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي' };
 
@@ -10,6 +11,17 @@ export default function StudentDashboard() {
   const [exams, setExams]     = useState([]);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showChat, setShowChat]       = useState(false);
+  const [chatUnread, setChatUnread]   = useState(0);
+
+  useEffect(() => {
+    const load = async () => {
+      try { const { data } = await api.get('/chat/unread-count'); setChatUnread(data.count); } catch {}
+    };
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
   const navigate = useNavigate();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
@@ -51,7 +63,7 @@ export default function StudentDashboard() {
           </div>
 
           {/* 4 Big Blocks */}
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
             <HomeBlock
               icon="🎬"
               title="الفيديوهات"
@@ -84,7 +96,19 @@ export default function StudentDashboard() {
               shadow="shadow-amber-200"
               onClick={() => navigate('/student/personal-exam')}
             />
+            <HomeBlock
+              icon="💬"
+              title="اسأل المعلم"
+              desc="تواصل مباشر مع المعلم"
+              gradient="from-pink-500 to-rose-600"
+              shadow="shadow-pink-200"
+              badge={chatUnread > 0 ? chatUnread : null}
+              onClick={() => setShowChat(true)}
+            />
           </div>
+          {showChat && (
+            <StudentChat onClose={() => setShowChat(false)} onRead={() => setChatUnread(0)} />
+          )}
         </div>
       </div>
     );
@@ -138,11 +162,16 @@ export default function StudentDashboard() {
 }
 
 // ── Home Block ────────────────────────────────────────────────────────────
-function HomeBlock({ icon, title, desc, gradient, shadow, onClick }) {
+function HomeBlock({ icon, title, desc, gradient, shadow, onClick, badge }) {
   return (
     <div onClick={onClick}
-      className={`cursor-pointer rounded-3xl bg-gradient-to-br ${gradient} p-8 text-white text-center
+      className={`relative cursor-pointer rounded-3xl bg-gradient-to-br ${gradient} p-8 text-white text-center
         hover:shadow-2xl hover:-translate-y-2 transition-all duration-200 shadow-lg ${shadow}`}>
+      {badge && (
+        <span className="absolute top-3 left-3 min-w-[22px] h-[22px] bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center px-1 shadow-lg">
+          {badge > 9 ? '9+' : badge}
+        </span>
+      )}
       <div className="text-6xl mb-4 drop-shadow">{icon}</div>
       <h2 className="text-xl font-extrabold mb-2">{title}</h2>
       <p className="text-white/70 text-sm leading-relaxed">{desc}</p>
