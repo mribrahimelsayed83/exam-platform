@@ -144,6 +144,21 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_personal_exam_student
         ON personal_exam_submissions(student_id);
     `);
+    // Chat messages between students and teacher/assistants
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS chat_messages (
+        id          SERIAL PRIMARY KEY,
+        student_id  INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        from_role   VARCHAR(20) NOT NULL,
+        from_name   VARCHAR(200) NOT NULL DEFAULT '',
+        message     TEXT NOT NULL,
+        is_read     BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_chat_student ON chat_messages(student_id);
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
@@ -165,6 +180,7 @@ app.use('/api/notifications', require('./routes/notifications'));
 app.use('/api/landing',        require('./routes/landing'));
 app.use('/api/personal-exam', require('./routes/personalExam'));
 app.use('/api/payments',      require('./routes/payments'));
+app.use('/api/chat',          require('./routes/chat'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));

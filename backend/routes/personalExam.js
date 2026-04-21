@@ -17,7 +17,10 @@ router.get('/questions', auth('student'), async (req, res) => {
     // Collect wrong questions (deduplicated by questionId — last seen wins)
     const wrongMap = new Map();
     for (const sub of submissions) {
-      const mcqList = (sub.review && sub.review.MCQ) ? sub.review.MCQ : [];
+      const raw = sub.review;
+      const mcqList = Array.isArray(raw)
+        ? raw.filter(q => q.type === 'mcq')
+        : (raw && Array.isArray(raw.MCQ) ? raw.MCQ : []);
       for (const q of mcqList) {
         if (!q.isCorrect && q.questionId) {
           wrongMap.set(q.questionId, {

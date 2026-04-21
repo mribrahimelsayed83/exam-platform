@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import TeacherNotificationBell from './TeacherNotificationBell';
+import StudentChat from './StudentChat';
 import api from '../../utils/api';
 
 const GRADES = { 4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي', 7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي', 10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي' };
@@ -76,7 +77,21 @@ function ChangePasswordModal({ onClose }) {
 function StudentProfileMenu({ user, navigate, onLogout }) {
   const [open, setOpen]             = useState(false);
   const [showChangePw, setShowChangePw] = useState(false);
+  const [showChat, setShowChat]     = useState(false);
+  const [chatUnread, setChatUnread] = useState(0);
   const ref = useRef(null);
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const { data } = await api.get('/chat/unread-count');
+        setChatUnread(data.count);
+      } catch {}
+    };
+    load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, []);
 
   useEffect(() => {
     const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
@@ -91,9 +106,14 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
       <div className="relative" ref={ref}>
         <button
           onClick={() => setOpen(o => !o)}
-          className="w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white text-base transition-colors"
+          className="relative w-8 h-8 rounded-full bg-blue-600 hover:bg-blue-700 flex items-center justify-center text-white text-base transition-colors"
           title={user?.name}>
           👤
+          {chatUnread > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              {chatUnread > 9 ? '9+' : chatUnread}
+            </span>
+          )}
         </button>
         {open && (
           <div className="absolute left-0 top-10 bg-white rounded-2xl shadow-xl border border-slate-100 overflow-hidden min-w-[190px] z-[999]" dir="rtl">
@@ -108,6 +128,15 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
                 </p>
               )}
             </div>
+            <button onClick={() => { setShowChat(true); setOpen(false); }}
+              className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2 justify-between">
+              <span className="flex items-center gap-2">💬 اسأل المعلم</span>
+              {chatUnread > 0 && (
+                <span className="w-5 h-5 bg-red-500 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                  {chatUnread > 9 ? '9+' : chatUnread}
+                </span>
+              )}
+            </button>
             <button onClick={() => go('/student/my-report')}
               className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors flex items-center gap-2">
               📋 تقرير عني
@@ -138,6 +167,12 @@ function StudentProfileMenu({ user, navigate, onLogout }) {
         )}
       </div>
       {showChangePw && <ChangePasswordModal onClose={() => setShowChangePw(false)} />}
+      {showChat && (
+        <StudentChat
+          onClose={() => setShowChat(false)}
+          onRead={() => setChatUnread(0)}
+        />
+      )}
     </>
   );
 }
