@@ -4,15 +4,12 @@ const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 const notify  = require('../utils/teacherNotif');
 
-const staff = [auth('teacher'), auth('assistant')].reduce(
-  (_, m) => (req, res, next) => {
-    auth('teacher')(req, res, (err) => {
-      if (!err && req.user) return next();
-      auth('assistant')(req, res, next);
-    });
-  },
-  null
-);
+const staff = (req, res, next) => {
+  auth('teacher')(req, res, (err) => {
+    if (!err && req.user) return next();
+    auth('assistant')(req, res, next);
+  });
+};
 
 // ── Student: get my messages (marks teacher messages as read) ─────────────
 router.get('/messages', auth('student'), async (req, res) => {
@@ -57,7 +54,9 @@ router.get('/unread-count', auth('student'), async (req, res) => {
   } catch { res.status(500).json({ count: 0 }); }
 });
 
-// ── Teacher: get all conversations (one row per student) ──────────────────
+// ══ TEACHER ROUTES — specific paths BEFORE parameterized /:studentId ══════
+
+// ── Teacher: all conversations ────────────────────────────────────────────
 router.get('/teacher/conversations', staff, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -76,7 +75,7 @@ router.get('/teacher/conversations', staff, async (req, res) => {
   } catch { res.status(500).json([]); }
 });
 
-// ── Teacher: unread count across all students ─────────────────────────────
+// ── Teacher: unread count ─────────────────────────────────────────────────
 router.get('/teacher/unread-count', staff, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -87,7 +86,41 @@ router.get('/teacher/unread-count', staff, async (req, res) => {
   } catch { res.status(500).json({ count: 0 }); }
 });
 
-// ── Teacher: get messages for one student (marks student messages as read) ─
+// ── Teacher: search students + assistants ─────────────────────────────────
+router.get('/teacher/search', staff, async (req, res) => {
+  try {
+    const q = `%${(req.query.q || '').trim()}%`;
+    const [s, a] = await Promise.all([
+      pool.query(`SELECT id, name, 'student' AS role FROM students WHERE status='approved' AND name ILIKE $1 LIMIT 10`, [q]),
+      pool.query(`SELECT id, name, 'assistant' AS role FROM assistants WHERE name ILIKE $1 LIMIT 5`, [q]),
+    ]);
+    res.json([...s.rows, ...a.rows]);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Teacher: staff conversations list ────────────────────────────────────
+router.get('/teacher/staff-conversations', staff, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         a.id AS assistant_id, a.name AS assistant_name,
+         COUNT(m.id) FILTER (WHERE m.from_role='assistant' AND m.is_read=FALSE) AS unread,
+         MAX(m.created_at) AS last_at,
+         (SELECT message FROM staff_messages
+          WHERE (from_id=a.id AND from_role='assistant')
+             OR (to_id=a.id AND to_role='assistant')
+          ORDER BY created_at DESC LIMIT 1) AS last_message
+       FROM assistants a
+       JOIN staff_messages m ON (m.from_id=a.id AND m.from_role='assistant')
+                              OR (m.to_id=a.id AND m.to_role='assistant')
+       GROUP BY a.id, a.name
+       ORDER BY last_at DESC`
+    );
+    res.json(rows);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Teacher: messages for one student — MUST be after specific routes above ─
 router.get('/teacher/:studentId', staff, async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -117,45 +150,7 @@ router.post('/teacher/:studentId/reply', staff, async (req, res) => {
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
-// ── Teacher: search students + assistants by name ─────────────────────────
-router.get('/teacher/search', staff, async (req, res) => {
-  try {
-    const q = `%${(req.query.q || '').trim()}%`;
-    const { rows: students } = await pool.query(
-      `SELECT id, name, 'student' AS role FROM students
-       WHERE status='approved' AND name ILIKE $1 LIMIT 10`, [q]
-    );
-    const { rows: assistants } = await pool.query(
-      `SELECT id, name, 'assistant' AS role FROM assistants
-       WHERE name ILIKE $1 LIMIT 5`, [q]
-    );
-    res.json([...students, ...assistants]);
-  } catch { res.status(500).json([]); }
-});
-
-// ── Teacher: get staff conversations list ────────────────────────────────
-router.get('/teacher/staff-conversations', staff, async (req, res) => {
-  try {
-    const { rows } = await pool.query(
-      `SELECT
-         a.id AS assistant_id, a.name AS assistant_name,
-         COUNT(m.id) FILTER (WHERE m.from_role='assistant' AND m.is_read=FALSE) AS unread,
-         MAX(m.created_at) AS last_at,
-         (SELECT message FROM staff_messages
-          WHERE (from_id=a.id AND from_role='assistant')
-             OR (to_id=a.id AND to_role='assistant')
-          ORDER BY created_at DESC LIMIT 1) AS last_message
-       FROM assistants a
-       JOIN staff_messages m ON (m.from_id=a.id AND m.from_role='assistant')
-                              OR (m.to_id=a.id AND m.to_role='assistant')
-       GROUP BY a.id, a.name
-       ORDER BY last_at DESC`
-    );
-    res.json(rows);
-  } catch { res.status(500).json([]); }
-});
-
-// ── Teacher: get messages with a specific assistant ───────────────────────
+// ── Teacher: messages with assistant ─────────────────────────────────────
 router.get('/staff/:assistantId', staff, async (req, res) => {
   try {
     const aid = req.params.assistantId;
@@ -173,7 +168,7 @@ router.get('/staff/:assistantId', staff, async (req, res) => {
   } catch { res.status(500).json([]); }
 });
 
-// ── Teacher: send message to assistant ───────────────────────────────────
+// ── Teacher: send to assistant ────────────────────────────────────────────
 router.post('/staff/:assistantId/send', staff, async (req, res) => {
   try {
     const { message } = req.body;
