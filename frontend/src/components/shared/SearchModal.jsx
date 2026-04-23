@@ -73,7 +73,7 @@ export default function SearchModal({ onClose }) {
           <input
             ref={inputRef}
             className="flex-1 outline-none text-slate-800 text-sm placeholder-slate-400 bg-transparent"
-            placeholder="ابحث عن طالب، امتحان، فيديو..."
+            placeholder={user?.role === 'student' ? 'ابحث عن امتحان أو فيديو...' : 'ابحث عن طالب، امتحان، فيديو...'}
             value={q}
             onChange={e => setQ(e.target.value)}
             onKeyDown={onKey}
