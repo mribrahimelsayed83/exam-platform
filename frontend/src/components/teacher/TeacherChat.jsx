@@ -20,7 +20,6 @@ function TeacherChatMain() {
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching]         = useState(false);
   const bottomRef   = useRef(null);
-  const searchRef   = useRef(null);
   const searchTimer = useRef(null);
 
   // ── Load conversations list ───────────────────────────────────────────────
@@ -48,8 +47,8 @@ function TeacherChatMain() {
           api.get('/chat/teacher/conversations'),
           api.get('/chat/teacher/staff-conversations'),
         ]);
-        const students   = s.data.map(x => ({ id: x.student_id,   name: x.student_name,   type: 'student',    unread: Number(x.unread), last_message: x.last_message }));
-        const assistants = a.data.map(x => ({ id: x.assistant_id, name: x.assistant_name, type: 'assistant',  unread: Number(x.unread), last_message: x.last_message }));
+        const students   = s.data.map(x => ({ id: x.student_id,   name: x.student_name,   type: 'student',   unread: Number(x.unread), last_message: x.last_message }));
+        const assistants = a.data.map(x => ({ id: x.assistant_id, name: x.assistant_name, type: 'assistant', unread: Number(x.unread), last_message: x.last_message }));
         setConversations([...students, ...assistants].sort((a, b) => Number(b.unread) - Number(a.unread)));
       }
     } catch {}
@@ -71,7 +70,13 @@ function TeacherChatMain() {
     } finally { if (!silent) setLoadingMsgs(false); }
   };
 
-  useEffect(() => { loadConvs(); const t = setInterval(loadConvs, 10000); return () => clearInterval(t); }, []);
+  // re-run whenever role changes (fixes stale-closure bug when user loads after mount)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    loadConvs();
+    const t = setInterval(loadConvs, 10000);
+    return () => clearInterval(t);
+  }, [user?.role]);
 
   useEffect(() => {
     if (!selected) return;
@@ -79,27 +84,23 @@ function TeacherChatMain() {
     return () => clearInterval(t);
   }, [selected]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   // ── Search with debounce ──────────────────────────────────────────────────
   useEffect(() => {
     clearTimeout(searchTimer.current);
-    if (!searchQ.trim()) { setSearchResults([]); return; }
+    if (!searchQ.trim()) { setSearchResults([]); setSearching(false); return; }
     setSearching(true);
     searchTimer.current = setTimeout(async () => {
       try {
         const { data } = await api.get(`/chat/teacher/search?q=${encodeURIComponent(searchQ)}`);
         setSearchResults(isAssistant ? data.filter(r => r.role === 'student') : data);
-      } finally { setSearching(false); }
+      } catch { setSearchResults([]); }
+      finally { setSearching(false); }
     }, 350);
   }, [searchQ]);
-
-  // ── Close search on outside click ─────────────────────────────────────────
-  useEffect(() => {
-    const h = (e) => { if (searchRef.current && !searchRef.current.contains(e.target)) setSearchResults([]); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, []);
 
   const selectPerson = (person) => {
     setSelected(person);
@@ -135,26 +136,29 @@ function TeacherChatMain() {
     if (!selected) return false;
     if (selected.type === 'teacher-inbox') return m.from_role === 'assistant';
     if (selected.type === 'student')       return m.from_role !== 'student';
-    return m.from_role === 'teacher'; // teacher viewing assistant conversation
+    return m.from_role === 'teacher';
   };
 
   const roleBadge = (type) => {
-    if (type === 'assistant')    return <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">مساعد</span>;
+    if (type === 'assistant')     return <span className="text-[10px] bg-amber-100 text-amber-700 font-bold px-1.5 py-0.5 rounded-full">مساعد</span>;
     if (type === 'teacher-inbox') return <span className="text-[10px] bg-purple-100 text-purple-700 font-bold px-1.5 py-0.5 rounded-full">مدرس</span>;
-    return                               <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full">طالب</span>;
+    return                                <span className="text-[10px] bg-blue-100 text-blue-700 font-bold px-1.5 py-0.5 rounded-full">طالب</span>;
   };
 
   const roleIcon = (type) => {
-    if (type === 'assistant')    return '🤝';
+    if (type === 'assistant')     return '🤝';
     if (type === 'teacher-inbox') return '👨‍🏫';
     return '👤';
   };
 
   const roleBg = (type) => {
-    if (type === 'assistant')    return 'bg-amber-100';
+    if (type === 'assistant')     return 'bg-amber-100';
     if (type === 'teacher-inbox') return 'bg-purple-100';
     return 'bg-blue-100';
   };
+
+  // Is search mode active?
+  const isSearching = searchQ.trim().length > 0;
 
   return (
     <div dir="rtl">
@@ -165,7 +169,7 @@ function TeacherChatMain() {
         <div className="w-64 flex-shrink-0 bg-white rounded-2xl border border-slate-200 flex flex-col overflow-hidden">
 
           {/* Search bar */}
-          <div className="p-3 border-b border-slate-100 relative" ref={searchRef}>
+          <div className="p-3 border-b border-slate-100 flex-shrink-0">
             <div className="relative">
               <input
                 className="input text-sm pr-8 pl-3 w-full"
@@ -173,66 +177,85 @@ function TeacherChatMain() {
                 value={searchQ}
                 onChange={e => setSearchQ(e.target.value)}
               />
-              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+              {searchQ ? (
+                <button
+                  onClick={() => setSearchQ('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 text-sm leading-none">
+                  ✕
+                </button>
+              ) : (
+                <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 text-sm">🔍</span>
+              )}
             </div>
-
-            {/* Search results dropdown */}
-            {(searchResults.length > 0 || searching) && (
-              <div className="absolute right-3 left-3 top-full mt-1 bg-white rounded-xl shadow-xl border border-slate-200 z-50 overflow-hidden">
-                {searching ? (
-                  <div className="flex justify-center py-4">
-                    <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
-                  </div>
-                ) : searchResults.length === 0 ? (
-                  <p className="text-xs text-slate-400 text-center py-3">لا توجد نتائج</p>
-                ) : searchResults.map(r => (
-                  <button key={`${r.role}-${r.id}`}
-                    onClick={() => selectPerson({ id: r.id, name: r.name, type: r.role })}
-                    className="w-full text-right px-3 py-2.5 flex items-center gap-2 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0">
-                    <span className="text-base">{roleIcon(r.role)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-slate-800 truncate">{r.name}</p>
-                      {r.username && <p className="text-xs text-slate-400 truncate">@{r.username}</p>}
-                    </div>
-                    {roleBadge(r.role)}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          {/* Conversations list */}
+          {/* List: search results OR conversations */}
           <div className="flex-1 overflow-y-auto">
-            {conversations.length === 0 ? (
-              <div className="text-center py-10 text-slate-400 px-3">
-                <div className="text-3xl mb-2">💬</div>
-                <p className="text-xs">ابحث عن شخص لبدء محادثة</p>
-              </div>
-            ) : conversations.map(c => (
-              <button key={`${c.type}-${c.id}`} onClick={() => selectPerson(c)}
-                className={`w-full text-right px-3 py-3 border-b border-slate-100 flex items-start gap-2.5 transition-colors
-                  ${selected?.id === c.id && selected?.type === c.type
-                    ? 'bg-blue-50 border-r-2 border-r-blue-600'
-                    : 'hover:bg-slate-50'}`}>
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${roleBg(c.type)}`}>
-                  {roleIcon(c.type)}
+            {isSearching ? (
+              /* ── Search results ─────────────────────── */
+              searching ? (
+                <div className="flex justify-center py-8">
+                  <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-1">
-                    <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
-                    {c.unread > 0 && (
-                      <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 flex-shrink-0">
-                        {c.unread > 9 ? '9+' : c.unread}
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    {roleBadge(c.type)}
-                    <p className="text-xs text-slate-400 truncate flex-1">{c.last_message}</p>
-                  </div>
+              ) : searchResults.length === 0 ? (
+                <div className="text-center py-8 text-slate-400 px-3">
+                  <div className="text-2xl mb-1">🔍</div>
+                  <p className="text-xs">لا توجد نتائج</p>
                 </div>
-              </button>
-            ))}
+              ) : (
+                <>
+                  <p className="text-[11px] text-slate-400 font-bold px-3 pt-2 pb-1">نتائج البحث</p>
+                  {searchResults.map(r => (
+                    <button key={`${r.role}-${r.id}`}
+                      onClick={() => selectPerson({ id: r.id, name: r.name, type: r.role })}
+                      className="w-full text-right px-3 py-2.5 flex items-center gap-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${roleBg(r.role)}`}>
+                        {roleIcon(r.role)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-slate-800 truncate">{r.name}</p>
+                        {r.username && <p className="text-xs text-slate-400 truncate">@{r.username}</p>}
+                      </div>
+                      {roleBadge(r.role)}
+                    </button>
+                  ))}
+                </>
+              )
+            ) : (
+              /* ── Conversations list ─────────────────── */
+              conversations.length === 0 ? (
+                <div className="text-center py-10 text-slate-400 px-3">
+                  <div className="text-3xl mb-2">💬</div>
+                  <p className="text-xs">ابحث عن شخص لبدء محادثة</p>
+                </div>
+              ) : conversations.map(c => (
+                <button key={`${c.type}-${c.id}`} onClick={() => selectPerson(c)}
+                  className={`w-full text-right px-3 py-3 border-b border-slate-100 flex items-start gap-2.5 transition-colors
+                    ${selected?.id === c.id && selected?.type === c.type
+                      ? 'bg-blue-50 border-r-2 border-r-blue-600'
+                      : 'hover:bg-slate-50'}`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${roleBg(c.type)}`}>
+                    {roleIcon(c.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-1">
+                      <p className="text-sm font-bold text-slate-800 truncate">{c.name}</p>
+                      {c.unread > 0 && (
+                        <span className="min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 flex-shrink-0">
+                          {c.unread > 9 ? '9+' : c.unread}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {roleBadge(c.type)}
+                      {c.last_message && (
+                        <p className="text-xs text-slate-400 truncate flex-1">{c.last_message}</p>
+                      )}
+                    </div>
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </div>
 

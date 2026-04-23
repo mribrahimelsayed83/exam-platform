@@ -48,16 +48,16 @@ export default function TeacherDashboard() {
 
   const [chatUnread, setChatUnread] = useState(0);
   useEffect(() => {
+    const endpoint = user?.role === 'assistant'
+      ? '/chat/assistant/unread-count'
+      : '/chat/teacher/unread-count';
     const load = async () => {
-      try {
-        const { data } = await api.get('/chat/teacher/unread-count');
-        setChatUnread(data.count);
-      } catch {}
+      try { const { data } = await api.get(endpoint); setChatUnread(data.count); } catch {}
     };
     load();
     const t = setInterval(load, 15000);
     return () => clearInterval(t);
-  }, []);
+  }, [user?.role]);
 
   const allNavItems = [
     { path:'',            label:'الرئيسية',    icon:'🏠',  teacherOnly: false },
