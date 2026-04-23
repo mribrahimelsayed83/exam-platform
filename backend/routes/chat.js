@@ -4,12 +4,7 @@ const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 const notify  = require('../utils/teacherNotif');
 
-const staff = (req, res, next) => {
-  auth('teacher')(req, res, (err) => {
-    if (!err && req.user) return next();
-    auth('assistant')(req, res, next);
-  });
-};
+const staff = auth(['teacher', 'assistant']);
 
 // ── Student: get my messages (marks teacher messages as read) ─────────────
 router.get('/messages', auth('student'), async (req, res) => {
