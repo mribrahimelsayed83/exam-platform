@@ -91,8 +91,8 @@ router.get('/teacher/search', staff, async (req, res) => {
   try {
     const q = `%${(req.query.q || '').trim()}%`;
     const [s, a] = await Promise.all([
-      pool.query(`SELECT id, name, 'student' AS role FROM students WHERE status='approved' AND name ILIKE $1 LIMIT 10`, [q]),
-      pool.query(`SELECT id, name, 'assistant' AS role FROM assistants WHERE name ILIKE $1 LIMIT 5`, [q]),
+      pool.query(`SELECT id, name, username, 'student' AS role FROM students WHERE status='approved' AND (name ILIKE $1 OR username ILIKE $1)`, [q]),
+      pool.query(`SELECT id, name, username, 'assistant' AS role FROM assistants WHERE (name ILIKE $1 OR username ILIKE $1)`, [q]),
     ]);
     res.json([...s.rows, ...a.rows]);
   } catch { res.status(500).json([]); }

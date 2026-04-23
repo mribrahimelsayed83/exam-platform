@@ -148,6 +148,7 @@ export default function TeacherChat() {
                     <span className="text-base">{roleIcon(r.role)}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-800 truncate">{r.name}</p>
+                      {r.username && <p className="text-xs text-slate-400 truncate">@{r.username}</p>}
                     </div>
                     {roleBadge(r.role)}
                   </button>
