@@ -207,9 +207,8 @@ export default function Navbar({ title }) {
   }, []);
 
   const handleLogout = () => {
-    const isStudent = user?.role === 'student';
     logout();
-    navigate(isStudent ? '/' : '/login');
+    navigate('/');
   };
 
   return (
