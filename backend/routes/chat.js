@@ -150,6 +150,56 @@ router.post('/teacher/:studentId/reply', staff, async (req, res) => {
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
+// ══ ASSISTANT ROUTES ══════════════════════════════════════════════════════
+
+// ── Assistant: get inbox (conversation with teacher) ──────────────────────
+router.get('/assistant/inbox', auth('assistant'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT * FROM staff_messages
+       WHERE (from_role='assistant' AND from_id=$1)
+          OR (to_role='assistant' AND to_id=$1)
+       ORDER BY created_at ASC`,
+      [req.user.id]
+    );
+    await pool.query(
+      `UPDATE staff_messages SET is_read=TRUE
+       WHERE to_id=$1 AND to_role='assistant' AND is_read=FALSE`,
+      [req.user.id]
+    );
+    res.json(rows);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Assistant: send message to teacher ───────────────────────────────────
+router.post('/assistant/send', auth('assistant'), async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
+    const tRes = await pool.query('SELECT id, name FROM teachers LIMIT 1');
+    if (!tRes.rows[0]) return res.status(404).json({ message: 'لا يوجد مدرس' });
+    const teacher = tRes.rows[0];
+    const { rows } = await pool.query(
+      `INSERT INTO staff_messages (from_id, from_role, from_name, to_id, to_role, to_name, message)
+       VALUES ($1,'assistant',$2,$3,'teacher',$4,$5) RETURNING *`,
+      [req.user.id, req.user.name, teacher.id, teacher.name, message.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch { res.status(500).json({ message: 'خطأ' }); }
+});
+
+// ── Assistant: unread count (from teacher) ────────────────────────────────
+router.get('/assistant/unread-count', auth('assistant'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT COUNT(*)::int AS count FROM staff_messages
+       WHERE to_id=$1 AND to_role='assistant' AND is_read=FALSE`,
+      [req.user.id]
+    );
+    res.json({ count: rows[0].count });
+  } catch { res.status(500).json({ count: 0 }); }
+});
+
 // ── Teacher: messages with assistant ─────────────────────────────────────
 router.get('/staff/:assistantId', staff, async (req, res) => {
   try {
