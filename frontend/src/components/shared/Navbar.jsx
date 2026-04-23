@@ -4,6 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import NotificationBell from './NotificationBell';
 import TeacherNotificationBell from './TeacherNotificationBell';
 import StudentChat from './StudentChat';
+import SearchModal from './SearchModal';
 import api from '../../utils/api';
 
 const GRADES = { 4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي', 7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي', 10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي' };
@@ -192,6 +193,18 @@ export default function Navbar({ title }) {
   const location = useLocation();
   const isStudentHome = location.pathname === '/student' && !location.search;
   const [dark, setDark] = useDarkMode();
+  const [showSearch, setShowSearch] = useState(false);
+
+  useEffect(() => {
+    const h = (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+    };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, []);
 
   const handleLogout = () => {
     const isStudent = user?.role === 'student';
@@ -200,6 +213,8 @@ export default function Navbar({ title }) {
   };
 
   return (
+    <>
+    {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
     <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -229,6 +244,18 @@ export default function Navbar({ title }) {
           {user?.role !== 'student' && (
             <span className="text-sm font-semibold text-slate-600 hidden sm:block">{user?.name}</span>
           )}
+          {/* Search button */}
+          {user && (
+            <button
+              onClick={() => setShowSearch(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-500 dark:text-slate-300 text-xs font-medium transition-colors"
+              title="بحث (Ctrl+K)"
+            >
+              <span>🔍</span>
+              <span className="hidden sm:inline">بحث</span>
+              <kbd className="hidden sm:inline text-[10px] font-mono bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-600 px-1 rounded opacity-70">K</kbd>
+            </button>
+          )}
           {/* Dark mode toggle */}
           <button
             onClick={() => setDark(d => !d)}
@@ -249,5 +276,6 @@ export default function Navbar({ title }) {
         </div>
       </div>
     </nav>
+    </>
   );
 }

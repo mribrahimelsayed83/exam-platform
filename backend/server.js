@@ -200,6 +200,7 @@ app.use('/api/landing',        require('./routes/landing'));
 app.use('/api/personal-exam', require('./routes/personalExam'));
 app.use('/api/payments',      require('./routes/payments'));
 app.use('/api/chat',          require('./routes/chat'));
+app.use('/api/search',        require('./routes/search'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));
