@@ -159,6 +159,25 @@ async function runMigrations() {
     await pool.query(`
       CREATE INDEX IF NOT EXISTS idx_chat_student ON chat_messages(student_id);
     `);
+    // Direct messages between teacher and assistants
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS staff_messages (
+        id          SERIAL PRIMARY KEY,
+        from_id     INTEGER NOT NULL,
+        from_role   VARCHAR(20) NOT NULL,
+        from_name   VARCHAR(200) NOT NULL DEFAULT '',
+        to_id       INTEGER NOT NULL,
+        to_role     VARCHAR(20) NOT NULL,
+        to_name     VARCHAR(200) NOT NULL DEFAULT '',
+        message     TEXT NOT NULL,
+        is_read     BOOLEAN DEFAULT FALSE,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      CREATE INDEX IF NOT EXISTS idx_staff_msg_participants
+        ON staff_messages(from_id, to_id);
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

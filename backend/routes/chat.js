@@ -117,4 +117,77 @@ router.post('/teacher/:studentId/reply', staff, async (req, res) => {
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
+// ── Teacher: search students + assistants by name ─────────────────────────
+router.get('/teacher/search', staff, async (req, res) => {
+  try {
+    const q = `%${(req.query.q || '').trim()}%`;
+    const { rows: students } = await pool.query(
+      `SELECT id, name, 'student' AS role FROM students
+       WHERE status='approved' AND name ILIKE $1 LIMIT 10`, [q]
+    );
+    const { rows: assistants } = await pool.query(
+      `SELECT id, name, 'assistant' AS role FROM assistants
+       WHERE name ILIKE $1 LIMIT 5`, [q]
+    );
+    res.json([...students, ...assistants]);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Teacher: get staff conversations list ────────────────────────────────
+router.get('/teacher/staff-conversations', staff, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         a.id AS assistant_id, a.name AS assistant_name,
+         COUNT(m.id) FILTER (WHERE m.from_role='assistant' AND m.is_read=FALSE) AS unread,
+         MAX(m.created_at) AS last_at,
+         (SELECT message FROM staff_messages
+          WHERE (from_id=a.id AND from_role='assistant')
+             OR (to_id=a.id AND to_role='assistant')
+          ORDER BY created_at DESC LIMIT 1) AS last_message
+       FROM assistants a
+       JOIN staff_messages m ON (m.from_id=a.id AND m.from_role='assistant')
+                              OR (m.to_id=a.id AND m.to_role='assistant')
+       GROUP BY a.id, a.name
+       ORDER BY last_at DESC`
+    );
+    res.json(rows);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Teacher: get messages with a specific assistant ───────────────────────
+router.get('/staff/:assistantId', staff, async (req, res) => {
+  try {
+    const aid = req.params.assistantId;
+    const { rows } = await pool.query(
+      `SELECT * FROM staff_messages
+       WHERE (from_role='assistant' AND from_id=$1)
+          OR (to_role='assistant' AND to_id=$1)
+       ORDER BY created_at ASC`, [aid]
+    );
+    await pool.query(
+      `UPDATE staff_messages SET is_read=TRUE
+       WHERE from_id=$1 AND from_role='assistant' AND is_read=FALSE`, [aid]
+    );
+    res.json(rows);
+  } catch { res.status(500).json([]); }
+});
+
+// ── Teacher: send message to assistant ───────────────────────────────────
+router.post('/staff/:assistantId/send', staff, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
+    const aRes = await pool.query('SELECT name FROM assistants WHERE id=$1', [req.params.assistantId]);
+    if (!aRes.rows[0]) return res.status(404).json({ message: 'مساعد غير موجود' });
+    const { rows } = await pool.query(
+      `INSERT INTO staff_messages (from_id, from_role, from_name, to_id, to_role, to_name, message)
+       VALUES ($1,$2,$3,$4,'assistant',$5,$6) RETURNING *`,
+      [req.user.id, req.user.role, req.user.name,
+       req.params.assistantId, aRes.rows[0].name, message.trim()]
+    );
+    res.status(201).json(rows[0]);
+  } catch { res.status(500).json({ message: 'خطأ' }); }
+});
+
 module.exports = router;
