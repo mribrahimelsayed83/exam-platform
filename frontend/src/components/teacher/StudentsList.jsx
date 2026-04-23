@@ -326,7 +326,7 @@ function EditStudentModal({ student, onClose, onSave }) {
 
           <Field label="اسم المستخدم">
             <input className="input" value={form.username}
-              onChange={e => set('username', e.target.value.replace(/\s/g, '').toLowerCase())}
+              onChange={e => set('username', e.target.value.replace(/[^a-zA-Z0-9_.@-]/g, '').toLowerCase())}
               dir="ltr"/>
           </Field>
 

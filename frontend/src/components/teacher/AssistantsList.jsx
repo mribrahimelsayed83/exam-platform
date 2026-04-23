@@ -57,8 +57,8 @@ export default function AssistantsList() {
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">اسم المستخدم</label>
-              <input className="input" placeholder="للدخول" value={form.username}
-                onChange={e=>set('username',e.target.value)} required/>
+              <input className="input" placeholder="للدخول — إنجليزي فقط" value={form.username} dir="ltr"
+                onChange={e=>set('username', e.target.value.replace(/[^a-zA-Z0-9_.@-]/g, '').toLowerCase())} required/>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">كلمة المرور</label>

@@ -72,8 +72,8 @@ export default function RegisterPage() {
 
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">اسم المستخدم *</label>
-            <input className="input" placeholder="بدون مسافات" value={form.username}
-              onChange={e=>set('username',e.target.value)} required/>
+            <input className="input" placeholder="بدون مسافات — إنجليزي فقط" value={form.username} dir="ltr"
+              onChange={e=>set('username', e.target.value.replace(/[^a-zA-Z0-9_.@-]/g, '').toLowerCase())} required/>
             <p className="text-xs text-slate-400 mt-1">هيُستخدم للدخول — لا يمكن تغييره</p>
           </div>
 
