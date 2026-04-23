@@ -21,6 +21,7 @@ export default function StudentsList() {
   const [loading, setLoading]       = useState(true);
   const [editing, setEditing]       = useState(null);
   const [detailId, setDetailId]     = useState(null);
+  const [resetPw, setResetPw]       = useState(null); // student to reset password
 
   const load = () => {
     setLoading(true);
@@ -177,6 +178,7 @@ export default function StudentsList() {
                                 {st.status==='rejected' && <button onClick={()=>approve(st.id)} className="btn-success btn-sm">قبول</button>}
                                 {st.status==='approved' && <button onClick={()=>reject(st.id)} className="btn-secondary btn-sm">إيقاف</button>}
                                 <button onClick={()=>setEditing(st)} className="btn-secondary btn-sm">تعديل</button>
+                                <button onClick={()=>setResetPw(st)} className="btn-secondary btn-sm" title="تغيير كلمة المرور">🔑</button>
                                 <button onClick={()=>setDetailId(st.id)} className="btn-secondary btn-sm">📋</button>
                                 <button onClick={()=>remove(st.id)} className="btn-danger btn-sm">حذف</button>
                               </div>
@@ -196,6 +198,82 @@ export default function StudentsList() {
       {editing && (
         <EditStudentModal student={editing} onClose={()=>setEditing(null)} onSave={()=>{setEditing(null);load();}}/>
       )}
+      {resetPw && (
+        <ResetPasswordModal student={resetPw} onClose={()=>setResetPw(null)}/>
+      )}
+    </div>
+  );
+}
+
+function ResetPasswordModal({ student, onClose }) {
+  const [password, setPassword] = useState('');
+  const [show, setShow]         = useState(false);
+  const [loading, setLoading]   = useState(false);
+  const [error, setError]       = useState('');
+  const [success, setSuccess]   = useState(false);
+
+  const handle = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (password.length < 6) return setError('كلمة المرور 6 أحرف على الأقل');
+    setLoading(true);
+    try {
+      await api.post(`/teacher/students/${student.id}/reset-password`, { password });
+      setSuccess(true);
+      setTimeout(onClose, 1500);
+    } catch (err) {
+      setError(err.response?.data?.message || 'خطأ في التغيير');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl" onClick={e => e.stopPropagation()} dir="rtl">
+        <div className="flex items-center justify-between mb-5">
+          <div>
+            <h3 className="font-extrabold text-slate-800">🔑 تغيير كلمة المرور</h3>
+            <p className="text-xs text-slate-400 mt-0.5">{student.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl">✕</button>
+        </div>
+
+        {success ? (
+          <div className="text-center py-4">
+            <div className="text-4xl mb-2">✅</div>
+            <p className="font-bold text-emerald-600">تم تغيير كلمة المرور بنجاح</p>
+          </div>
+        ) : (
+          <form onSubmit={handle} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">كلمة المرور الجديدة</label>
+              <div className="relative">
+                <input
+                  type={show ? 'text' : 'password'}
+                  className="input pl-10"
+                  placeholder="6 أحرف على الأقل"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  dir="ltr"
+                  autoFocus
+                />
+                <button type="button" onClick={() => setShow(s => !s)}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                  {show ? '🙈' : '👁️'}
+                </button>
+              </div>
+            </div>
+            {error && <p className="text-red-500 text-sm">{error}</p>}
+            <div className="flex gap-3">
+              <button type="submit" disabled={loading} className="btn-primary flex-1">
+                {loading
+                  ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"/>
+                  : 'تغيير'}
+              </button>
+              <button type="button" onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
+            </div>
+          </form>
+        )}
+      </div>
     </div>
   );
 }

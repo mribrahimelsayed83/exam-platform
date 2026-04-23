@@ -144,6 +144,25 @@ router.put('/students/:id', staff, async (req, res) => {
   }
 });
 
+// ── Reset student password ────────────────────────────────────────────────
+router.post('/students/:id/reset-password', auth('teacher'), async (req, res) => {
+  const { password } = req.body;
+  if (!password || password.length < 6)
+    return res.status(400).json({ message: 'كلمة المرور 6 أحرف على الأقل' });
+  try {
+    const hashed = await bcrypt.hash(password, 10);
+    const result = await pool.query(
+      'UPDATE students SET password=$1 WHERE id=$2 RETURNING id',
+      [hashed, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ message: 'الطالب غير موجود' });
+    res.json({ message: 'تم تغيير كلمة المرور بنجاح' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── Delete ────────────────────────────────────────────────────────────────
 router.delete('/students/:id', staff, async (req, res) => {
   try {
