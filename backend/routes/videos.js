@@ -500,6 +500,19 @@ router.post('/view', auth('student'), async (req, res) => {
   }
 });
 
+// ── GET /videos/viewed — IDs of items this student has viewed ─────────────
+router.get('/viewed', auth('student'), async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT DISTINCT item_id FROM video_views WHERE student_id=$1 AND item_id IS NOT NULL`,
+      [req.user.id]
+    );
+    res.json(rows.map(r => r.item_id));
+  } catch {
+    res.status(500).json([]);
+  }
+});
+
 module.exports = router;
 
 // ════════════════════════════════════════

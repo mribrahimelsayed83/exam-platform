@@ -24,14 +24,19 @@ export default function VideosPage() {
   const [items, setItems]         = useState([]);
   const [currentVideo, setCurrentVideo] = useState(null);
   const [loading, setLoading]     = useState(true);
+  const [viewedIds, setViewedIds] = useState(new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Load top-level playlists on mount
+  // Load top-level playlists + viewed IDs on mount
   useEffect(() => {
-    api.get('/videos/playlists')
-      .then(r => setPlaylists(r.data))
-      .finally(() => setLoading(false));
+    Promise.all([
+      api.get('/videos/playlists'),
+      api.get('/videos/viewed').catch(() => ({ data: [] })),
+    ]).then(([pl, vw]) => {
+      setPlaylists(pl.data);
+      setViewedIds(new Set(vw.data));
+    }).finally(() => setLoading(false));
   }, []);
 
   // ── Open a top-level playlist ──
@@ -73,6 +78,7 @@ export default function VideosPage() {
   // ── Track video view ──
   const trackView = (item) => {
     api.post('/videos/view', { item_id: item.id, title: item.title }).catch(() => {});
+    setViewedIds(prev => new Set([...prev, item.id]));
   };
 
   // ── Back handlers ──
@@ -196,6 +202,7 @@ export default function VideosPage() {
                         item={item}
                         idx={idx}
                         isActive={isActiveVideo}
+                        isViewed={viewedIds.has(item.id)}
                         thumb={thumb}
                         onClick={() => {
                           if (item.type === 'video') { setCurrentVideo(item); trackView(item); }
@@ -256,6 +263,7 @@ export default function VideosPage() {
                 <LessonItemCard
                   key={item.id}
                   item={item}
+                  isViewed={viewedIds.has(item.id)}
                   onPlayVideo={() => { setCurrentVideo(item); trackView(item); }}
                   navigate={navigate}
                 />
@@ -393,7 +401,7 @@ export default function VideosPage() {
 }
 
 // ── Lesson Item Card (in items view) ─────────────────────────────────────
-function LessonItemCard({ item, onPlayVideo, navigate }) {
+function LessonItemCard({ item, isViewed, onPlayVideo, navigate }) {
   const thumb = item.type === 'video' ? getThumbnail(item.youtube_url) : null;
   const [downloading, setDownloading] = useState(false);
 
@@ -434,7 +442,7 @@ function LessonItemCard({ item, onPlayVideo, navigate }) {
       className={`card p-0 overflow-hidden transition-shadow ${isClickable ? 'cursor-pointer hover:shadow-md' : ''}`}>
       <div className="flex items-center gap-4 p-4">
         {/* Thumb or icon */}
-        <div className="w-20 h-14 flex-shrink-0 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center">
+        <div className="w-20 h-14 flex-shrink-0 bg-slate-100 rounded-xl overflow-hidden flex items-center justify-center relative">
           {thumb ? (
             <div className="relative w-full h-full">
               <img src={thumb} alt={item.title} className="w-full h-full object-cover"/>
@@ -446,6 +454,9 @@ function LessonItemCard({ item, onPlayVideo, navigate }) {
             </div>
           ) : (
             <span className="text-3xl">{ITEM_ICONS[item.type] || '📄'}</span>
+          )}
+          {isViewed && (
+            <span className="absolute top-1 right-1 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-bold shadow">✓</span>
           )}
         </div>
 
@@ -481,7 +492,7 @@ function LessonItemCard({ item, onPlayVideo, navigate }) {
 }
 
 // ── Sidebar Item (inside video player view) ────────────────────────────
-function SidebarItem({ item, idx, isActive, thumb, onClick, navigate }) {
+function SidebarItem({ item, idx, isActive, isViewed, thumb, onClick, navigate }) {
   const handleClick = async () => {
     if (item.type === 'video') {
       onClick();
@@ -503,8 +514,8 @@ function SidebarItem({ item, idx, isActive, thumb, onClick, navigate }) {
       onClick={handleClick}
       className={`flex items-center gap-3 p-3 cursor-pointer transition-colors
         ${isActive ? 'bg-blue-600' : 'hover:bg-slate-700'}`}>
-      <div className={`flex-shrink-0 text-xs font-bold w-5 text-center ${isActive ? 'text-white' : 'text-slate-500'}`}>
-        {isActive ? '▶' : idx + 1}
+      <div className={`flex-shrink-0 text-xs font-bold w-5 text-center ${isActive ? 'text-white' : isViewed ? 'text-emerald-400' : 'text-slate-500'}`}>
+        {isActive ? '▶' : isViewed ? '✓' : idx + 1}
       </div>
       <div className="w-16 h-10 flex-shrink-0 bg-slate-700 rounded overflow-hidden flex items-center justify-center">
         {thumb
