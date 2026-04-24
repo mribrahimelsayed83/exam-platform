@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import * as XLSX from 'xlsx';
 import api from '../../utils/api';
 
 const gradeLabel = {
@@ -55,7 +56,28 @@ export default function SubmissionsList() {
 
   return (
     <div>
-      <h2 className="text-xl font-extrabold text-slate-800 mb-2">إجابات الطلاب</h2>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xl font-extrabold text-slate-800">إجابات الطلاب</h2>
+        {subs.length > 0 && (
+          <button
+            onClick={() => {
+              const rows = subs.map(s => ({
+                'اسم الطالب': s.student_name,
+                'اسم الامتحان': s.exam_title,
+                'الدرجة': s.final_score !== null ? `${s.final_score}%` : '—',
+              }));
+              const ws = XLSX.utils.json_to_sheet(rows, { header: ['اسم الطالب', 'اسم الامتحان', 'الدرجة'] });
+              ws['!cols'] = [{ wch: 30 }, { wch: 40 }, { wch: 12 }];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'الدرجات');
+              XLSX.writeFile(wb, 'درجات_الامتحانات.xlsx');
+            }}
+            className="btn-secondary btn-sm flex items-center gap-1.5"
+          >
+            📥 تصدير Excel
+          </button>
+        )}
+      </div>
       <p className="text-slate-500 text-sm mb-5">عرض وتصحيح إجابات الطلاب</p>
 
       {/* Grade tabs */}
