@@ -32,7 +32,7 @@ router.post('/send', auth('student'), async (req, res) => {
        VALUES ($1,'student',$2,$3) RETURNING *`,
       [req.user.id, req.user.name, message.trim()]
     );
-    notify('comment', `💬 رسالة من ${req.user.name}`, message.trim().slice(0, 100), 'student', req.user.id);
+    notify('comment', `💬 رسالة من ${req.user.name}`, message.trim().slice(0, 100), 'chat', req.user.id);
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -9,6 +10,7 @@ export default function TeacherChat() {
 function TeacherChatMain() {
   const { user } = useAuth();
   const isAssistant = user?.role === 'assistant';
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const [conversations, setConversations] = useState([]);
   const [selected, setSelected]           = useState(null);
@@ -19,8 +21,9 @@ function TeacherChatMain() {
   const [searchQ, setSearchQ]             = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching]         = useState(false);
-  const bottomRef   = useRef(null);
-  const searchTimer = useRef(null);
+  const bottomRef    = useRef(null);
+  const searchTimer  = useRef(null);
+  const autoOpenDone = useRef(false);
 
   // ── Load conversations list ───────────────────────────────────────────────
   const loadConvs = async () => {
@@ -77,6 +80,24 @@ function TeacherChatMain() {
     const t = setInterval(loadConvs, 10000);
     return () => clearInterval(t);
   }, [user?.role]);
+
+  // Auto-open conversation when navigated from notification (?student=ID)
+  useEffect(() => {
+    if (autoOpenDone.current || !conversations.length) return;
+    const studentId = Number(searchParams.get('student'));
+    if (!studentId) return;
+    autoOpenDone.current = true;
+    setSearchParams({}, { replace: true });
+    const conv = conversations.find(c => c.type === 'student' && c.id === studentId);
+    const person = conv || { id: studentId, type: 'student', name: '...' };
+    setSelected(person);
+    setMessages([]);
+    setLoadingMsgs(true);
+    api.get(`/chat/teacher/${studentId}`)
+      .then(({ data }) => setMessages(data))
+      .finally(() => setLoadingMsgs(false));
+    if (!conv) setConversations(c => [{ ...person, unread: 0, last_message: '' }, ...c]);
+  }, [conversations]);
 
   useEffect(() => {
     if (!selected) return;

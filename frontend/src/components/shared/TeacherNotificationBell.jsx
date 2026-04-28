@@ -64,7 +64,9 @@ export default function TeacherNotificationBell() {
     }
     setOpen(false);
     const id = notif.link_id;
-    if (notif.link_type === 'student' && id) {
+    if (notif.link_type === 'chat' && id) {
+      navigate(`/teacher/chat?student=${id}`);
+    } else if (notif.link_type === 'student' && id) {
       navigate(`/teacher/students?open=${id}`);
     } else if (notif.link_type === 'student') {
       navigate('/teacher/students');
