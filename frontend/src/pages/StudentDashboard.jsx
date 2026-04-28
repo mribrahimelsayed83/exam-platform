@@ -41,6 +41,13 @@ export default function StudentDashboard() {
 
   // ── Home view (no tab) ──────────────────────────────────────────────────
   if (!tab) {
+    const completedResults = results.filter(r => r.final_score !== null);
+    const examCount  = completedResults.length;
+    const avgScore   = examCount > 0
+      ? Math.round(completedResults.reduce((sum, r) => sum + r.final_score, 0) / examCount)
+      : 0;
+    const honorScore = avgScore * examCount;
+
     return (
       <div className="min-h-screen bg-gradient-to-b from-slate-100 to-white">
         <Navbar/>
@@ -60,6 +67,30 @@ export default function StudentDashboard() {
               </span>
             )}
             <p className="text-slate-500 mt-3 text-base">ماذا تريد أن تفعل اليوم؟</p>
+          </div>
+
+          {/* Honor Score */}
+          <div className="mb-10 bg-gradient-to-br from-blue-600 to-blue-800 rounded-2xl p-5 text-white shadow-lg shadow-blue-200" dir="rtl">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-blue-200 text-sm font-semibold mb-1">🏆 نقاطك في لوحة الشرف</p>
+                <p className="text-5xl font-extrabold">{honorScore}</p>
+                {examCount > 0 ? (
+                  <p className="text-blue-200 text-sm mt-2">
+                    متوسط <span className="text-white font-bold">{avgScore}%</span>
+                    {' × '}
+                    <span className="text-white font-bold">{examCount}</span> امتحان
+                  </p>
+                ) : (
+                  <p className="text-blue-200 text-sm mt-2">لم تؤدِ أي امتحانات بعد</p>
+                )}
+              </div>
+              <div className="text-6xl opacity-20">🏆</div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-white/20 text-xs text-blue-200 leading-relaxed">
+              النقاط = متوسط درجاتك × عدد الامتحانات اللي أديتها —
+              كل ما ذاكرت أكتر وجبت درجات أعلى، كل ما نقاطك زادت
+            </div>
           </div>
 
           {/* 4 Big Blocks */}
