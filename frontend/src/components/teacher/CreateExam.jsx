@@ -11,7 +11,7 @@ export default function CreateExam({ onSuccess }) {
   const [form, setForm] = useState({
     title:'', description:'', grade:'4', duration:30, passScore:50,
     startsAt:'', endsAt:'', examComment:'', price:0,
-    shuffleQuestions: false, shuffleOptions: false,
+    shuffleQuestions: false, shuffleOptions: false, requirePreviousExams: false,
   });
   const [questions, setQuestions]       = useState([emptyMCQ()]);
   const [useTimeWindow, setUseTimeWindow] = useState(false);
@@ -88,9 +88,10 @@ export default function CreateExam({ onSuccess }) {
         startsAt: useTimeWindow?form.startsAt:null,
         endsAt:   useTimeWindow?form.endsAt:null,
         examComment: form.examComment,
-        price:            Number(form.price) || 0,
-        shuffleQuestions: form.shuffleQuestions,
-        shuffleOptions:   form.shuffleOptions,
+        price:                Number(form.price) || 0,
+        shuffleQuestions:     form.shuffleQuestions,
+        shuffleOptions:       form.shuffleOptions,
+        requirePreviousExams: form.requirePreviousExams,
         questions: questions.map(q=>
           q.type==='mcq'
             ? {type:'mcq',      text:q.text, options:q.options, correct:q.correct}
@@ -258,6 +259,18 @@ export default function CreateExam({ onSuccess }) {
               <span className="text-sm font-semibold text-slate-700">ترتيب الإجابات عشوائي</span>
             </label>
           </div>
+        </div>
+
+        {/* Prerequisite */}
+        <div className="mt-4 pt-4 border-t border-slate-100">
+          <label className="flex items-start gap-2 cursor-pointer select-none">
+            <input type="checkbox" className="accent-blue-600 w-4 h-4 mt-0.5"
+              checked={form.requirePreviousExams} onChange={e=>setF('requirePreviousExams',e.target.checked)}/>
+            <div>
+              <span className="text-sm font-bold text-slate-700">🔒 يشترط إكمال كل الامتحانات السابقة</span>
+              <p className="text-xs text-slate-400 mt-0.5">الطالب مش يقدر يدخل هذا الامتحان إلا بعد ما يسلّم كل الامتحانات اللي قبله في صفه</p>
+            </div>
+          </label>
         </div>
 
         {/* Time window */}

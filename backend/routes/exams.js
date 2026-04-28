@@ -10,7 +10,8 @@ router.get('/', auth('student'), async (req, res) => {
     const now = new Date().toISOString();
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
-              e.starts_at, e.ends_at, e.created_at, e.price,
+              e.starts_at, e.ends_at, e.created_at, e.price, e.require_previous_exams,
+              e.position,
               COUNT(q.id)::int AS question_count,
               s.id AS submission_id, s.mcq_score, s.final_score,
               s.grading_status, s.submitted_at,
@@ -27,7 +28,19 @@ router.get('/', auth('student'), async (req, res) => {
        ORDER BY e.position ASC, e.id ASC`,
       [grade, studentId, now]
     );
-    res.json(exams.rows);
+    const rows = exams.rows;
+    // Mark each exam as locked if require_previous_exams=true and any earlier exam is incomplete
+    const completedIds = new Set(rows.filter(e => e.submission_id).map(e => e.id));
+    let anythingIncomplete = false;
+    const result = rows.map(e => {
+      let locked = false;
+      if (e.require_previous_exams) {
+        locked = anythingIncomplete;
+      }
+      if (!e.submission_id) anythingIncomplete = true;
+      return { ...e, locked };
+    });
+    res.json(result);
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
@@ -125,8 +138,22 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
     if (!examRes.rows[0])
       return res.status(404).json({ message: 'الامتحان مش متاح دلوقتي أو مش لصفك' });
 
-    // Payment guard — block access if exam has a price and student hasn't paid
     const examRow = examRes.rows[0];
+
+    // Prerequisite guard — check if student completed all previous exams
+    if (examRow.require_previous_exams) {
+      const { rows: incomplete } = await pool.query(
+        `SELECT e.id FROM exams e
+         LEFT JOIN submissions s ON s.exam_id = e.id AND s.student_id = $1
+         WHERE e.grade = $2 AND e.is_active = TRUE AND s.id IS NULL
+           AND (e.position < $3 OR (e.position = $3 AND e.id < $4))`,
+        [studentId, examRow.grade, examRow.position, examRow.id]
+      );
+      if (incomplete.length > 0)
+        return res.status(403).json({ message: 'يجب إكمال جميع الامتحانات السابقة أولاً' });
+    }
+
+    // Payment guard — block access if exam has a price and student hasn't paid
     if (examRow.price && examRow.price > 0) {
       const { rows: payRows } = await pool.query(
         `SELECT id FROM payments WHERE exam_id=$1 AND student_id=$2 AND status='paid'`,
@@ -163,7 +190,7 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
 
 router.post('/', staff, async (req, res) => {
   const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions, price } = req.body;
+          shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
 
@@ -171,10 +198,10 @@ router.post('/', staff, async (req, res) => {
   try {
     await client.query('BEGIN');
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
       [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, Number(price)||0]
+       !!shuffleQuestions, !!shuffleOptions, Number(price)||0, !!requirePreviousExams]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
@@ -228,20 +255,22 @@ router.put('/reorder', staff, async (req, res) => {
   } finally { client.release(); }
 });
 
-// ── PUT /exams/:id — edit exam (title, description, grade, duration, passScore, times, comment) ──
+// ── PUT /exams/:id — edit exam ────────────────────────────────────────────
 router.put('/:id', staff, async (req, res) => {
   const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions, price } = req.body;
+          shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
   try {
     await pool.query(
       `UPDATE exams SET title=$1, description=$2, grade=$3, duration=$4,
               pass_score=$5, starts_at=$6, ends_at=$7, exam_comment=$8,
-              shuffle_questions=$9, shuffle_options=$10, price=$11
-       WHERE id=$12`,
+              shuffle_questions=$9, shuffle_options=$10, price=$11,
+              require_previous_exams=$12
+       WHERE id=$13`,
       [title, description||'', Number(grade), duration||30,
        passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, Number(price)||0, req.params.id]
+       !!shuffleQuestions, !!shuffleOptions, Number(price)||0,
+       !!requirePreviousExams, req.params.id]
     );
     res.json({ message: 'تم تعديل الامتحان' });
   } catch (err) {

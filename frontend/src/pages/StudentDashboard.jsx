@@ -187,16 +187,18 @@ function ExamCard({ exam, onStart, onPay }) {
   const isPending     = done && gradingStatus && gradingStatus !== 'fully_graded';
   const isPaid        = exam.is_paid || !exam.price || exam.price <= 0;
   const needsPayment  = !done && exam.price > 0 && !isPaid;
+  const locked        = !done && !!exam.locked;
 
   return (
     <div className={`card border-r-4 ${
       done       ? (isPending ? 'border-r-amber-400' : 'border-r-emerald-500')
+      : locked       ? 'border-r-slate-300 opacity-75'
       : needsPayment ? 'border-r-orange-400'
       : 'border-r-blue-500'}`}>
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className={`badge ${done?(isPending?'badge-amber':'badge-green'):needsPayment?'badge-amber':'badge-blue'}`}>
-            {done ? (isPending ? '⏳ قيد التصحيح' : '✅ مُنجز') : needsPayment ? '💰 مدفوع' : '🔵 جديد'}
+          <span className={`badge ${done?(isPending?'badge-amber':'badge-green'):locked?'badge-slate':'badge-blue'}`}>
+            {done ? (isPending ? '⏳ قيد التصحيح' : '✅ مُنجز') : locked ? '🔒 مقفل' : needsPayment ? '💰 مدفوع' : '🔵 جديد'}
           </span>
           {exam.price > 0 && (
             <span className="badge badge-amber text-xs">{exam.price} جنيه</span>
@@ -206,6 +208,9 @@ function ExamCard({ exam, onStart, onPay }) {
       </div>
       <h3 className="font-bold text-slate-800 mb-1">{exam.title}</h3>
       {exam.description && <p className="text-sm text-slate-500 mb-3">{exam.description}</p>}
+      {locked && (
+        <p className="text-xs text-slate-400 mb-2">أكمل الامتحانات السابقة أولاً للوصول لهذا الامتحان</p>
+      )}
       <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
         <span className="text-xs text-slate-400">{exam.question_count} سؤال</span>
         {done
@@ -214,6 +219,8 @@ function ExamCard({ exam, onStart, onPay }) {
                 {finalScore}% — {finalScore>=exam.pass_score?'ناجح ✓':'راسب ✗'}
               </span>
             : <span className="text-xs text-amber-600 font-bold">المقالي قيد التصحيح</span>
+          : locked
+            ? <span className="text-slate-400 text-sm">🔒 غير متاح</span>
           : needsPayment
             ? <button onClick={onPay}
                 className="btn-sm font-bold text-white px-4 py-2 rounded-lg"

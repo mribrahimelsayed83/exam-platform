@@ -178,6 +178,10 @@ async function runMigrations() {
       CREATE INDEX IF NOT EXISTS idx_staff_msg_participants
         ON staff_messages(from_id, to_id);
     `);
+    // Prerequisite: student must complete all previous exams first
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS require_previous_exams BOOLEAN DEFAULT FALSE;
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
