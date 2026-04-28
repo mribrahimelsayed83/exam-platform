@@ -68,7 +68,7 @@ router.post('/student/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'يرجى ملء جميع الحقول' });
   try {
-    const result  = await pool.query('SELECT * FROM students WHERE username=$1', [username.toLowerCase()]);
+    const result  = await pool.query('SELECT * FROM students WHERE username=$1', [username.trim().toLowerCase()]);
     const student = result.rows[0];
     if (!student) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غلط' });
     if (student.status === 'pending')
@@ -98,7 +98,7 @@ router.post('/teacher/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'يرجى ملء جميع الحقول' });
   try {
-    const result  = await pool.query('SELECT * FROM teachers WHERE username=$1', [username]);
+    const result  = await pool.query('SELECT * FROM teachers WHERE username=$1', [username.trim().toLowerCase()]);
     const teacher = result.rows[0];
     if (!teacher) return res.status(401).json({ message: 'بيانات الدخول غلط' });
     const valid = await bcrypt.compare(password, teacher.password);
@@ -116,7 +116,7 @@ router.post('/assistant/login', async (req, res) => {
   const { username, password } = req.body;
   if (!username || !password) return res.status(400).json({ message: 'يرجى ملء جميع الحقول' });
   try {
-    const result = await pool.query('SELECT * FROM assistants WHERE username=$1', [username]);
+    const result = await pool.query('SELECT * FROM assistants WHERE username=$1', [username.trim().toLowerCase()]);
     const asst   = result.rows[0];
     if (!asst) return res.status(401).json({ message: 'بيانات الدخول غلط' });
     const valid = await bcrypt.compare(password, asst.password);
