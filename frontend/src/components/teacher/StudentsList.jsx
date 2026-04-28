@@ -142,7 +142,7 @@ export default function StudentsList() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات'].map(h=>(
+                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات','🏆 نقاط'].map(h=>(
                             <th key={h} className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">{h}</th>
                           ))}
                           <th className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">
@@ -177,6 +177,11 @@ export default function StudentsList() {
                             <td className="px-4 py-3">
                               {st.avg_score != null
                                 ? <span className={`font-bold ${st.avg_score>=50?'text-emerald-600':'text-red-600'}`}>{st.avg_score}%</span>
+                                : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="px-4 py-3">
+                              {st.avg_score != null && st.submission_count > 0
+                                ? <span className="font-bold text-amber-600">{Math.round(st.avg_score * st.submission_count)}</span>
                                 : <span className="text-slate-300">—</span>}
                             </td>
                             <td className="px-4 py-3">

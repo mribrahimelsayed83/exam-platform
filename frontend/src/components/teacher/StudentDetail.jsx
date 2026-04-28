@@ -35,6 +35,7 @@ export default function StudentDetail({ studentId, onBack }) {
   const avgScore = approved.length
     ? Math.round(approved.reduce((a,s) => a + s.final_score, 0) / approved.length)
     : null;
+  const honorScore = avgScore !== null ? avgScore * submissions.length : 0;
 
   return (
     <div>
@@ -63,16 +64,20 @@ export default function StudentDetail({ studentId, onBack }) {
               </span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="bg-slate-50 rounded-xl p-3 min-w-[80px]">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="bg-slate-50 rounded-xl p-3 min-w-[72px]">
               <div className="text-2xl font-extrabold text-blue-600">{submissions.length}</div>
               <div className="text-xs text-slate-500">امتحان</div>
             </div>
-            <div className="bg-slate-50 rounded-xl p-3 min-w-[80px]">
+            <div className="bg-slate-50 rounded-xl p-3 min-w-[72px]">
               <div className={`text-2xl font-extrabold ${avgScore !== null ? (avgScore>=50?'text-emerald-600':'text-red-600') : 'text-slate-400'}`}>
                 {avgScore !== null ? `${avgScore}%` : '—'}
               </div>
               <div className="text-xs text-slate-500">متوسط</div>
+            </div>
+            <div className="bg-amber-50 rounded-xl p-3 min-w-[72px]" title="النقاط = متوسط الدرجات × عدد الامتحانات">
+              <div className="text-2xl font-extrabold text-amber-600">{honorScore}</div>
+              <div className="text-xs text-slate-500">🏆 نقاط</div>
             </div>
           </div>
         </div>

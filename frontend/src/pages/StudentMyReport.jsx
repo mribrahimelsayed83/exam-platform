@@ -41,7 +41,8 @@ export default function StudentMyReport() {
   const avgScore = graded.length
     ? Math.round(graded.reduce((a, s) => a + s.final_score, 0) / graded.length)
     : null;
-  const passed  = graded.filter(s => s.final_score >= s.pass_score).length;
+  const passed     = graded.filter(s => s.final_score >= s.pass_score).length;
+  const honorScore = avgScore !== null ? avgScore * submissions.length : 0;
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -74,7 +75,7 @@ export default function StudentMyReport() {
             </div>
 
             {/* Stats */}
-            <div className="grid grid-cols-3 gap-3 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
               <div className="bg-slate-50 rounded-xl p-3 min-w-[72px]">
                 <div className="text-2xl font-extrabold text-blue-600">{submissions.length}</div>
                 <div className="text-xs text-slate-500">امتحان</div>
@@ -88,6 +89,10 @@ export default function StudentMyReport() {
               <div className="bg-slate-50 rounded-xl p-3 min-w-[72px]">
                 <div className="text-2xl font-extrabold text-emerald-600">{passed}</div>
                 <div className="text-xs text-slate-500">ناجح</div>
+              </div>
+              <div className="bg-amber-50 rounded-xl p-3 min-w-[72px]" title="النقاط = متوسط الدرجات × عدد الامتحانات">
+                <div className="text-2xl font-extrabold text-amber-600">{honorScore}</div>
+                <div className="text-xs text-slate-500">🏆 نقاط</div>
               </div>
             </div>
           </div>
