@@ -325,7 +325,7 @@ export default function LandingPage() {
                       <p className="text-xs text-slate-400">المتوسط</p>
                       <p className="font-bold text-emerald-600">{s.avg_score}%</p>
                     </div>
-                    <div className="hidden sm:block">
+                    <div>
                       <p className="text-xs text-slate-400">النقاط</p>
                       <p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p>
                     </div>
