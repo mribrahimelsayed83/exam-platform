@@ -54,14 +54,14 @@ function UserNavMenu({ user, bg, onLogout }) {
 }
 
 const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
-const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
-const MEDAL_STYLES = [
-  'bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-300 shadow-amber-100',
-  'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-300 shadow-slate-100',
-  'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-300 shadow-orange-100',
-  'bg-white border-slate-200',
-  'bg-white border-slate-200',
-];
+const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
+const MEDAL_STYLES = {
+  1: 'bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-300 shadow-amber-100',
+  2: 'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-300 shadow-slate-100',
+  3: 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-300 shadow-orange-100',
+  4: 'bg-white border-slate-200',
+  5: 'bg-white border-slate-200',
+};
 
 export default function LandingPage() {
   const [data, setData]           = useState(null);
@@ -299,10 +299,10 @@ export default function LandingPage() {
             <div className="space-y-3">
               {honorBoard.map((s, i) => (
                 <div key={i}
-                  className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[i]}`}>
+                  className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[s.rank] || 'bg-white border-slate-200'}`}>
                   {/* Row 1: medal + avatar + name */}
                   <div className="flex items-center gap-3 mb-3">
-                    <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[i]}</div>
+                    <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[s.rank] || s.rank}</div>
                     <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-sm"
                       style={{background: bg}}>
                       {s.name.charAt(0)}
