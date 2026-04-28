@@ -299,33 +299,30 @@ export default function LandingPage() {
             <div className="space-y-3">
               {honorBoard.map((s, i) => (
                 <div key={i}
-                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[i]}`}>
-                  {/* Medal */}
-                  <div className="text-3xl flex-shrink-0 w-10 text-center">{MEDALS[i]}</div>
-
-                  {/* Avatar */}
-                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0 shadow-sm"
-                    style={{background: bg}}>
-                    {s.name.charAt(0)}
+                  className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[i]}`}>
+                  {/* Row 1: medal + avatar + name */}
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[i]}</div>
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-sm"
+                      style={{background: bg}}>
+                      {s.name.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-extrabold text-slate-800 truncate">{s.name}</p>
+                      <p className="text-xs text-slate-400">{GRADES[s.grade] || `صف ${s.grade}`}</p>
+                    </div>
                   </div>
-
-                  {/* Info */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-extrabold text-slate-800 truncate">{s.name}</p>
-                    <p className="text-xs text-slate-400">{GRADES[s.grade] || `صف ${s.grade}`}</p>
-                  </div>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-4 flex-shrink-0 text-center">
-                    <div>
+                  {/* Row 2: stats */}
+                  <div className="flex items-center justify-around pt-2 border-t border-black/5">
+                    <div className="text-center">
                       <p className="text-xs text-slate-400">الامتحانات</p>
                       <p className="font-bold text-slate-700">{s.exam_count}</p>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <p className="text-xs text-slate-400">المتوسط</p>
                       <p className="font-bold text-emerald-600">{s.avg_score}%</p>
                     </div>
-                    <div>
+                    <div className="text-center">
                       <p className="text-xs text-slate-400">النقاط</p>
                       <p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p>
                     </div>
