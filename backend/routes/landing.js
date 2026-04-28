@@ -54,4 +54,26 @@ router.put('/', auth('teacher'), async (req, res) => {
   }
 });
 
+// GET /landing/honor-board — public
+router.get('/honor-board', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT s.name, s.grade,
+              COUNT(sub.id)::int              AS exam_count,
+              ROUND(AVG(sub.final_score))::int AS avg_score,
+              ROUND(AVG(sub.final_score) * COUNT(sub.id))::int AS honor_score
+       FROM students s
+       JOIN submissions sub ON sub.student_id = s.id
+       WHERE sub.final_score IS NOT NULL AND s.status = 'approved'
+       GROUP BY s.id, s.name, s.grade
+       ORDER BY honor_score DESC
+       LIMIT 5`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 module.exports = router;

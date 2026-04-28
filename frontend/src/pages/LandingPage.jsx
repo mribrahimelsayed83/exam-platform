@@ -53,15 +53,32 @@ function UserNavMenu({ user, bg, onLogout }) {
   );
 }
 
+const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+const MEDALS = ['🥇','🥈','🥉','4️⃣','5️⃣'];
+const MEDAL_STYLES = [
+  'bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-300 shadow-amber-100',
+  'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-300 shadow-slate-100',
+  'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-300 shadow-orange-100',
+  'bg-white border-slate-200',
+  'bg-white border-slate-200',
+];
+
 export default function LandingPage() {
-  const [data, setData]       = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [dark, setDark]       = useState(() => document.documentElement.classList.contains('dark'));
-  const { user, logout }      = useAuth();
-  const navigate              = useNavigate();
+  const [data, setData]           = useState(null);
+  const [honorBoard, setHonorBoard] = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [dark, setDark]           = useState(() => document.documentElement.classList.contains('dark'));
+  const { user, logout }          = useAuth();
+  const navigate                  = useNavigate();
 
   useEffect(() => {
-    api.get('/landing').then(r => setData(r.data)).finally(() => setLoading(false));
+    Promise.all([
+      api.get('/landing'),
+      api.get('/landing/honor-board'),
+    ]).then(([land, honor]) => {
+      setData(land.data);
+      setHonorBoard(honor.data);
+    }).finally(() => setLoading(false));
   }, []);
 
   if (loading) return (
@@ -262,6 +279,64 @@ export default function LandingPage() {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Honor Board ────────────────────────────────────────────────── */}
+      {honorBoard.length > 0 && (
+        <section className="py-20 bg-slate-50">
+          <div className="max-w-3xl mx-auto px-4">
+            <div className="text-center mb-12">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4 text-white"
+                style={{background:bg}}>
+                🏆 لوحة الشرف
+              </div>
+              <h2 className="text-3xl font-extrabold text-slate-800 mb-2">أبطال المنصة</h2>
+              <p className="text-slate-500">أعلى الطلاب أداءً من جميع الصفوف</p>
+            </div>
+
+            <div className="space-y-3">
+              {honorBoard.map((s, i) => (
+                <div key={i}
+                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[i]}`}>
+                  {/* Medal */}
+                  <div className="text-3xl flex-shrink-0 w-10 text-center">{MEDALS[i]}</div>
+
+                  {/* Avatar */}
+                  <div className="w-11 h-11 rounded-full flex items-center justify-center text-white font-extrabold text-lg flex-shrink-0 shadow-sm"
+                    style={{background: bg}}>
+                    {s.name.charAt(0)}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-extrabold text-slate-800 truncate">{s.name}</p>
+                    <p className="text-xs text-slate-400">{GRADES[s.grade] || `صف ${s.grade}`}</p>
+                  </div>
+
+                  {/* Stats */}
+                  <div className="flex items-center gap-4 flex-shrink-0 text-center">
+                    <div>
+                      <p className="text-xs text-slate-400">الامتحانات</p>
+                      <p className="font-bold text-slate-700">{s.exam_count}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-slate-400">المتوسط</p>
+                      <p className="font-bold text-emerald-600">{s.avg_score}%</p>
+                    </div>
+                    <div className="hidden sm:block">
+                      <p className="text-xs text-slate-400">النقاط</p>
+                      <p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <p className="text-center text-xs text-slate-400 mt-6">
+              النقاط = متوسط الدرجات × عدد الامتحانات — يُحدَّث تلقائياً
+            </p>
           </div>
         </section>
       )}
