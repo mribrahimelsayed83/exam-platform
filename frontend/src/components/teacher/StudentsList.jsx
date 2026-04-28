@@ -20,6 +20,7 @@ export default function StudentsList() {
   const [filter, setFilter]         = useState('all');
   const [gradeFilter, setGradeFilter] = useState('all');
   const [scoreSort, setScoreSort]   = useState(null);
+  const [honorSort, setHonorSort]   = useState(null);
   const [loading, setLoading]       = useState(true);
   const [editing, setEditing]       = useState(null);
   const [detailId, setDetailId]     = useState(null);
@@ -52,10 +53,17 @@ export default function StudentsList() {
     ? students
     : students.filter(s => String(s.grade) === gradeFilter)
   ).slice().sort((a, b) => {
-    if (!scoreSort) return 0;
-    const av = a.avg_score ?? -1;
-    const bv = b.avg_score ?? -1;
-    return scoreSort === 'asc' ? av - bv : bv - av;
+    if (honorSort) {
+      const av = a.avg_score != null ? a.avg_score * a.submission_count : -1;
+      const bv = b.avg_score != null ? b.avg_score * b.submission_count : -1;
+      return honorSort === 'asc' ? av - bv : bv - av;
+    }
+    if (scoreSort) {
+      const av = a.avg_score ?? -1;
+      const bv = b.avg_score ?? -1;
+      return scoreSort === 'asc' ? av - bv : bv - av;
+    }
+    return 0;
   });
 
   // Export CSV
@@ -142,17 +150,28 @@ export default function StudentsList() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
-                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات','🏆 نقاط'].map(h=>(
+                          {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات'].map(h=>(
                             <th key={h} className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">{h}</th>
                           ))}
                           <th className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">
                             <button
-                              onClick={() => setScoreSort(s => s === 'desc' ? 'asc' : 'desc')}
+                              onClick={() => { setScoreSort(s => s === 'desc' ? 'asc' : 'desc'); setHonorSort(null); }}
                               className="flex items-center gap-1 hover:text-blue-600 transition-colors"
                             >
                               المتوسط
                               <span className="text-base leading-none">
                                 {scoreSort === 'desc' ? '↓' : scoreSort === 'asc' ? '↑' : '↕'}
+                              </span>
+                            </button>
+                          </th>
+                          <th className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">
+                            <button
+                              onClick={() => { setHonorSort(s => s === 'desc' ? 'asc' : 'desc'); setScoreSort(null); }}
+                              className="flex items-center gap-1 hover:text-amber-600 transition-colors"
+                            >
+                              🏆 نقاط
+                              <span className="text-base leading-none">
+                                {honorSort === 'desc' ? '↓' : honorSort === 'asc' ? '↑' : '↕'}
                               </span>
                             </button>
                           </th>
