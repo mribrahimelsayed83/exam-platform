@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import StudentDetail from './StudentDetail';
@@ -14,14 +15,23 @@ const statusMap = {
 
 export default function StudentsList() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
-  const [filter, setFilter]         = useState('pending');
+  const [filter, setFilter]         = useState('all');
   const [gradeFilter, setGradeFilter] = useState('all');
-  const [scoreSort, setScoreSort]   = useState(null); // null | 'asc' | 'desc'
+  const [scoreSort, setScoreSort]   = useState(null);
   const [loading, setLoading]       = useState(true);
   const [editing, setEditing]       = useState(null);
   const [detailId, setDetailId]     = useState(null);
-  const [resetPw, setResetPw]       = useState(null); // student to reset password
+  const [resetPw, setResetPw]       = useState(null);
+
+  const openId = searchParams.get('open');
+  useEffect(() => {
+    if (openId) {
+      setDetailId(Number(openId));
+      setSearchParams({}, { replace: true });
+    }
+  }, [openId]);
 
   const load = () => {
     setLoading(true);

@@ -43,17 +43,17 @@ router.post('/register', async (req, res) => {
     const hashed  = await bcrypt.hash(password, 10);
     const fullName = `${first_name.trim()} ${last_name.trim()}`;
 
-    await pool.query(
+    const inserted = await pool.query(
       `INSERT INTO students
          (first_name, last_name, name, username, password, grade, phone, parent_phone, email, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending')`,
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending') RETURNING id`,
       [first_name.trim(), last_name.trim(), fullName,
        username.toLowerCase(), hashed, Number(grade), phone, parent_phone, email.toLowerCase()]
     );
 
     notify('register', '📝 طلب تسجيل جديد',
       `${fullName} طلب إنشاء حساب — الصف: ${grade} — تليفون: ${phone}`,
-      'student', null
+      'student', inserted.rows[0].id
     );
 
     res.status(201).json({ message: 'تم إرسال طلب التسجيل — في انتظار موافقة المدرس' });

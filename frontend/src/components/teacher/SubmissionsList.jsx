@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import api from '../../utils/api';
 
@@ -12,13 +13,21 @@ const statusMap  = {
 };
 
 export default function SubmissionsList() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [subs, setSubs]           = useState([]);
   const [exams, setExams]         = useState([]);
   const [filterExam, setFilterExam]       = useState('');
   const [filterGrade, setFilterGrade]     = useState('');
   const [filterStatus, setFilterStatus]   = useState('');
   const [loading, setLoading]     = useState(true);
-  const [grading, setGrading]     = useState(null); // submission being graded
+  const [grading, setGrading]     = useState(null);
+
+  const openId = searchParams.get('open');
+  useEffect(() => {
+    if (!openId) return;
+    setSearchParams({}, { replace: true });
+    api.get(`/submissions/${openId}`).then(({ data }) => setGrading(data)).catch(() => {});
+  }, [openId]);
 
   const load = () => {
     setLoading(true);

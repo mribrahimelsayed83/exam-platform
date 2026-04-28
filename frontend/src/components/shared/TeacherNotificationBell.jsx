@@ -10,11 +10,6 @@ const typeIcons = {
   like:       '❤️',
 };
 
-const linkTypeToPath = {
-  student:    '/teacher/students',
-  submission: '/teacher/submissions',
-  video:      '/teacher/videos',
-};
 
 export default function TeacherNotificationBell() {
   const [count, setCount]   = useState(0);
@@ -68,8 +63,15 @@ export default function TeacherNotificationBell() {
       } catch {}
     }
     setOpen(false);
-    if (notif.link_type && linkTypeToPath[notif.link_type]) {
-      navigate(linkTypeToPath[notif.link_type]);
+    const id = notif.link_id;
+    if (notif.link_type === 'student' && id) {
+      navigate(`/teacher/students?open=${id}`);
+    } else if (notif.link_type === 'student') {
+      navigate('/teacher/students');
+    } else if (notif.link_type === 'submission' && id) {
+      navigate(`/teacher/submissions?open=${id}`);
+    } else if (notif.link_type === 'video') {
+      navigate('/teacher/videos');
     }
   };
 
