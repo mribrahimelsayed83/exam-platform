@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -15,8 +15,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
+  const [platformName, setPlatformName] = useState('منصة الامتحانات');
   const { login } = useAuth();
   const navigate  = useNavigate();
+
+  useEffect(() => {
+    api.get('/auth/platform-name')
+      .then(r => { if (r.data.platform_name) setPlatformName(r.data.platform_name); })
+      .catch(() => {});
+  }, []);
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
@@ -39,7 +46,7 @@ export default function LoginPage() {
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-7">
           <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center text-2xl mx-auto mb-3">📚</div>
-          <h1 className="text-xl font-extrabold text-slate-800">منصة الامتحانات</h1>
+          <h1 className="text-xl font-extrabold text-slate-800">{platformName}</h1>
           <p className="text-slate-500 text-sm mt-1">الامتحانات الإلكترونية التفاعلية</p>
         </div>
 

@@ -219,7 +219,7 @@ export default function Navbar({ title }) {
         <div className="flex items-center gap-3">
           <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
           <span className="font-extrabold text-blue-600 text-base">
-            {title || 'منصة الامتحانات'}
+            {title || user?.platform_name || 'منصة الامتحانات'}
           </span>
           {user?.role === 'student' && !isStudentHome && (
             <button

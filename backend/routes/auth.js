@@ -129,6 +129,16 @@ router.post('/assistant/login', async (req, res) => {
   }
 });
 
+// ── Public platform name (for login page) ─────────────────────────────────
+router.get('/platform-name', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT platform_name FROM teachers ORDER BY id LIMIT 1');
+    res.json({ platform_name: result.rows[0]?.platform_name || 'منصة الامتحانات' });
+  } catch {
+    res.json({ platform_name: 'منصة الامتحانات' });
+  }
+});
+
 // ── Me ─────────────────────────────────────────────────────────────────────
 router.get('/me', auth(), async (req, res) => {
   try {
@@ -139,7 +149,14 @@ router.get('/me', auth(), async (req, res) => {
     else if (role === 'assistant')
       result = await pool.query('SELECT id,name,username FROM assistants WHERE id=$1', [id]);
     else
-      result = await pool.query('SELECT id,name,username,grade,email,phone,created_at FROM students WHERE id=$1', [id]);
+      result = await pool.query(
+        `SELECT s.id, s.name, s.username, s.grade, s.email, s.phone, s.created_at,
+                COALESCE(t.platform_name, 'منصة الامتحانات') AS platform_name
+         FROM students s
+         LEFT JOIN teachers t ON t.id = s.approved_by
+         WHERE s.id=$1`,
+        [id]
+      );
     if (!result.rows[0]) return res.status(404).json({ message: 'المستخدم مش موجود' });
     res.json({ ...result.rows[0], role });
   } catch (err) {
