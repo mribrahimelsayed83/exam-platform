@@ -230,4 +230,38 @@ router.post('/staff/:assistantId/send', staff, async (req, res) => {
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
+// ── Staff: edit a message (own messages only) ─────────────────────────────
+router.put('/messages/:id', staff, async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
+    const { rows } = await pool.query(
+      `UPDATE chat_messages SET message=$1
+       WHERE id=$2 AND from_role=ANY($3) RETURNING *`,
+      [message.trim(), req.params.id, ['teacher', 'assistant']]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
+    res.json(rows[0]);
+  } catch { res.status(500).json({ message: 'خطأ' }); }
+});
+
+// ── Staff: delete a message ───────────────────────────────────────────────
+router.delete('/messages/:id', staff, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM chat_messages WHERE id=$1', [req.params.id]);
+    res.json({ message: 'تم الحذف' });
+  } catch { res.status(500).json({ message: 'خطأ' }); }
+});
+
+// ── Staff: bulk delete messages ───────────────────────────────────────────
+router.post('/messages/bulk-delete', staff, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ message: 'لا توجد رسائل' });
+    await pool.query('DELETE FROM chat_messages WHERE id = ANY($1::int[])', [ids]);
+    res.json({ message: 'تم الحذف' });
+  } catch { res.status(500).json({ message: 'خطأ' }); }
+});
+
 module.exports = router;

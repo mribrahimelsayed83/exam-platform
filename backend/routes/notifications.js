@@ -39,6 +39,19 @@ router.get('/sent', staff, async (req, res) => {
   }
 });
 
+// ── Staff: حذف مجموعة إشعارات ────────────────────────────────────────────
+router.post('/bulk-delete', staff, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ message: 'لا توجد إشعارات' });
+    await pool.query('DELETE FROM notifications WHERE id = ANY($1::int[])', [ids]);
+    res.json({ message: 'تم الحذف' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── Staff: حذف إشعار ─────────────────────────────────────────────────────
 router.delete('/:id', staff, async (req, res) => {
   try {

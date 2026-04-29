@@ -315,6 +315,19 @@ router.post('/my-notifications/:id/read', staff, async (req, res) => {
   }
 });
 
+// POST /teacher/my-notifications/bulk-delete
+router.post('/my-notifications/bulk-delete', staff, async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0)
+      return res.status(400).json({ message: 'لا توجد إشعارات' });
+    await pool.query('DELETE FROM teacher_notifications WHERE id = ANY($1::int[])', [ids]);
+    res.json({ message: 'تم الحذف' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // DELETE /teacher/my-notifications/:id
 router.delete('/my-notifications/:id', staff, async (req, res) => {
   try {
