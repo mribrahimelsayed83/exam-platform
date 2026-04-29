@@ -52,6 +52,7 @@ export default function TakeExamPage() {
   const [resumed, setResumed]         = useState(false);
   const [currentIdx, setCurrentIdx]   = useState(0);
   const [showConfirm, setShowConfirm] = useState(false);
+  const [showGrid, setShowGrid]       = useState(true);
   const timerRef    = useRef(null);
   const examDataRef = useRef(null);
   const answersRef  = useRef({});
@@ -181,27 +182,38 @@ export default function TakeExamPage() {
             </span>
           </div>
 
-          {/* Question number grid */}
-          <div className="flex flex-wrap gap-1.5 mb-2">
-            {questions.map((q, i) => {
-              const answered_q = isAnswered(q);
-              const isCurrent  = i === currentIdx;
-              return (
-                <button
-                  key={q.id}
-                  onClick={() => setCurrentIdx(i)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border-2
-                    ${isCurrent
-                      ? 'bg-blue-600 text-white border-blue-700 scale-110 shadow'
-                      : answered_q
-                        ? 'bg-green-100 text-green-700 border-green-400'
-                        : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-blue-300'
-                    }`}
-                >
-                  {i + 1}
-                </button>
-              );
-            })}
+          {/* Question number grid toggle + grid */}
+          <div className="mb-2">
+            <button
+              onClick={() => setShowGrid(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-bold text-slate-400 hover:text-blue-600 transition-colors mb-1.5"
+            >
+              <span className={`transition-transform duration-200 ${showGrid ? 'rotate-90' : ''}`}>▶</span>
+              {showGrid ? 'إخفاء الأسئلة' : 'عرض الأسئلة'}
+            </button>
+            {showGrid && (
+              <div className="flex flex-wrap gap-1.5">
+                {questions.map((q, i) => {
+                  const answered_q = isAnswered(q);
+                  const isCurrent  = i === currentIdx;
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => setCurrentIdx(i)}
+                      className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border-2
+                        ${isCurrent
+                          ? 'bg-blue-600 text-white border-blue-700 scale-110 shadow'
+                          : answered_q
+                            ? 'bg-green-100 text-green-700 border-green-400'
+                            : 'bg-slate-100 text-slate-500 border-slate-300 hover:border-blue-300'
+                        }`}
+                    >
+                      {i + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* Progress bar */}
