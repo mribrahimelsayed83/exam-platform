@@ -54,14 +54,20 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE exams ADD COLUMN IF NOT EXISTS position INTEGER DEFAULT 0;
     `);
-    await pool.query(`
-      UPDATE exams e SET position = sub.rn
-      FROM (
-        SELECT id, (ROW_NUMBER() OVER (ORDER BY created_at ASC) - 1) AS rn
-        FROM exams
-      ) sub
-      WHERE e.id = sub.id AND e.position = 0;
-    `);
+    // Only seed positions once — skip if any exam already has a non-zero position
+    const posCheck = await pool.query(
+      `SELECT COUNT(*)::int AS cnt FROM exams WHERE position > 0`
+    );
+    if (posCheck.rows[0].cnt === 0) {
+      await pool.query(`
+        UPDATE exams e SET position = sub.rn
+        FROM (
+          SELECT id, (ROW_NUMBER() OVER (ORDER BY created_at ASC) - 1) AS rn
+          FROM exams
+        ) sub
+        WHERE e.id = sub.id AND e.position = 0;
+      `);
+    }
     // Track which videos/items students open
     await pool.query(`
       CREATE TABLE IF NOT EXISTS video_views (
