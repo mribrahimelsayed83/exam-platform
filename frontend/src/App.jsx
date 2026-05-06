@@ -17,6 +17,7 @@ import TakePersonalExamPage     from './pages/TakePersonalExamPage';
 import PersonalExamResultPage   from './pages/PersonalExamResultPage';
 import PaymentPage              from './pages/PaymentPage';
 import PaymentResultPage        from './pages/PaymentResultPage';
+import NotFoundPage             from './pages/NotFoundPage';
 
 function RequireAuth({ role, children }) {
   const { user, loading } = useAuth();
@@ -84,7 +85,7 @@ export default function App() {
           ? <Navigate to={user.role==='student'?'/student':'/teacher'} replace/>
           : <Navigate to="/login" replace/>
       }/>
-      <Route path="*" element={<Navigate to="/" replace/>}/>
+      <Route path="*" element={<NotFoundPage/>}/>
     </Routes>
   );
 }
