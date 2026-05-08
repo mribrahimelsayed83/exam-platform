@@ -45,7 +45,7 @@ router.post('/initiate', auth('student'), async (req, res) => {
       body: JSON.stringify({
         amount:          amountCents,
         currency:        'EGP',
-        payment_methods: [Number(PAYMOB_INTEGRATION_ID)],
+        payment_methods: PAYMOB_INTEGRATION_ID.split(',').map(id => Number(id.trim())),
         items: [{
           name:        exam.title,
           amount:      amountCents,
