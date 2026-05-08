@@ -4,44 +4,28 @@ const crypto  = require('crypto');
 const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 
-const PAYMOB_API_KEY        = process.env.PAYMOB_API_KEY;
+const PAYMOB_SECRET_KEY     = process.env.PAYMOB_API_KEY;        // egy_sk_test_...
+const PAYMOB_PUBLIC_KEY     = process.env.PAYMOB_PUBLIC_KEY;     // egy_pk_test_...
 const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
-const PAYMOB_IFRAME_ID      = process.env.PAYMOB_IFRAME_ID;
 const PAYMOB_HMAC_SECRET    = process.env.PAYMOB_HMAC_SECRET;
-const BASE                  = process.env.PAYMOB_BASE_URL || 'https://accept.paymob.com/api';
-const IFRAME_BASE           = process.env.PAYMOB_IFRAME_BASE || 'https://accept.paymob.com/api';
-
-// ── Helper: POST to PayMob ───────────────────────────────────────────────────
-async function pm(path, body) {
-  const res = await fetch(`${BASE}${path}`, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body:    JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(json.message || `PayMob ${res.status}`);
-  return json;
-}
+const BASE                  = 'https://accept.paymob.com';
 
 // ── POST /api/payments/initiate ──────────────────────────────────────────────
-// Student initiates payment → returns PayMob iframe URL
 router.post('/initiate', auth('student'), async (req, res) => {
   try {
     const { examId } = req.body;
     const student    = req.user;
 
-    if (!PAYMOB_API_KEY || !PAYMOB_INTEGRATION_ID || !PAYMOB_IFRAME_ID) {
-      return res.status(503).json({ message: 'خدمة الدفع غير مُفعَّلة بعد — تواصل مع المدرس' });
+    if (!PAYMOB_SECRET_KEY || !PAYMOB_PUBLIC_KEY || !PAYMOB_INTEGRATION_ID) {
+      return res.status(503).json({ message: 'خدمة الدفع غير مُفعَّلة — تواصل مع المدرس' });
     }
 
-    // Fetch exam
     const { rows: [exam] } = await pool.query(
       'SELECT id, title, price FROM exams WHERE id=$1', [examId]
     );
-    if (!exam)                         return res.status(404).json({ message: 'الامتحان غير موجود' });
+    if (!exam)                          return res.status(404).json({ message: 'الامتحان غير موجود' });
     if (!exam.price || exam.price <= 0) return res.status(400).json({ message: 'هذا الامتحان مجاني' });
 
-    // Already paid?
     const { rows: paid } = await pool.query(
       `SELECT id FROM payments WHERE exam_id=$1 AND student_id=$2 AND status='paid'`,
       [examId, student.id]
@@ -49,52 +33,55 @@ router.post('/initiate', auth('student'), async (req, res) => {
     if (paid.length) return res.status(400).json({ message: 'دفعت هذا الامتحان بالفعل', alreadyPaid: true });
 
     const amountCents = exam.price * 100;
+    const nameParts   = (student.name || 'Student').split(' ');
 
-    // Step 1 — Auth token
-    const { token: authToken } = await pm('/auth/tokens', { api_key: PAYMOB_API_KEY });
-
-    // Step 2 — Register order
-    const order = await pm('/ecommerce/orders', {
-      auth_token:       authToken,
-      delivery_needed:  false,
-      amount_cents:     amountCents,
-      currency:         'EGP',
-      merchant_order_id: `exam_${examId}_stu_${student.id}_${Date.now()}`,
-      items: [{ name: exam.title, amount_cents: amountCents, description: exam.title, quantity: 1 }],
+    // Paymob v2 — Intention API
+    const intentRes = await fetch(`${BASE}/v1/intention/`, {
+      method:  'POST',
+      headers: {
+        'Authorization': `Token ${PAYMOB_SECRET_KEY}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify({
+        amount:          amountCents,
+        currency:        'EGP',
+        payment_methods: [Number(PAYMOB_INTEGRATION_ID)],
+        items: [{
+          name:        exam.title,
+          amount:      amountCents,
+          description: exam.title,
+          quantity:    1,
+        }],
+        billing_data: {
+          first_name:  nameParts[0]                || 'Student',
+          last_name:   nameParts.slice(1).join(' ') || 'User',
+          email:       student.email               || 'student@exam.com',
+          phone_number: student.phone              || '+201000000000',
+          apartment: 'NA', floor: 'NA', street: 'NA',
+          building: 'NA',  city: 'Cairo', state: 'Cairo',
+          country: 'EG',   postal_code: 'NA',
+        },
+      }),
     });
 
-    // Upsert pending payment row
+    const intention = await intentRes.json();
+    if (!intentRes.ok)
+      throw new Error(intention?.detail || intention?.message || `Paymob ${intentRes.status}`);
+
+    const clientSecret = intention.client_secret;
+    const orderId      = intention.id || intention.order?.id || '';
+
+    // Save pending payment
     await pool.query(
       `INSERT INTO payments (student_id, exam_id, amount, paymob_order_id, status)
        VALUES ($1,$2,$3,$4,'pending')
        ON CONFLICT (student_id, exam_id)
        DO UPDATE SET paymob_order_id=$4, status='pending', created_at=NOW()`,
-      [student.id, examId, exam.price, String(order.id)]
+      [student.id, examId, exam.price, String(orderId)]
     );
 
-    // Step 3 — Payment key
-    const nameParts = (student.name || 'Student').split(' ');
-    const { token: paymentToken } = await pm('/acceptance/payment_keys', {
-      auth_token:     authToken,
-      amount_cents:   amountCents,
-      expiration:     3600,
-      order_id:       order.id,
-      currency:       'EGP',
-      integration_id: Number(PAYMOB_INTEGRATION_ID),
-      billing_data: {
-        first_name:      nameParts[0]           || 'Student',
-        last_name:       nameParts.slice(1).join(' ') || 'User',
-        email:           student.email          || 'student@exam.com',
-        phone_number:    student.phone          || '+201000000000',
-        apartment:       'NA', floor: 'NA', street: 'NA',
-        building:        'NA', city: 'Cairo',  state: 'Cairo',
-        country:         'EG', postal_code: 'NA',
-        shipping_method: 'NA',
-      },
-    });
-
-    const iframeUrl = `${IFRAME_BASE}/acceptance/iframes/${PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
-    res.json({ iframeUrl, orderId: order.id, amount: exam.price, title: exam.title });
+    const iframeUrl = `${BASE}/unifiedcheckout/?publicKey=${PAYMOB_PUBLIC_KEY}&clientSecret=${clientSecret}`;
+    res.json({ iframeUrl, orderId, amount: exam.price, title: exam.title });
 
   } catch (err) {
     console.error('PayMob initiate error:', err.message);
@@ -103,12 +90,14 @@ router.post('/initiate', auth('student'), async (req, res) => {
 });
 
 // ── POST /api/payments/callback ──────────────────────────────────────────────
-// PayMob webhook — called by PayMob servers when a transaction completes
 router.post('/callback', async (req, res) => {
   try {
-    const data = req.body;
+    const data    = req.body;
+    const success = data.success === true || data.success === 'true';
+    const orderId = String(data.order?.id || '');
+    const txId    = String(data.id || '');
 
-    // Verify HMAC signature (if secret is set)
+    // HMAC verification
     if (PAYMOB_HMAC_SECRET && data.hmac) {
       const concat = [
         data.amount_cents, data.created_at, data.currency, data.error_occured,
@@ -129,14 +118,9 @@ router.post('/callback', async (req, res) => {
       }
     }
 
-    const success  = data.success === true || data.success === 'true';
-    const orderId  = String(data.order?.id || '');
-    const txId     = String(data.id || '');
-
     if (success && orderId) {
       await pool.query(
-        `UPDATE payments
-         SET status='paid', paymob_transaction_id=$1, paid_at=NOW()
+        `UPDATE payments SET status='paid', paymob_transaction_id=$1, paid_at=NOW()
          WHERE paymob_order_id=$2`,
         [txId, orderId]
       );
@@ -155,14 +139,12 @@ router.post('/callback', async (req, res) => {
 });
 
 // ── GET /api/payments/check/:examId ─────────────────────────────────────────
-// Student checks if they have access to a specific exam
 router.get('/check/:examId', auth('student'), async (req, res) => {
   try {
     const { rows: [exam] } = await pool.query(
       'SELECT id, price FROM exams WHERE id=$1', [req.params.examId]
     );
     if (!exam) return res.status(404).json({ message: 'غير موجود' });
-
     if (!exam.price || exam.price <= 0) return res.json({ paid: true, free: true });
 
     const { rows: [payment] } = await pool.query(
@@ -197,9 +179,7 @@ router.get('/exam/:examId', auth.staff, async (req, res) => {
 router.post('/mark-paid', auth.staff, async (req, res) => {
   try {
     const { studentId, examId } = req.body;
-    const { rows: [exam] } = await pool.query(
-      'SELECT price FROM exams WHERE id=$1', [examId]
-    );
+    const { rows: [exam] } = await pool.query('SELECT price FROM exams WHERE id=$1', [examId]);
     if (!exam) return res.status(404).json({ message: 'الامتحان غير موجود' });
 
     await pool.query(
