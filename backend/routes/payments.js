@@ -8,7 +8,8 @@ const PAYMOB_API_KEY        = process.env.PAYMOB_API_KEY;
 const PAYMOB_INTEGRATION_ID = process.env.PAYMOB_INTEGRATION_ID;
 const PAYMOB_IFRAME_ID      = process.env.PAYMOB_IFRAME_ID;
 const PAYMOB_HMAC_SECRET    = process.env.PAYMOB_HMAC_SECRET;
-const BASE                  = 'https://accept.paymob.com/api';
+const BASE                  = process.env.PAYMOB_BASE_URL || 'https://accept.paymob.com/api';
+const IFRAME_BASE           = process.env.PAYMOB_IFRAME_BASE || 'https://accept.paymob.com/api';
 
 // ── Helper: POST to PayMob ───────────────────────────────────────────────────
 async function pm(path, body) {
@@ -92,7 +93,7 @@ router.post('/initiate', auth('student'), async (req, res) => {
       },
     });
 
-    const iframeUrl = `https://accept.paymob.com/api/acceptance/iframes/${PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
+    const iframeUrl = `${IFRAME_BASE}/acceptance/iframes/${PAYMOB_IFRAME_ID}?payment_token=${paymentToken}`;
     res.json({ iframeUrl, orderId: order.id, amount: exam.price, title: exam.title });
 
   } catch (err) {
