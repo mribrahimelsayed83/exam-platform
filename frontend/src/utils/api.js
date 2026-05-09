@@ -13,11 +13,12 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// Auto-logout on 401
+// Auto-logout on 401 (skip auth endpoints so login loop works)
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401) {
+    const isAuthRoute = err.config?.url?.includes('/auth/');
+    if (err.response?.status === 401 && !isAuthRoute) {
       localStorage.removeItem('token');
       window.location.href = '/login';
     }
