@@ -186,7 +186,7 @@ export default function LandingPage() {
             <div className="flex-shrink-0">
               <div className="w-56 h-56 lg:w-72 lg:h-72 rounded-3xl overflow-hidden bg-white/20 border-4 border-white/30 shadow-2xl">
                 {data.hero_image ? (
-                  <img src={ mr || data.hero_image} alt={data.hero_name}
+                  <img src={data.hero_image || mr} alt={data.hero_name}
                     className="w-full h-full object-cover"/>
                 ) : (
                   <div className="w-full h-full flex flex-col items-center justify-center">

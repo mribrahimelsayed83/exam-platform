@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../../utils/api';
 
 const TAB_LIST = [
@@ -10,9 +10,29 @@ const TAB_LIST = [
   { key:'contact',      label:'📱 التواصل' },
 ];
 
+function resizeImage(file, maxPx = 800, quality = 0.75) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
+        const canvas = document.createElement('canvas');
+        canvas.width  = img.width  * scale;
+        canvas.height = img.height * scale;
+        canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export default function LandingEditor() {
   const [tab, setTab]       = useState('hero');
   const [form, setForm]     = useState(null);
+  const imgInputRef         = useRef();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -110,13 +130,48 @@ export default function LandingEditor() {
               <input className="input flex-1" value={form.hero_bg_color} onChange={e=>set('hero_bg_color',e.target.value)}/>
             </div>
           </Row>
-          <Row label="رابط صورة المدرس">
-            <input className="input" placeholder="https://..." value={form.hero_image}
-              onChange={e=>set('hero_image',e.target.value)}/>
-            {form.hero_image && (
-              <img src={form.hero_image} alt="preview"
-                className="mt-2 w-32 h-32 object-cover rounded-xl border border-slate-200"/>
-            )}
+          <Row label="صورة المدرس">
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <input
+                  className="input flex-1"
+                  placeholder="أو الصق رابط صورة https://..."
+                  value={form.hero_image?.startsWith('data:') ? '' : (form.hero_image || '')}
+                  onChange={e => set('hero_image', e.target.value)}
+                />
+                <button
+                  type="button"
+                  onClick={() => imgInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap"
+                >
+                  📁 رفع صورة
+                </button>
+              </div>
+              <input
+                ref={imgInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  const base64 = await resizeImage(file);
+                  set('hero_image', base64);
+                  e.target.value = '';
+                }}
+              />
+              {form.hero_image && (
+                <div className="relative w-32">
+                  <img src={form.hero_image} alt="preview"
+                    className="w-32 h-32 object-cover rounded-xl border border-slate-200"/>
+                  <button
+                    type="button"
+                    onClick={() => set('hero_image', '')}
+                    className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs font-bold hover:bg-red-600"
+                  >✕</button>
+                </div>
+              )}
+            </div>
           </Row>
         </>}
 
