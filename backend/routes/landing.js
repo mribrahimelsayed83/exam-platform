@@ -20,7 +20,7 @@ router.put('/', auth('teacher'), async (req, res) => {
     hero_name, hero_title, hero_desc, hero_image, hero_bg_color,
     stat1_num, stat1_label, stat2_num, stat2_label,
     stat3_num, stat3_label, stat4_num, stat4_label,
-    features, testimonials, gallery,
+    features, testimonials, gallery, gallery_interval,
     cta_title, cta_desc,
     whatsapp, telegram, facebook, youtube,
     platform_tagline,
@@ -35,7 +35,7 @@ router.put('/', auth('teacher'), async (req, res) => {
         features=$14, testimonials=$15,
         cta_title=$16, cta_desc=$17,
         whatsapp=$18, telegram=$19, facebook=$20, youtube=$21,
-        platform_tagline=$22, gallery=$23, updated_at=NOW()
+        platform_tagline=$22, gallery=$23, gallery_interval=$24, updated_at=NOW()
        WHERE id=1`,
       [
         hero_name, hero_title, hero_desc, hero_image||'', hero_bg_color||'#2563eb',
@@ -46,6 +46,7 @@ router.put('/', auth('teacher'), async (req, res) => {
         whatsapp||'', telegram||'', facebook||'', youtube||'',
         platform_tagline,
         JSON.stringify(Array.isArray(gallery) ? gallery : []),
+        Number(gallery_interval) || 2,
       ]
     );
     res.json({ message: 'تم حفظ الإعدادات' });

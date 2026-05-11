@@ -196,6 +196,10 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS gallery TEXT DEFAULT '[]';
     `);
+    // Gallery auto-play interval in seconds
+    await pool.query(`
+      ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS gallery_interval INTEGER DEFAULT 2;
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

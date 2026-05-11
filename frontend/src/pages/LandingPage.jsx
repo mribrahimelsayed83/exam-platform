@@ -53,7 +53,7 @@ function UserNavMenu({ user, bg, onLogout }) {
   );
 }
 
-function GalleryCarousel({ images, bg }) {
+function GalleryCarousel({ images, bg, interval = 2000 }) {
   const [current, setCurrent] = useState(0);
   const [paused, setPaused]   = useState(false);
   const timer = useRef(null);
@@ -63,9 +63,9 @@ function GalleryCarousel({ images, bg }) {
 
   useEffect(() => {
     if (paused || images.length <= 1) return;
-    timer.current = setInterval(next, 2000);
+    timer.current = setInterval(next, interval);
     return () => clearInterval(timer.current);
-  }, [paused, next, images.length]);
+  }, [paused, next, images.length, interval]);
 
   if (!images.length) return null;
 
@@ -170,10 +170,11 @@ export default function LandingPage() {
 
   if (!data) return null;
 
-  const features     = Array.isArray(data.features)     ? data.features     : JSON.parse(data.features     || '[]');
-  const testimonials = Array.isArray(data.testimonials) ? data.testimonials : JSON.parse(data.testimonials || '[]');
-  const gallery      = Array.isArray(data.gallery)      ? data.gallery      : JSON.parse(data.gallery      || '[]');
-  const bg           = data.hero_bg_color || '#2563eb';
+  const features        = Array.isArray(data.features)     ? data.features     : JSON.parse(data.features     || '[]');
+  const testimonials    = Array.isArray(data.testimonials) ? data.testimonials : JSON.parse(data.testimonials || '[]');
+  const gallery         = Array.isArray(data.gallery)      ? data.gallery      : JSON.parse(data.gallery      || '[]');
+  const galleryInterval = (Number(data.gallery_interval) || 2) * 1000;
+  const bg              = data.hero_bg_color || '#2563eb';
 
   return (
     <div className="min-h-screen bg-white" dir="rtl">
@@ -309,7 +310,7 @@ export default function LandingPage() {
       </section>
 
       {/* ── Gallery Carousel ───────────────────────────────────────────── */}
-      {gallery.length > 0 && <GalleryCarousel images={gallery} bg={bg} />}
+      {gallery.length > 0 && <GalleryCarousel images={gallery} bg={bg} interval={galleryInterval} />}
 
       {/* ── Features ───────────────────────────────────────────────────── */}
       {features.length > 0 && (

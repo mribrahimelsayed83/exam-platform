@@ -183,6 +183,19 @@ export default function LandingEditor() {
         {tab==='gallery' && <>
           <div>
             <p className="text-xs text-slate-400 mb-4">أضف صور المدرس مع الطلاب — بتتقلب تلقائياً في الصفحة الرئيسية</p>
+            <Row label="سرعة التقليب (بالثواني)">
+              <div className="flex items-center gap-3">
+                <input
+                  type="range" min="1" max="10" step="1"
+                  value={form.gallery_interval ?? 2}
+                  onChange={e => set('gallery_interval', Number(e.target.value))}
+                  className="flex-1 accent-blue-600"
+                />
+                <span className="w-12 text-center font-bold text-blue-600 text-sm bg-blue-50 rounded-lg py-1">
+                  {form.gallery_interval ?? 2}ث
+                </span>
+              </div>
+            </Row>
             <input
               ref={galleryInputRef}
               type="file"
