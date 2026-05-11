@@ -4,6 +4,7 @@ import api from '../../utils/api';
 const TAB_LIST = [
   { key:'hero',         label:'🖼️ Hero' },
   { key:'sections',     label:'🎛️ الأقسام' },
+  { key:'courses',      label:'📚 الكورسات' },
   { key:'gallery',      label:'📸 معرض الصور' },
   { key:'stats',        label:'📊 الأرقام' },
   { key:'features',     label:'✨ المميزات' },
@@ -62,10 +63,18 @@ export default function LandingEditor() {
   const imgInputRef           = useRef();
   const galleryInputRef       = useRef();
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [allPlaylists, setAllPlaylists]         = useState([]);
+  const [togglingId, setTogglingId]             = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError]   = useState('');
+
+  useEffect(() => {
+    api.get('/videos/manage/playlists')
+      .then(r => setAllPlaylists(r.data))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     api.get('/landing').then(r => {
@@ -244,6 +253,58 @@ export default function LandingEditor() {
               );
             })}
           </div>
+        </>}
+
+        {/* ── Courses Tab ── */}
+        {tab==='courses' && <>
+          <p className="text-xs text-slate-400 mb-4">
+            فعّل الكورسات اللي عاوزها تظهر في قسم "الكورسات" في الصفحة الرئيسية
+          </p>
+          {allPlaylists.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <div className="text-4xl mb-2">📚</div>
+              <p className="text-sm">مفيش كورسات بعد — أضف من قسم الفيديوهات التعليمية</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {allPlaylists.map(pl => (
+                <div key={pl.id}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all
+                    ${pl.show_on_landing ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-white'}`}>
+                  {pl.thumbnail
+                    ? <img src={pl.thumbnail} alt={pl.title} className="w-12 h-12 rounded-lg object-cover flex-shrink-0"/>
+                    : <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center text-2xl flex-shrink-0">📚</div>
+                  }
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-slate-800 text-sm truncate">{pl.title}</p>
+                    <p className="text-xs text-slate-400">
+                      {pl.sub_count > 0 ? `${pl.sub_count} درس` : `${pl.video_count} فيديو`}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={togglingId === pl.id}
+                    onClick={async () => {
+                      setTogglingId(pl.id);
+                      try {
+                        const { data } = await api.patch(`/videos/manage/playlists/${pl.id}/landing`);
+                        setAllPlaylists(prev => prev.map(p =>
+                          p.id === pl.id ? { ...p, show_on_landing: data.show_on_landing } : p
+                        ));
+                      } finally { setTogglingId(null); }
+                    }}
+                    className={`flex-shrink-0 px-4 py-1.5 rounded-xl text-xs font-bold transition-all
+                      ${pl.show_on_landing
+                        ? 'bg-green-500 text-white hover:bg-green-600'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                    {togglingId === pl.id
+                      ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block"/>
+                      : pl.show_on_landing ? '✓ ظاهر' : 'اعرض'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </>}
 
         {/* ── Gallery Tab ── */}
