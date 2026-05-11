@@ -125,6 +125,7 @@ router.get('/manage/playlists', staff, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
+              p.show_on_landing,
               COUNT(v.id)::int AS video_count,
               (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count
        FROM playlists p
