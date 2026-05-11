@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import mr from '../mr.png';
@@ -53,6 +53,87 @@ function UserNavMenu({ user, bg, onLogout }) {
   );
 }
 
+function GalleryCarousel({ images, bg }) {
+  const [current, setCurrent] = useState(0);
+  const [paused, setPaused]   = useState(false);
+  const timer = useRef(null);
+
+  const next = useCallback(() => setCurrent(c => (c + 1) % images.length), [images.length]);
+  const prev = () => setCurrent(c => (c - 1 + images.length) % images.length);
+
+  useEffect(() => {
+    if (paused || images.length <= 1) return;
+    timer.current = setInterval(next, 4000);
+    return () => clearInterval(timer.current);
+  }, [paused, next, images.length]);
+
+  if (!images.length) return null;
+
+  return (
+    <section className="py-16 bg-slate-50">
+      <div className="max-w-4xl mx-auto px-4">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-extrabold text-slate-800 mb-2">لحظات من المنصة</h2>
+          <p className="text-slate-500">صور المدرس مع الطلاب</p>
+        </div>
+
+        <div
+          className="relative overflow-hidden rounded-3xl shadow-2xl select-none"
+          onMouseEnter={() => setPaused(true)}
+          onMouseLeave={() => setPaused(false)}
+        >
+          {/* Slides */}
+          <div
+            className="flex transition-transform duration-700 ease-in-out"
+            style={{ transform: `translateX(${current * 100}%)` }}
+          >
+            {images.map((src, i) => (
+              <img
+                key={i}
+                src={src}
+                alt={`gallery-${i}`}
+                className="w-full flex-shrink-0 object-cover"
+                style={{ aspectRatio:'16/9', minWidth:'100%' }}
+              />
+            ))}
+          </div>
+
+          {/* Arrows */}
+          {images.length > 1 && <>
+            <button
+              onClick={prev}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors text-lg"
+            >›</button>
+            <button
+              onClick={next}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors text-lg"
+            >‹</button>
+          </>}
+
+          {/* Counter */}
+          <div className="absolute top-3 left-3 bg-black/50 text-white text-xs font-bold px-3 py-1 rounded-full">
+            {current + 1} / {images.length}
+          </div>
+        </div>
+
+        {/* Dots */}
+        {images.length > 1 && (
+          <div className="flex justify-center gap-2 mt-5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className="w-2.5 h-2.5 rounded-full transition-all duration-300"
+                style={{ background: i === current ? bg : '#cbd5e1', transform: i === current ? 'scale(1.3)' : 'scale(1)' }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
 const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
 const MEDAL_STYLES = {
@@ -91,6 +172,7 @@ export default function LandingPage() {
 
   const features     = Array.isArray(data.features)     ? data.features     : JSON.parse(data.features     || '[]');
   const testimonials = Array.isArray(data.testimonials) ? data.testimonials : JSON.parse(data.testimonials || '[]');
+  const gallery      = Array.isArray(data.gallery)      ? data.gallery      : JSON.parse(data.gallery      || '[]');
   const bg           = data.hero_bg_color || '#2563eb';
 
   return (
@@ -225,6 +307,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Gallery Carousel ───────────────────────────────────────────── */}
+      {gallery.length > 0 && <GalleryCarousel images={gallery} bg={bg} />}
 
       {/* ── Features ───────────────────────────────────────────────────── */}
       {features.length > 0 && (

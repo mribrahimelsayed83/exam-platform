@@ -192,6 +192,10 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ALTER COLUMN hero_image TYPE TEXT;
     `);
+    // Gallery: array of base64 images stored as JSON
+    await pool.query(`
+      ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS gallery TEXT DEFAULT '[]';
+    `);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

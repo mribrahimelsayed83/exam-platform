@@ -3,6 +3,7 @@ import api from '../../utils/api';
 
 const TAB_LIST = [
   { key:'hero',         label:'🖼️ Hero' },
+  { key:'gallery',      label:'📸 معرض الصور' },
   { key:'stats',        label:'📊 الأرقام' },
   { key:'features',     label:'✨ المميزات' },
   { key:'testimonials', label:'💬 آراء الطلاب' },
@@ -30,9 +31,11 @@ function resizeImage(file, maxPx = 800, quality = 0.75) {
 }
 
 export default function LandingEditor() {
-  const [tab, setTab]       = useState('hero');
-  const [form, setForm]     = useState(null);
-  const imgInputRef         = useRef();
+  const [tab, setTab]         = useState('hero');
+  const [form, setForm]       = useState(null);
+  const imgInputRef           = useRef();
+  const galleryInputRef       = useRef();
+  const [uploadingGallery, setUploadingGallery] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState('');
@@ -45,6 +48,7 @@ export default function LandingEditor() {
         ...d,
         features:     Array.isArray(d.features)     ? d.features     : JSON.parse(d.features     || '[]'),
         testimonials: Array.isArray(d.testimonials) ? d.testimonials : JSON.parse(d.testimonials || '[]'),
+        gallery:      Array.isArray(d.gallery)      ? d.gallery      : JSON.parse(d.gallery      || '[]'),
       });
     }).finally(() => setLoading(false));
   }, []);
@@ -173,6 +177,60 @@ export default function LandingEditor() {
               )}
             </div>
           </Row>
+        </>}
+
+        {/* ── Gallery Tab ── */}
+        {tab==='gallery' && <>
+          <div>
+            <p className="text-xs text-slate-400 mb-4">أضف صور المدرس مع الطلاب — بتتقلب تلقائياً في الصفحة الرئيسية</p>
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={async (e) => {
+                const files = Array.from(e.target.files);
+                if (!files.length) return;
+                setUploadingGallery(true);
+                const results = await Promise.all(files.map(f => resizeImage(f, 1200, 0.8)));
+                setForm(f => ({ ...f, gallery: [...(f.gallery || []), ...results] }));
+                setUploadingGallery(false);
+                e.target.value = '';
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => galleryInputRef.current?.click()}
+              disabled={uploadingGallery}
+              className="w-full border-2 border-dashed border-blue-300 rounded-2xl py-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer mb-5"
+            >
+              {uploadingGallery
+                ? <span className="flex items-center justify-center gap-2 text-blue-600 font-bold"><span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>جاري الرفع...</span>
+                : <span className="text-slate-500 font-semibold">📁 اختر صور من الجهاز<br/><span className="text-xs text-slate-400">تقدر تختار أكتر من صورة في نفس الوقت</span></span>
+              }
+            </button>
+            {(form.gallery || []).length === 0 ? (
+              <p className="text-center text-slate-400 text-sm py-4">لا توجد صور بعد</p>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {(form.gallery || []).map((img, i) => (
+                  <div key={i} className="relative group">
+                    <img src={img} alt={`gallery-${i}`}
+                      className="w-full aspect-square object-cover rounded-xl border border-slate-200"/>
+                    <button
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, gallery: f.gallery.filter((_,idx) => idx !== i) }))}
+                      className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                    >✕</button>
+                    <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-lg">
+                      {i + 1}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </>}
 
         {/* ── Stats Tab ── */}
