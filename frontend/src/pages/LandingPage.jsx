@@ -63,7 +63,7 @@ function GalleryCarousel({ images, bg }) {
 
   useEffect(() => {
     if (paused || images.length <= 1) return;
-    timer.current = setInterval(next, 4000);
+    timer.current = setInterval(next, 2000);
     return () => clearInterval(timer.current);
   }, [paused, next, images.length]);
 
