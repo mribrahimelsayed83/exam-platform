@@ -2,7 +2,7 @@ import { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import api from '../../utils/api';
 
-const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 
 /*
   Excel format expected:

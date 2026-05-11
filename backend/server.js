@@ -200,6 +200,13 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS gallery_interval INTEGER DEFAULT 2;
     `);
+    // Restrict grades to 9-12 only (drop old constraint, add new one)
+    await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
+    await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);
+    await pool.query(`ALTER TABLE exams DROP CONSTRAINT IF EXISTS exams_grade_check;`);
+    await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11,12));`);
+    await pool.query(`ALTER TABLE playlists DROP CONSTRAINT IF EXISTS playlists_grade_check;`);
+    await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11,12));`);
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

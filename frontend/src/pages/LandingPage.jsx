@@ -134,7 +134,7 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
   );
 }
 
-const GRADES = {4:'رابع ابتدائي',5:'خامس ابتدائي',6:'سادس ابتدائي',7:'أول إعدادي',8:'ثاني إعدادي',9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
 const MEDAL_STYLES = {
   1: 'bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-300 shadow-amber-100',

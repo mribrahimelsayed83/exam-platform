@@ -4,9 +4,8 @@ import api from '../utils/api';
 import Navbar from '../components/shared/Navbar';
 
 const GRADES = {
-  4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي',
-  7:'أول إعدادي',  8:'ثاني إعدادي',  9:'ثالث إعدادي',
-  10:'أول ثانوي',  11:'ثاني ثانوي',  12:'ثالث ثانوي',
+  9:'ثالث إعدادي',
+  10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي',
 };
 const gradingLabels = {
   fully_graded: { label:'مصحّح',        cls:'badge-green' },
