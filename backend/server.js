@@ -200,6 +200,14 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS gallery_interval INTEGER DEFAULT 2;
     `);
+    // Sections ordering & visibility config for landing page
+    await pool.query(`
+      ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS sections_config TEXT DEFAULT '[]';
+    `);
+    // Which top-level playlists appear in the Courses section on landing
+    await pool.query(`
+      ALTER TABLE playlists ADD COLUMN IF NOT EXISTS show_on_landing BOOLEAN DEFAULT FALSE;
+    `);
     // Restrict grades to 9-12 only (drop old constraint, add new one)
     await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
     await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);

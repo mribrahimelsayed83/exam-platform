@@ -173,6 +173,20 @@ router.post('/manage/playlists', staff, async (req, res) => {
   }
 });
 
+// PATCH /videos/manage/playlists/:id/landing — toggle show_on_landing
+router.patch('/manage/playlists/:id/landing', staff, async (req, res) => {
+  try {
+    const { rows: [pl] } = await pool.query(
+      `UPDATE playlists SET show_on_landing = NOT show_on_landing WHERE id=$1 AND parent_id IS NULL RETURNING show_on_landing`,
+      [req.params.id]
+    );
+    if (!pl) return res.status(404).json({ message: 'غير موجود' });
+    res.json({ show_on_landing: pl.show_on_landing });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // PUT /videos/manage/playlists/reorder — إعادة ترتيب القوائم (قبل /:id)
 router.put('/manage/playlists/reorder', staff, async (req, res) => {
   const { ids } = req.body;

@@ -136,6 +136,29 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
+
+const DEFAULT_SECTIONS = [
+  { key:'stats',        label:'📊 الأرقام',     visible: true },
+  { key:'gallery',      label:'📸 معرض الصور', visible: true },
+  { key:'courses',      label:'📚 الكورسات',   visible: true },
+  { key:'features',     label:'✨ المميزات',    visible: true },
+  { key:'testimonials', label:'💬 آراء الطلاب',visible: true },
+  { key:'honor_board',  label:'🏆 لوحة الشرف', visible: true },
+  { key:'cta',          label:'🎯 CTA',        visible: true },
+];
+
+function parseSections(raw) {
+  try {
+    const stored = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+    if (!stored.length) return DEFAULT_SECTIONS;
+    const storedKeys = new Set(stored.map(s => s.key));
+    const extras = DEFAULT_SECTIONS.filter(d => !storedKeys.has(d.key));
+    return [
+      ...stored.map(s => ({ ...DEFAULT_SECTIONS.find(d => d.key === s.key), ...s })),
+      ...extras,
+    ];
+  } catch { return DEFAULT_SECTIONS; }
+}
 const MEDAL_STYLES = {
   1: 'bg-gradient-to-br from-yellow-50 to-amber-50 border-amber-300 shadow-amber-100',
   2: 'bg-gradient-to-br from-slate-50 to-gray-100 border-slate-300 shadow-slate-100',
@@ -145,20 +168,23 @@ const MEDAL_STYLES = {
 };
 
 export default function LandingPage() {
-  const [data, setData]           = useState(null);
+  const [data, setData]             = useState(null);
   const [honorBoard, setHonorBoard] = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [dark, setDark]           = useState(() => document.documentElement.classList.contains('dark'));
-  const { user, logout }          = useAuth();
-  const navigate                  = useNavigate();
+  const [courses, setCourses]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [dark, setDark]             = useState(() => document.documentElement.classList.contains('dark'));
+  const { user, logout }            = useAuth();
+  const navigate                    = useNavigate();
 
   useEffect(() => {
     Promise.all([
       api.get('/landing'),
       api.get('/landing/honor-board'),
-    ]).then(([land, honor]) => {
+      api.get('/landing/courses'),
+    ]).then(([land, honor, crs]) => {
       setData(land.data);
       setHonorBoard(honor.data);
+      setCourses(crs.data);
     }).finally(() => setLoading(false));
   }, []);
 
@@ -175,6 +201,7 @@ export default function LandingPage() {
   const gallery         = Array.isArray(data.gallery)      ? data.gallery      : JSON.parse(data.gallery      || '[]');
   const galleryInterval = (Number(data.gallery_interval) || 2) * 1000;
   const bg              = data.hero_bg_color || '#2563eb';
+  const sections        = parseSections(data.sections_config);
 
   return (
     <div className="min-h-screen bg-white" dir="rtl">
@@ -290,165 +317,187 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── Stats ──────────────────────────────────────────────────────── */}
-      <section className="py-16 bg-white">
-        <div className="max-w-5xl mx-auto px-4">
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              {num:data.stat1_num, label:data.stat1_label},
-              {num:data.stat2_num, label:data.stat2_label},
-              {num:data.stat3_num, label:data.stat3_label},
-              {num:data.stat4_num, label:data.stat4_label},
-            ].map((s,i) => (
-              <div key={i} className="text-center p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                <div className="text-4xl font-extrabold mb-1" style={{color:bg}}>{s.num}</div>
-                <div className="text-slate-500 font-semibold text-sm">{s.label}</div>
+      {/* ── Dynamic Sections ────────────────────────────────────────────── */}
+      {sections.filter(s => s.visible).map(s => {
+        switch (s.key) {
+
+          case 'stats': return (
+            <section key="stats" className="py-16 bg-white">
+              <div className="max-w-5xl mx-auto px-4">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                  {[{num:data.stat1_num,label:data.stat1_label},{num:data.stat2_num,label:data.stat2_label},
+                    {num:data.stat3_num,label:data.stat3_label},{num:data.stat4_num,label:data.stat4_label}].map((s,i) => (
+                    <div key={i} className="text-center p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="text-4xl font-extrabold mb-1" style={{color:bg}}>{s.num}</div>
+                      <div className="text-slate-500 font-semibold text-sm">{s.label}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </section>
+          );
 
-      {/* ── Gallery Carousel ───────────────────────────────────────────── */}
-      {gallery.length > 0 && <GalleryCarousel images={gallery} bg={bg} interval={galleryInterval} />}
+          case 'gallery': return gallery.length > 0
+            ? <GalleryCarousel key="gallery" images={gallery} bg={bg} interval={galleryInterval} />
+            : null;
 
-      {/* ── Features ───────────────────────────────────────────────────── */}
-      {features.length > 0 && (
-        <section className="py-20 bg-slate-50">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl font-extrabold text-slate-800 mb-3">لماذا تنضم إلينا؟</h2>
-              <p className="text-slate-500 text-lg">كل ما تحتاجه في مكان واحد</p>
-            </div>
-            <div className="grid md:grid-cols-3 gap-6">
-              {features.map((f,i) => (
-                <div key={i}
-                  className="bg-white rounded-2xl p-7 border border-slate-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center">
-                  <div className="text-5xl mb-4">{f.icon}</div>
-                  <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
-                  <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
+          case 'courses': return courses.length > 0 ? (
+            <section key="courses" className="py-20 bg-white">
+              <div className="max-w-6xl mx-auto px-4">
+                <div className="text-center mb-14">
+                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">الكورسات المتاحة</h2>
+                  <p className="text-slate-500 text-lg">اختر الكورس المناسب لك وابدأ رحلتك</p>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Testimonials ───────────────────────────────────────────────── */}
-      {testimonials.length > 0 && (
-        <section className="py-20 bg-white">
-          <div className="max-w-5xl mx-auto px-4">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl font-extrabold text-slate-800 mb-3">ماذا يقول طلابنا؟</h2>
-              <p className="text-slate-500 text-lg">آراء حقيقية من طلابنا</p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {testimonials.map((t,i) => (
-                <div key={i}
-                  className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-1 mb-4">
-                    {[1,2,3,4,5].map(s=>(
-                      <span key={s} className="text-amber-400 text-lg">★</span>
-                    ))}
-                  </div>
-                  <p className="text-slate-700 leading-relaxed mb-4 text-sm">"{t.text}"</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                      style={{background:bg}}>
-                      {t.name?.charAt(0)}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {courses.map(c => (
+                    <div key={c.id} className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 bg-white">
+                      <div className="relative aspect-video bg-gradient-to-br from-blue-100 to-blue-200">
+                        {c.thumbnail
+                          ? <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover"/>
+                          : <div className="w-full h-full flex items-center justify-center text-5xl">📚</div>
+                        }
+                        <div className="absolute top-2 right-2">
+                          <span className="bg-white/90 text-xs font-bold px-2 py-1 rounded-full text-slate-700">
+                            {GRADES[c.grade] || `صف ${c.grade}`}
+                          </span>
+                        </div>
+                        <div className="absolute bottom-2 left-2">
+                          <span className="bg-black/60 text-white text-xs px-2 py-1 rounded-full">
+                            {c.lessons_count > 0 ? `${c.lessons_count} درس` : `${c.items_count} عنصر`}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-5">
+                        <h3 className="font-extrabold text-slate-800 text-lg mb-1 line-clamp-2">{c.title}</h3>
+                        {c.description && <p className="text-slate-500 text-sm mb-4 line-clamp-2">{c.description}</p>}
+                        <Link to={user ? (user.role === 'student' ? '/student' : '/teacher') : '/register'}
+                          className="block text-center font-bold py-2.5 rounded-xl text-sm transition-all hover:opacity-90"
+                          style={{background:bg, color:'white'}}>
+                          {user ? 'ادخل المنصة ←' : 'سجّل للوصول ←'}
+                        </Link>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-bold text-slate-800 text-sm">{t.name}</p>
-                      {t.grade && <p className="text-xs text-slate-400">{t.grade}</p>}
-                    </div>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* ── Honor Board ────────────────────────────────────────────────── */}
-      {honorBoard.length > 0 && (
-        <section className="py-20 bg-slate-50">
-          <div className="max-w-3xl mx-auto px-4">
-            <div className="text-center mb-12">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4 text-white"
-                style={{background:bg}}>
-                🏆 لوحة الشرف
               </div>
-              <h2 className="text-3xl font-extrabold text-slate-800 mb-2">أبطال المنصة</h2>
-              <p className="text-slate-500">أعلى الطلاب أداءً من جميع الصفوف</p>
-            </div>
+            </section>
+          ) : null;
 
-            <div className="space-y-3">
-              {honorBoard.map((s, i) => (
-                <div key={i}
-                  className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[s.rank] || 'bg-white border-slate-200'}`}>
-                  {/* Row 1: medal + avatar + name */}
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[s.rank] || s.rank}</div>
-                    <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-sm"
-                      style={{background: bg}}>
-                      {s.name.charAt(0)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-extrabold text-slate-800 truncate">{s.name}</p>
-                      <p className="text-xs text-slate-400">{GRADES[s.grade] || `صف ${s.grade}`}</p>
-                    </div>
-                  </div>
-                  {/* Row 2: stats */}
-                  <div className="flex items-center justify-around pt-2 border-t border-black/5">
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400">الامتحانات</p>
-                      <p className="font-bold text-slate-700">{s.exam_count}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400">المتوسط</p>
-                      <p className="font-bold text-emerald-600">{s.avg_score}%</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-xs text-slate-400">النقاط</p>
-                      <p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p>
-                    </div>
-                  </div>
+          case 'features': return features.length > 0 ? (
+            <section key="features" className="py-20 bg-slate-50">
+              <div className="max-w-5xl mx-auto px-4">
+                <div className="text-center mb-14">
+                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">لماذا تنضم إلينا؟</h2>
+                  <p className="text-slate-500 text-lg">كل ما تحتاجه في مكان واحد</p>
                 </div>
-              ))}
-            </div>
+                <div className="grid md:grid-cols-3 gap-6">
+                  {features.map((f,i) => (
+                    <div key={i} className="bg-white rounded-2xl p-7 border border-slate-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center">
+                      <div className="text-5xl mb-4">{f.icon}</div>
+                      <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
+                      <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null;
 
-            <p className="text-center text-xs text-slate-400 mt-6">
-              النقاط = متوسط الدرجات × عدد الامتحانات — يُحدَّث تلقائياً
-            </p>
-          </div>
-        </section>
-      )}
+          case 'testimonials': return testimonials.length > 0 ? (
+            <section key="testimonials" className="py-20 bg-white">
+              <div className="max-w-5xl mx-auto px-4">
+                <div className="text-center mb-14">
+                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">ماذا يقول طلابنا؟</h2>
+                  <p className="text-slate-500 text-lg">آراء حقيقية من طلابنا</p>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {testimonials.map((t,i) => (
+                    <div key={i} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:shadow-md transition-shadow">
+                      <div className="flex items-center gap-1 mb-4">
+                        {[1,2,3,4,5].map(n=><span key={n} className="text-amber-400 text-lg">★</span>)}
+                      </div>
+                      <p className="text-slate-700 leading-relaxed mb-4 text-sm">"{t.text}"</p>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm" style={{background:bg}}>
+                          {t.name?.charAt(0)}
+                        </div>
+                        <div>
+                          <p className="font-bold text-slate-800 text-sm">{t.name}</p>
+                          {t.grade && <p className="text-xs text-slate-400">{t.grade}</p>}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+          ) : null;
 
-      {/* ── CTA ────────────────────────────────────────────────────────── */}
-      <section className="py-20" style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}cc 100%)`}}>
-        <div className="max-w-3xl mx-auto px-4 text-center text-white">
-          <h2 className="text-3xl lg:text-4xl font-extrabold mb-4">
-            {user ? `أهلاً بك، ${user.name}!` : data.cta_title}
-          </h2>
-          <p className="text-white/80 text-lg mb-8">
-            {user ? 'كل شيء جاهز لك — ادخل المنصة وابدأ' : data.cta_desc}
-          </p>
-          {user ? (
-            <button
-              onClick={() => navigate(user.role === 'student' ? '/student' : '/teacher')}
-              className="inline-flex items-center gap-3 bg-white font-extrabold px-12 py-4 rounded-2xl text-lg hover:shadow-2xl transition-all hover:-translate-y-1"
-              style={{color:bg}}>
-              ادخل المنصة الآن ←
-            </button>
-          ) : (
-            <Link to="/register"
-              className="inline-block bg-white font-bold px-10 py-4 rounded-xl text-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
-              style={{color:bg}}>
-              سجّل مجاناً الآن ←
-            </Link>
-          )}
-        </div>
-      </section>
+          case 'honor_board': return honorBoard.length > 0 ? (
+            <section key="honor_board" className="py-20 bg-slate-50">
+              <div className="max-w-3xl mx-auto px-4">
+                <div className="text-center mb-12">
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4 text-white" style={{background:bg}}>
+                    🏆 لوحة الشرف
+                  </div>
+                  <h2 className="text-3xl font-extrabold text-slate-800 mb-2">أبطال المنصة</h2>
+                  <p className="text-slate-500">أعلى الطلاب أداءً من جميع الصفوف</p>
+                </div>
+                <div className="space-y-3">
+                  {honorBoard.map((s,i) => (
+                    <div key={i} className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[s.rank]||'bg-white border-slate-200'}`}>
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[s.rank]||s.rank}</div>
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-sm" style={{background:bg}}>
+                          {s.name.charAt(0)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-extrabold text-slate-800 truncate">{s.name}</p>
+                          <p className="text-xs text-slate-400">{GRADES[s.grade]||`صف ${s.grade}`}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-around pt-2 border-t border-black/5">
+                        <div className="text-center"><p className="text-xs text-slate-400">الامتحانات</p><p className="font-bold text-slate-700">{s.exam_count}</p></div>
+                        <div className="text-center"><p className="text-xs text-slate-400">المتوسط</p><p className="font-bold text-emerald-600">{s.avg_score}%</p></div>
+                        <div className="text-center"><p className="text-xs text-slate-400">النقاط</p><p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-center text-xs text-slate-400 mt-6">النقاط = متوسط الدرجات × عدد الامتحانات — يُحدَّث تلقائياً</p>
+              </div>
+            </section>
+          ) : null;
+
+          case 'cta': return (
+            <section key="cta" className="py-20" style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}cc 100%)`}}>
+              <div className="max-w-3xl mx-auto px-4 text-center text-white">
+                <h2 className="text-3xl lg:text-4xl font-extrabold mb-4">
+                  {user ? `أهلاً بك، ${user.name}!` : data.cta_title}
+                </h2>
+                <p className="text-white/80 text-lg mb-8">
+                  {user ? 'كل شيء جاهز لك — ادخل المنصة وابدأ' : data.cta_desc}
+                </p>
+                {user ? (
+                  <button onClick={() => navigate(user.role==='student'?'/student':'/teacher')}
+                    className="inline-flex items-center gap-3 bg-white font-extrabold px-12 py-4 rounded-2xl text-lg hover:shadow-2xl transition-all hover:-translate-y-1"
+                    style={{color:bg}}>
+                    ادخل المنصة الآن ←
+                  </button>
+                ) : (
+                  <Link to="/register"
+                    className="inline-block bg-white font-bold px-10 py-4 rounded-xl text-lg hover:shadow-xl transition-all hover:-translate-y-0.5"
+                    style={{color:bg}}>
+                    سجّل مجاناً الآن ←
+                  </Link>
+                )}
+              </div>
+            </section>
+          );
+
+          default: return null;
+        }
+      })}
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-slate-900 text-white py-12">

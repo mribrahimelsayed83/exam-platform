@@ -66,6 +66,11 @@ export default function VideosList() {
     load();
   };
 
+  const toggleLanding = async (pl) => {
+    await api.patch(`/videos/manage/playlists/${pl.id}/landing`);
+    load();
+  };
+
   const movePlaylist = async (playlist, dir) => {
     const sameGrade = playlists
       .filter(p => p.grade === playlist.grade)
@@ -165,6 +170,12 @@ export default function VideosList() {
                   <button onClick={() => setEditingPlaylist(pl)} className="btn-secondary btn-sm">✏️</button>
                   <button onClick={() => movePlaylist(pl, -1)} className="btn-secondary btn-sm">↑</button>
                   <button onClick={() => movePlaylist(pl, 1)}  className="btn-secondary btn-sm">↓</button>
+                  <button
+                    onClick={() => toggleLanding(pl)}
+                    title={pl.show_on_landing ? 'إزالة من الصفحة الرئيسية' : 'عرض في الصفحة الرئيسية'}
+                    className={`btn-sm text-xs font-bold ${pl.show_on_landing ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'btn-secondary'}`}>
+                    🌐
+                  </button>
                   <button onClick={() => deletePlaylist(pl.id)} className="btn-danger btn-sm">🗑️</button>
                 </div>
               </div>

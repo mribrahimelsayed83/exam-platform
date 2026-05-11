@@ -3,6 +3,7 @@ import api from '../../utils/api';
 
 const TAB_LIST = [
   { key:'hero',         label:'🖼️ Hero' },
+  { key:'sections',     label:'🎛️ الأقسام' },
   { key:'gallery',      label:'📸 معرض الصور' },
   { key:'stats',        label:'📊 الأرقام' },
   { key:'features',     label:'✨ المميزات' },
@@ -10,6 +11,31 @@ const TAB_LIST = [
   { key:'cta',          label:'🎯 CTA' },
   { key:'contact',      label:'📱 التواصل' },
 ];
+
+const DEFAULT_SECTIONS = [
+  { key:'stats',        label:'📊 الأرقام' },
+  { key:'gallery',      label:'📸 معرض الصور' },
+  { key:'courses',      label:'📚 الكورسات' },
+  { key:'features',     label:'✨ المميزات' },
+  { key:'testimonials', label:'💬 آراء الطلاب' },
+  { key:'honor_board',  label:'🏆 لوحة الشرف' },
+  { key:'cta',          label:'🎯 CTA' },
+];
+
+function parseSections(raw) {
+  try {
+    const stored = Array.isArray(raw) ? raw : JSON.parse(raw || '[]');
+    if (!stored.length) return DEFAULT_SECTIONS.map(s => ({ ...s, visible: true }));
+    const storedKeys = new Set(stored.map(s => s.key));
+    const extras = DEFAULT_SECTIONS.filter(d => !storedKeys.has(d.key)).map(d => ({ ...d, visible: true }));
+    return [
+      ...stored.map(s => ({ ...DEFAULT_SECTIONS.find(d => d.key === s.key), ...s })),
+      ...extras,
+    ];
+  } catch {
+    return DEFAULT_SECTIONS.map(s => ({ ...s, visible: true }));
+  }
+}
 
 function resizeImage(file, maxPx = 800, quality = 0.75) {
   return new Promise((resolve) => {
@@ -46,9 +72,10 @@ export default function LandingEditor() {
       const d = r.data;
       setForm({
         ...d,
-        features:     Array.isArray(d.features)     ? d.features     : JSON.parse(d.features     || '[]'),
-        testimonials: Array.isArray(d.testimonials) ? d.testimonials : JSON.parse(d.testimonials || '[]'),
-        gallery:      Array.isArray(d.gallery)      ? d.gallery      : JSON.parse(d.gallery      || '[]'),
+        features:        Array.isArray(d.features)        ? d.features        : JSON.parse(d.features        || '[]'),
+        testimonials:    Array.isArray(d.testimonials)    ? d.testimonials    : JSON.parse(d.testimonials    || '[]'),
+        gallery:         Array.isArray(d.gallery)         ? d.gallery         : JSON.parse(d.gallery         || '[]'),
+        sections_config: parseSections(d.sections_config),
       });
     }).finally(() => setLoading(false));
   }, []);
@@ -177,6 +204,46 @@ export default function LandingEditor() {
               )}
             </div>
           </Row>
+        </>}
+
+        {/* ── Sections Tab ── */}
+        {tab==='sections' && <>
+          <p className="text-xs text-slate-400 mb-4">رتّب الأقسام وحدد اللي عاوزه يظهر في الصفحة الرئيسية</p>
+          <div className="space-y-2">
+            {(form.sections_config || []).map((sec, i) => {
+              const secs = form.sections_config;
+              const move = (dir) => {
+                const j = i + dir;
+                if (j < 0 || j >= secs.length) return;
+                const next = [...secs];
+                [next[i], next[j]] = [next[j], next[i]];
+                set('sections_config', next);
+              };
+              const toggle = () => {
+                const next = secs.map((s, idx) => idx === i ? { ...s, visible: !s.visible } : s);
+                set('sections_config', next);
+              };
+              return (
+                <div key={sec.key}
+                  className={`flex items-center gap-3 p-3 rounded-xl border-2 transition-all
+                    ${sec.visible ? 'bg-white border-slate-200' : 'bg-slate-50 border-slate-100 opacity-60'}`}>
+                  <span className="text-slate-400 text-sm font-bold w-5 text-center">{i + 1}</span>
+                  <span className="flex-1 font-semibold text-slate-700 text-sm">{sec.label}</span>
+                  <div className="flex gap-1">
+                    <button type="button" onClick={() => move(-1)} disabled={i === 0}
+                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-sm font-bold">↑</button>
+                    <button type="button" onClick={() => move(1)} disabled={i === secs.length - 1}
+                      className="w-7 h-7 rounded-lg bg-slate-100 hover:bg-slate-200 disabled:opacity-30 text-sm font-bold">↓</button>
+                    <button type="button" onClick={toggle}
+                      className={`w-7 h-7 rounded-lg text-sm transition-colors
+                        ${sec.visible ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+                      {sec.visible ? '👁' : '🙈'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </>}
 
         {/* ── Gallery Tab ── */}
