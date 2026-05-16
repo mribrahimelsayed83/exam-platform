@@ -92,6 +92,8 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
                 key={i}
                 src={src}
                 alt={`gallery-${i}`}
+                loading={i === 0 ? 'eager' : 'lazy'}
+                decoding="async"
                 className="w-full flex-shrink-0 object-cover"
                 style={{ aspectRatio:'16/9', minWidth:'100%' }}
               />
@@ -353,7 +355,7 @@ export default function LandingPage() {
                     <div key={c.id} className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 bg-white">
                       <div className="relative aspect-video bg-gradient-to-br from-blue-100 to-blue-200">
                         {c.thumbnail
-                          ? <img src={c.thumbnail} alt={c.title} className="w-full h-full object-cover"/>
+                          ? <img src={c.thumbnail} alt={c.title} loading="lazy" decoding="async" className="w-full h-full object-cover"/>
                           : <div className="w-full h-full flex items-center justify-center text-5xl">📚</div>
                         }
                         <div className="absolute top-2 right-2">

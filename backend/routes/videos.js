@@ -102,7 +102,9 @@ router.get('/playlists/:id/items', auth('student'), async (req, res) => {
       return res.status(404).json({ message: 'الدرس مش موجود أو مش لصفك' });
 
     const items = await pool.query(
-      `SELECT pi.*, e.title AS exam_title, e.grade AS exam_grade,
+      `SELECT pi.id, pi.type, pi.title, pi.description, pi.position,
+              pi.youtube_url, pi.exam_id, pi.file_url, pi.file_name, pi.created_at,
+              e.title AS exam_title, e.grade AS exam_grade,
               e.duration AS exam_duration, e.pass_score AS exam_pass_score
        FROM playlist_items pi
        LEFT JOIN exams e ON e.id = pi.exam_id
@@ -293,7 +295,9 @@ router.put('/manage/playlists/subs/reorder', staff, async (req, res) => {
 router.get('/manage/playlists/:id/items', staff, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT pi.*, e.title AS exam_title, e.grade AS exam_grade
+      `SELECT pi.id, pi.type, pi.title, pi.description, pi.position,
+              pi.youtube_url, pi.exam_id, pi.file_url, pi.file_name, pi.created_at,
+              e.title AS exam_title, e.grade AS exam_grade
        FROM playlist_items pi
        LEFT JOIN exams e ON e.id = pi.exam_id
        WHERE pi.playlist_id = $1

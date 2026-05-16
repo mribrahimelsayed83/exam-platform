@@ -88,20 +88,16 @@ router.put('/', auth('teacher'), async (req, res) => {
 router.get('/honor-board', async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `WITH ranked AS (
-         SELECT s.name, s.grade,
-                COUNT(sub.id)::int               AS exam_count,
-                ROUND(AVG(sub.final_score))::int  AS avg_score,
-                ROUND(AVG(sub.final_score) * COUNT(sub.id))::int AS honor_score,
-                DENSE_RANK() OVER (
-                  ORDER BY ROUND(AVG(sub.final_score) * COUNT(sub.id)) DESC
-                )::int AS rank
-         FROM students s
-         JOIN submissions sub ON sub.student_id = s.id
-         WHERE sub.final_score IS NOT NULL AND s.status = 'approved'
-         GROUP BY s.id, s.name, s.grade
-       )
-       SELECT * FROM ranked WHERE rank <= 5 ORDER BY rank, name`
+      `SELECT s.name, s.grade,
+              COUNT(sub.id)::int                                     AS exam_count,
+              ROUND(AVG(sub.final_score))::int                       AS avg_score,
+              (COUNT(sub.id) * ROUND(AVG(sub.final_score)))::int     AS honor_score
+       FROM students s
+       JOIN submissions sub ON sub.student_id = s.id
+       WHERE sub.final_score IS NOT NULL AND s.status = 'approved'
+       GROUP BY s.id, s.name, s.grade
+       ORDER BY honor_score DESC
+       LIMIT 5`
     );
     res.json(rows);
   } catch (err) {

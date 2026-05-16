@@ -1,9 +1,10 @@
 require('dotenv').config();
-const express   = require('express');
-const cors      = require('cors');
-const helmet    = require('helmet');
-const rateLimit = require('express-rate-limit');
-const pool      = require('./db/pool');
+const express     = require('express');
+const cors        = require('cors');
+const helmet      = require('helmet');
+const rateLimit   = require('express-rate-limit');
+const compression = require('compression');
+const pool        = require('./db/pool');
 
 // ── Auto-migration: run on every startup (safe — uses IF NOT EXISTS) ──────
 async function runMigrations() {
@@ -217,6 +218,17 @@ async function runMigrations() {
     await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11,12));`);
     await pool.query(`ALTER TABLE playlists DROP CONSTRAINT IF EXISTS playlists_grade_check;`);
     await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11,12));`);
+
+    // Performance indexes
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_exams_grade_active ON exams(grade, is_active)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_exams_position ON exams(grade, position)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_submissions_student_exam ON submissions(student_id, exam_id)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_submissions_exam_score ON submissions(exam_id, final_score)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_chat_student_unread ON chat_messages(student_id, from_role, is_read)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_playlists_parent_grade ON playlists(parent_id, grade)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_exam_status ON payments(exam_id, status)`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_notifications_grade ON notifications(grade)`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
@@ -226,6 +238,8 @@ async function runMigrations() {
 runMigrations();
 
 const app = express();
+
+app.use(compression());
 
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },

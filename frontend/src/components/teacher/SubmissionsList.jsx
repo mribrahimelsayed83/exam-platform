@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import * as XLSX from 'xlsx';
+// xlsx loaded dynamically on first export to keep teacher bundle lean
 import api from '../../utils/api';
 
 const gradeLabel = {
@@ -69,7 +69,8 @@ export default function SubmissionsList() {
         <h2 className="text-xl font-extrabold text-slate-800">إجابات الطلاب</h2>
         {subs.length > 0 && (
           <button
-            onClick={() => {
+            onClick={async () => {
+              const XLSX = (await import('xlsx')).default || await import('xlsx');
               const rows = subs.map(s => ({
                 'اسم الطالب': s.student_name,
                 'اسم الامتحان': s.exam_title,

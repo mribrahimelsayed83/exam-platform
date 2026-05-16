@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import * as XLSX from 'xlsx';
+// xlsx loaded dynamically on use to keep initial bundle lean
 import api from '../../utils/api';
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
@@ -21,8 +21,9 @@ const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ث
 function parseExcel(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
+        const XLSX = (await import('xlsx')).default || await import('xlsx');
         const wb   = XLSX.read(e.target.result, { type: 'array' });
         const ws   = wb.Sheets[wb.SheetNames[0]];
         const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
@@ -118,7 +119,8 @@ export default function ImportExamModal({ onClose, onSave }) {
   };
 
   // Download template
-  const downloadTemplate = () => {
+  const downloadTemplate = async () => {
+    const XLSX = (await import('xlsx')).default || await import('xlsx');
     const data = [
       ['النوع', 'نص السؤال', 'خيار 1', 'خيار 2', 'خيار 3', 'خيار 4', 'الإجابة الصحيحة / الدرجة القصوى'],
       ['mcq',       'ما هي عاصمة مصر؟',    'الإسكندرية', 'القاهرة', 'أسوان', 'الجيزة', '2'],
