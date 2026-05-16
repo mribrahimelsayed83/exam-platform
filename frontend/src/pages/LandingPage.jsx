@@ -472,7 +472,10 @@ export default function LandingPage() {
                   {testimonials.map((t,i) => (
                     <div key={i} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:shadow-md transition-shadow">
                       <div className="flex items-center gap-1 mb-4">
-                        {[1,2,3,4,5].map(n=><span key={n} className="text-amber-400 text-lg">★</span>)}
+                        <span aria-hidden="true" className="flex gap-0.5">
+                          {[1,2,3,4,5].map(n=><span key={n} className="text-amber-500 text-lg">★</span>)}
+                        </span>
+                        <span className="sr-only">5 من 5 نجوم</span>
                       </div>
                       <p className="text-slate-700 leading-relaxed mb-4 text-sm">"{t.text}"</p>
                       <div className="flex items-center gap-3">
