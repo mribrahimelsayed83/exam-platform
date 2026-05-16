@@ -1,4 +1,12 @@
 User-agent: *
 Allow: /
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+
+# Private routes — no need to index
+Disallow: /student
+Disallow: /teacher
+Disallow: /reset-password
 
 Sitemap: https://mribrahimfarouk.com/sitemap.xml

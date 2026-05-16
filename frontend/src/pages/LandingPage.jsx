@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import mr from '../mr.png';
 import { useAuth } from '../context/AuthContext';
+import SEO from '../components/SEO';
 
 function UserNavMenu({ user, bg, onLogout }) {
   const [open, setOpen] = useState(false);
@@ -205,8 +206,52 @@ export default function LandingPage() {
   const bg              = data.hero_bg_color || '#2563eb';
   const sections        = parseSections(data.sections_config);
 
+  const siteUrl = 'https://mribrahimfarouk.com';
+  const seoTitle = data.hero_name
+    ? `${data.hero_name} | ${data.platform_tagline || 'منصة تعليمية'}`
+    : undefined;
+  const seoDesc = data.hero_desc ||
+    `منصة ${data.hero_name || 'التعليم'} — امتحانات إلكترونية وفيديوهات تعليمية لمراحل ثالث إعدادي والثانوية العامة.`;
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'EducationalOrganization',
+        name: data.platform_tagline || 'منصة تعليمية',
+        url: siteUrl,
+        description: seoDesc,
+        inLanguage: 'ar',
+        founder: { '@type': 'Person', name: data.hero_name || '' },
+        ...(data.facebook  ? { sameAs: [data.facebook]  } : {}),
+        ...(data.youtube   ? { sameAs: [data.youtube]   } : {}),
+      },
+      ...(courses.length ? [{
+        '@type': 'ItemList',
+        name: 'الكورسات المتاحة',
+        itemListElement: courses.slice(0, 10).map((c, i) => ({
+          '@type': 'ListItem',
+          position: i + 1,
+          item: {
+            '@type': 'Course',
+            name: c.title,
+            description: c.description || c.title,
+            provider: { '@type': 'EducationalOrganization', name: data.platform_tagline || 'منصة تعليمية' },
+          },
+        })),
+      }] : []),
+    ],
+  };
+
   return (
     <div className="min-h-screen bg-white" dir="rtl">
+      <SEO
+        title={seoTitle}
+        description={seoDesc}
+        image={data.hero_image && !data.hero_image.startsWith('data:') ? data.hero_image : undefined}
+        url="/"
+        jsonLd={jsonLd}
+      />
 
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">

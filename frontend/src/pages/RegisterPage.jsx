@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
+import SEO from '../components/SEO';
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 
@@ -42,6 +43,11 @@ export default function RegisterPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-blue-400 p-4 py-10">
+      <SEO
+        title="إنشاء حساب جديد"
+        description="سجّل الآن في منصة مستر إبراهيم فاروق التعليمية وابدأ رحلتك التعليمية — امتحانات إلكترونية وفيديوهات لثالث إعدادي والثانوية."
+        url="/register"
+      />
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
         <Link to="/login" className="text-blue-600 text-sm font-bold flex items-center gap-1 mb-5 hover:underline">
           ← رجوع للدخول

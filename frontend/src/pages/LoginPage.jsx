@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
+import SEO from '../components/SEO';
 
 const ENDPOINTS = [
   '/auth/student/login',
@@ -45,6 +46,11 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-blue-400 p-4">
+      <SEO
+        title="تسجيل الدخول"
+        description="سجّل دخولك إلى منصة مستر إبراهيم فاروق التعليمية — امتحانات إلكترونية وفيديوهات تعليمية."
+        url="/login"
+      />
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">📚</div>

@@ -3,20 +3,30 @@
 
   <url>
     <loc>https://mribrahimfarouk.com/</loc>
+    <lastmod>2025-05-16</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
 
   <url>
     <loc>https://mribrahimfarouk.com/login</loc>
+    <lastmod>2025-05-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
 
   <url>
     <loc>https://mribrahimfarouk.com/register</loc>
+    <lastmod>2025-05-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://mribrahimfarouk.com/forgot-password</loc>
+    <lastmod>2025-05-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 
 </urlset>
