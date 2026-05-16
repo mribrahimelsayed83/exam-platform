@@ -20,21 +20,28 @@ function serveBase64Image(res, base64str) {
   res.send(Buffer.from(base64Data, 'base64'));
 }
 
-// GET /landing — public (base64 stripped, images served as URLs)
+// GET /landing — public (base64 stripped, images served as absolute URLs)
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM landing_settings WHERE id=1');
     if (!result.rows[0]) return res.status(404).json({ message: 'not found' });
     const d = { ...result.rows[0] };
 
-    // Replace base64 hero_image with URL reference
-    if (d.hero_image?.startsWith('data:')) d.hero_image = '/api/landing/hero-image';
+    // Build absolute base URL from the incoming request (points to Railway itself)
+    const baseUrl = `${req.protocol}://${req.get('host')}`;
 
-    // Replace base64 gallery items with URL references
+    // Replace base64 hero_image with absolute URL
+    if (d.hero_image?.startsWith('data:')) {
+      d.hero_image = `${baseUrl}/api/landing/hero-image`;
+    }
+
+    // Replace base64 gallery items with absolute URLs
     try {
       const gallery = JSON.parse(d.gallery || '[]');
       d.gallery = JSON.stringify(
-        gallery.map((img, i) => img?.startsWith('data:') ? `/api/landing/gallery/${i}` : img)
+        gallery.map((img, i) =>
+          img?.startsWith('data:') ? `${baseUrl}/api/landing/gallery/${i}` : img
+        )
       );
     } catch {}
 
