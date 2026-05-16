@@ -193,6 +193,12 @@ router.post('/', staff, async (req, res) => {
           shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
+  if (questions.length > 200)
+    return res.status(400).json({ message: 'الحد الأقصى 200 سؤال في الامتحان' });
+
+  const validPrice     = Math.max(0, Number(price) || 0);
+  const validPassScore = Math.min(100, Math.max(0, Number(passScore) || 50));
+  const validDuration  = Math.max(1, Number(duration) || 30);
 
   const client = await pool.connect();
   try {
@@ -200,8 +206,8 @@ router.post('/', staff, async (req, res) => {
     const examRes = await client.query(
       `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-      [title, description||'', Number(grade), duration||30, passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, Number(price)||0, !!requirePreviousExams]
+      [title, description||'', Number(grade), validDuration, validPassScore, startsAt||null, endsAt||null, examComment||'',
+       !!shuffleQuestions, !!shuffleOptions, validPrice, !!requirePreviousExams]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
@@ -260,6 +266,9 @@ router.put('/:id', staff, async (req, res) => {
   const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
           shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
+  const validPrice     = Math.max(0, Number(price) || 0);
+  const validPassScore = Math.min(100, Math.max(0, Number(passScore) || 50));
+  const validDuration  = Math.max(1, Number(duration) || 30);
   try {
     await pool.query(
       `UPDATE exams SET title=$1, description=$2, grade=$3, duration=$4,
@@ -267,9 +276,9 @@ router.put('/:id', staff, async (req, res) => {
               shuffle_questions=$9, shuffle_options=$10, price=$11,
               require_previous_exams=$12
        WHERE id=$13`,
-      [title, description||'', Number(grade), duration||30,
-       passScore||50, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, Number(price)||0,
+      [title, description||'', Number(grade), validDuration,
+       validPassScore, startsAt||null, endsAt||null, examComment||'',
+       !!shuffleQuestions, !!shuffleOptions, validPrice,
        !!requirePreviousExams, req.params.id]
     );
     res.json({ message: 'تم تعديل الامتحان' });

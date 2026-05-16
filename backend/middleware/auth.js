@@ -8,7 +8,7 @@ function authMiddleware(role) {
 
     const token = authHeader.split(' ')[1];
     try {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
       // role يمكن يكون string واحد أو array
       if (role) {
         const allowed = Array.isArray(role) ? role : [role];

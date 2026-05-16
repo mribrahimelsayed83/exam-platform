@@ -6,7 +6,7 @@ const auth    = require('../middleware/auth');
 router.get('/', auth(), async (req, res) => {
   try {
     const raw = (req.query.q || '').trim();
-    if (raw.length < 2) return res.json([]);
+    if (raw.length < 2 || raw.length > 100) return res.json([]);
     const q       = `%${raw}%`;
     const { role, grade } = req.user;
     const isStaff = role === 'teacher' || role === 'assistant';

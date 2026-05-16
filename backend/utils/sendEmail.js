@@ -3,6 +3,14 @@ const { Resend } = require('resend');
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM   = process.env.FROM_EMAIL || 'onboarding@resend.dev';
 
+function escHtml(str) {
+  return String(str || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 async function sendPasswordReset(toEmail, studentName, resetLink) {
   try {
     await resend.emails.send({
@@ -12,7 +20,7 @@ async function sendPasswordReset(toEmail, studentName, resetLink) {
       html: `
         <div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px">
           <h2 style="color:#2563eb">منصة الامتحانات</h2>
-          <p>مرحباً ${studentName}،</p>
+          <p>مرحباً ${escHtml(studentName)}،</p>
           <p>تلقّينا طلباً لإعادة تعيين كلمة المرور الخاصة بك.</p>
           <p>اضغط على الزر التالي لإعادة التعيين:</p>
           <a href="${resetLink}"

@@ -32,6 +32,14 @@ router.get('/courses', async (req, res) => {
   }
 });
 
+function safeUrl(url) {
+  if (!url) return '';
+  const s = String(url).trim();
+  // Block javascript:, data:, vbscript: and other dangerous protocols
+  if (/^(javascript|data|vbscript):/i.test(s)) return '';
+  return s;
+}
+
 // PUT /landing — teacher only
 router.put('/', auth('teacher'), async (req, res) => {
   const {
@@ -62,7 +70,7 @@ router.put('/', auth('teacher'), async (req, res) => {
         stat3_num, stat3_label, stat4_num, stat4_label,
         JSON.stringify(features), JSON.stringify(testimonials),
         cta_title, cta_desc,
-        whatsapp||'', telegram||'', facebook||'', youtube||'',
+        safeUrl(whatsapp), safeUrl(telegram), safeUrl(facebook), safeUrl(youtube),
         platform_tagline,
         JSON.stringify(Array.isArray(gallery) ? gallery : []),
         Number(gallery_interval) || 2,

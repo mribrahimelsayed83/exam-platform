@@ -260,6 +260,20 @@ const forgotLimiter = rateLimit({
 
 app.use(express.json({ limit: '25mb' }));
 
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 30,
+  keyGenerator: (req) => req.user?.id ? String(req.user.id) : req.ip,
+  message: { message: 'طلبات كثيرة جداً — انتظر دقيقة' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
+  console.error('❌ FATAL: JWT_SECRET يجب أن يكون 32 حرف على الأقل');
+  process.exit(1);
+}
+
 app.use('/api/auth/student/login',   loginLimiter);
 app.use('/api/auth/teacher/login',   loginLimiter);
 app.use('/api/auth/assistant/login', loginLimiter);
@@ -274,7 +288,7 @@ app.use('/api/landing',        require('./routes/landing'));
 app.use('/api/personal-exam', require('./routes/personalExam'));
 app.use('/api/payments',      require('./routes/payments'));
 app.use('/api/chat',          require('./routes/chat'));
-app.use('/api/search',        require('./routes/search'));
+app.use('/api/search',        searchLimiter, require('./routes/search'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));
