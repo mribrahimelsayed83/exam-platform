@@ -2,8 +2,54 @@ const router = require('express').Router();
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 
-// GET /landing — public
+function safeUrl(url) {
+  if (!url) return '';
+  const s = String(url).trim();
+  if (/^(javascript|data|vbscript):/i.test(s)) return '';
+  return s;
+}
+
+function serveBase64Image(res, base64str) {
+  if (!base64str) return res.status(404).end();
+  const mimeMatch = base64str.match(/^data:(image\/\w+);base64,/);
+  if (!mimeMatch) return res.status(404).end();
+  const mimeType   = mimeMatch[1];
+  const base64Data = base64str.slice(mimeMatch[0].length);
+  res.setHeader('Content-Type', mimeType);
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.send(Buffer.from(base64Data, 'base64'));
+}
+
+// GET /landing — public (base64 stripped, images served as URLs)
 router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM landing_settings WHERE id=1');
+    if (!result.rows[0]) return res.status(404).json({ message: 'not found' });
+    const d = { ...result.rows[0] };
+
+    // Replace base64 hero_image with URL reference
+    if (d.hero_image?.startsWith('data:')) d.hero_image = '/api/landing/hero-image';
+
+    // Replace base64 gallery items with URL references
+    try {
+      const gallery = JSON.parse(d.gallery || '[]');
+      d.gallery = JSON.stringify(
+        gallery.map((img, i) => img?.startsWith('data:') ? `/api/landing/gallery/${i}` : img)
+      );
+    } catch {}
+
+    // og_image not needed in public JSON response
+    delete d.og_image;
+
+    res.json(d);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// GET /landing/editor — teacher only (full data including base64)
+router.get('/editor', auth('teacher'), async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM landing_settings WHERE id=1');
     if (!result.rows[0]) return res.status(404).json({ message: 'not found' });
@@ -14,7 +60,43 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /landing/courses — public: playlists marked show_on_landing
+// GET /landing/hero-image — public binary
+router.get('/hero-image', async (req, res) => {
+  try {
+    const { rows: [row] } = await pool.query('SELECT hero_image FROM landing_settings WHERE id=1');
+    serveBase64Image(res, row?.hero_image);
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
+});
+
+// GET /landing/gallery/:index — public binary
+router.get('/gallery/:index', async (req, res) => {
+  try {
+    const idx = parseInt(req.params.index, 10);
+    if (isNaN(idx) || idx < 0) return res.status(400).end();
+    const { rows: [row] } = await pool.query('SELECT gallery FROM landing_settings WHERE id=1');
+    const gallery = JSON.parse(row?.gallery || '[]');
+    serveBase64Image(res, gallery[idx]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
+});
+
+// GET /landing/og-image — public binary
+router.get('/og-image', async (req, res) => {
+  try {
+    const { rows: [row] } = await pool.query('SELECT og_image FROM landing_settings WHERE id=1');
+    serveBase64Image(res, row?.og_image);
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
+});
+
+// GET /landing/courses — public
 router.get('/courses', async (req, res) => {
   try {
     const { rows } = await pool.query(
@@ -29,32 +111,6 @@ router.get('/courses', async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
-  }
-});
-
-function safeUrl(url) {
-  if (!url) return '';
-  const s = String(url).trim();
-  // Block javascript:, data:, vbscript: and other dangerous protocols
-  if (/^(javascript|data|vbscript):/i.test(s)) return '';
-  return s;
-}
-
-// GET /landing/og-image — public: serves the og:image as binary (for social crawlers)
-router.get('/og-image', async (req, res) => {
-  try {
-    const { rows: [row] } = await pool.query('SELECT og_image FROM landing_settings WHERE id=1');
-    if (!row?.og_image) return res.status(404).end();
-    const mimeMatch = row.og_image.match(/^data:(image\/\w+);base64,/);
-    if (!mimeMatch) return res.status(404).end();
-    const mimeType   = mimeMatch[1];
-    const base64Data = row.og_image.slice(mimeMatch[0].length);
-    res.setHeader('Content-Type', mimeType);
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(Buffer.from(base64Data, 'base64'));
-  } catch (err) {
-    console.error(err);
-    res.status(500).end();
   }
 });
 

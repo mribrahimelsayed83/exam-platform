@@ -105,10 +105,12 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
           {images.length > 1 && <>
             <button
               onClick={prev}
+              aria-label="الصورة السابقة"
               className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors text-lg"
             >›</button>
             <button
               onClick={next}
+              aria-label="الصورة التالية"
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 text-white flex items-center justify-center hover:bg-black/60 transition-colors text-lg"
             >‹</button>
           </>}
@@ -121,14 +123,20 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
 
         {/* Dots */}
         {images.length > 1 && (
-          <div className="flex justify-center gap-2 mt-5">
+          <div className="flex justify-center gap-1 mt-5">
             {images.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrent(i)}
-                className="w-2.5 h-2.5 rounded-full transition-all duration-300"
-                style={{ background: i === current ? bg : '#cbd5e1', transform: i === current ? 'scale(1.3)' : 'scale(1)' }}
-              />
+                aria-label={`الصورة ${i + 1}`}
+                aria-current={i === current ? 'true' : undefined}
+                className="p-2 rounded-full transition-all duration-300 hover:bg-slate-100"
+              >
+                <span
+                  className="block w-2.5 h-2.5 rounded-full transition-all duration-300"
+                  style={{ background: i === current ? bg : '#cbd5e1', transform: i === current ? 'scale(1.3)' : 'scale(1)' }}
+                />
+              </button>
             ))}
           </div>
         )}
@@ -267,6 +275,7 @@ export default function LandingPage() {
                 localStorage.setItem('theme', isDark ? 'dark' : 'light');
                 setDark(isDark);
               }}
+              aria-label={dark ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
               className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-lg"
             >
               {dark ? '☀️' : '🌙'}
@@ -288,6 +297,9 @@ export default function LandingPage() {
           </div>
         </div>
       </nav>
+
+      {/* ── Main Content ───────────────────────────────────────────────── */}
+      <main>
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
       <section style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}dd 60%, ${bg}99 100%)`}}
@@ -546,6 +558,8 @@ export default function LandingPage() {
         }
       })}
 
+      </main>
+
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="bg-slate-900 text-white py-12">
         <div className="max-w-5xl mx-auto px-4">
@@ -559,24 +573,28 @@ export default function LandingPage() {
             <div className="flex items-center gap-4">
               {data.whatsapp && (
                 <a href={`https://wa.me/${data.whatsapp}`} target="_blank" rel="noreferrer"
+                  aria-label="واتساب"
                   className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
                   💬
                 </a>
               )}
               {data.telegram && (
                 <a href={data.telegram} target="_blank" rel="noreferrer"
+                  aria-label="تليجرام"
                   className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
                   ✈️
                 </a>
               )}
               {data.facebook && (
                 <a href={data.facebook} target="_blank" rel="noreferrer"
+                  aria-label="فيسبوك"
                   className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
                   👤
                 </a>
               )}
               {data.youtube && (
                 <a href={data.youtube} target="_blank" rel="noreferrer"
+                  aria-label="يوتيوب"
                   className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
                   ▶️
                 </a>

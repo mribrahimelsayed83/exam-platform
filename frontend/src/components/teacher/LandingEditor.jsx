@@ -78,7 +78,7 @@ export default function LandingEditor() {
   }, []);
 
   useEffect(() => {
-    api.get('/landing').then(r => {
+    api.get('/landing/editor').then(r => {
       const d = r.data;
       setForm({
         ...d,
