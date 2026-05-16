@@ -3,7 +3,7 @@ import { Helmet } from 'react-helmet-async';
 const SITE_NAME = 'منصة مستر إبراهيم فاروق التعليمية';
 const SITE_URL  = 'https://mribrahimfarouk.com';
 const DEFAULT_DESC = 'منصة تعليمية متكاملة — امتحانات إلكترونية وفيديوهات تعليمية لمراحل ثالث إعدادي والثانوية العامة.';
-const API_BASE  = import.meta.env.VITE_API_URL || '';
+const API_BASE  = import.meta.env.VITE_API_URL || SITE_URL;
 const DEFAULT_OG_IMAGE = `${API_BASE}/api/landing/og-image`;
 
 export default function SEO({ title, description, image, url, jsonLd }) {

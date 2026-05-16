@@ -256,7 +256,6 @@ export default function LandingPage() {
       <SEO
         title={seoTitle}
         description={seoDesc}
-        image={data.hero_image && !data.hero_image.startsWith('data:') ? data.hero_image : undefined}
         url="/"
         jsonLd={jsonLd}
       />
