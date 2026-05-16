@@ -61,6 +61,7 @@ export default function LandingEditor() {
   const [tab, setTab]         = useState('hero');
   const [form, setForm]       = useState(null);
   const imgInputRef           = useRef();
+  const ogImgInputRef         = useRef();
   const galleryInputRef       = useRef();
   const [uploadingGallery, setUploadingGallery] = useState(false);
   const [allPlaylists, setAllPlaylists]         = useState([]);
@@ -209,6 +210,58 @@ export default function LandingEditor() {
                     onClick={() => set('hero_image', '')}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs font-bold hover:bg-red-600"
                   >✕</button>
+                </div>
+              )}
+            </div>
+          </Row>
+          <Row label="صورة المشاركة (og:image)">
+            <p className="text-xs text-slate-400 mb-2">
+              الصورة اللي بتظهر لما حد يشارك رابط الموقع على واتساب أو فيسبوك — يُنصح بمقاس 1200×630
+            </p>
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => ogImgInputRef.current?.click()}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap"
+                >
+                  📁 رفع صورة
+                </button>
+                {form.og_image && (
+                  <button
+                    type="button"
+                    onClick={() => set('og_image', '')}
+                    className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 whitespace-nowrap"
+                  >
+                    🗑️ حذف
+                  </button>
+                )}
+              </div>
+              <input
+                ref={ogImgInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={async (e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  const base64 = await resizeImage(file, 1200, 0.85);
+                  set('og_image', base64);
+                  e.target.value = '';
+                }}
+              />
+              {form.og_image ? (
+                <div className="relative">
+                  <img
+                    src={form.og_image}
+                    alt="og:image preview"
+                    className="w-full max-w-sm aspect-video object-cover rounded-xl border border-slate-200"
+                  />
+                  <span className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-0.5 rounded-lg font-bold">✓ مرفوعة</span>
+                </div>
+              ) : (
+                <div className="w-full max-w-sm aspect-video bg-slate-100 rounded-xl border-2 border-dashed border-slate-300 flex items-center justify-center">
+                  <span className="text-slate-400 text-sm">لا توجد صورة</span>
                 </div>
               )}
             </div>

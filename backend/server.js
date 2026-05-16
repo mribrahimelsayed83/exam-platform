@@ -211,6 +211,10 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE playlists ADD COLUMN IF NOT EXISTS show_on_landing BOOLEAN DEFAULT FALSE;
     `);
+    // og:image for social sharing — stored as base64 TEXT
+    await pool.query(`
+      ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS og_image TEXT DEFAULT '';
+    `);
     // Restrict grades to 9-12 only (drop old constraint, add new one)
     await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
     await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);

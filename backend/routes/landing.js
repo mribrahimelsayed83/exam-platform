@@ -40,6 +40,24 @@ function safeUrl(url) {
   return s;
 }
 
+// GET /landing/og-image — public: serves the og:image as binary (for social crawlers)
+router.get('/og-image', async (req, res) => {
+  try {
+    const { rows: [row] } = await pool.query('SELECT og_image FROM landing_settings WHERE id=1');
+    if (!row?.og_image) return res.status(404).end();
+    const mimeMatch = row.og_image.match(/^data:(image\/\w+);base64,/);
+    if (!mimeMatch) return res.status(404).end();
+    const mimeType   = mimeMatch[1];
+    const base64Data = row.og_image.slice(mimeMatch[0].length);
+    res.setHeader('Content-Type', mimeType);
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(base64Data, 'base64'));
+  } catch (err) {
+    console.error(err);
+    res.status(500).end();
+  }
+});
+
 // PUT /landing — teacher only
 router.put('/', auth('teacher'), async (req, res) => {
   const {
@@ -49,7 +67,7 @@ router.put('/', auth('teacher'), async (req, res) => {
     features, testimonials, gallery, gallery_interval,
     cta_title, cta_desc,
     whatsapp, telegram, facebook, youtube,
-    platform_tagline, sections_config,
+    platform_tagline, sections_config, og_image,
   } = req.body;
 
   try {
@@ -62,7 +80,7 @@ router.put('/', auth('teacher'), async (req, res) => {
         cta_title=$16, cta_desc=$17,
         whatsapp=$18, telegram=$19, facebook=$20, youtube=$21,
         platform_tagline=$22, gallery=$23, gallery_interval=$24,
-        sections_config=$25, updated_at=NOW()
+        sections_config=$25, og_image=$26, updated_at=NOW()
        WHERE id=1`,
       [
         hero_name, hero_title, hero_desc, hero_image||'', hero_bg_color||'#2563eb',
@@ -75,6 +93,7 @@ router.put('/', auth('teacher'), async (req, res) => {
         JSON.stringify(Array.isArray(gallery) ? gallery : []),
         Number(gallery_interval) || 2,
         JSON.stringify(Array.isArray(sections_config) ? sections_config : []),
+        og_image || '',
       ]
     );
     res.json({ message: 'تم حفظ الإعدادات' });
