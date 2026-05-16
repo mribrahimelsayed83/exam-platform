@@ -25,7 +25,8 @@ async function seed() {
     );
     console.log('✅ Default teacher created');
     console.log(`   Username: ${process.env.TEACHER_USERNAME || 'teacher'}`);
-    console.log(`   Password: ${process.env.TEACHER_PASSWORD || 'teacher123'}`);
+    console.log(`   Password: (من متغير TEACHER_PASSWORD أو الافتراضي)`);
+    console.log(`   ⚠️  غيّر كلمة المرور فوراً من لوحة التحكم`);
   } catch (err) {
     console.error('❌ Seed error:', err.message);
   } finally {
