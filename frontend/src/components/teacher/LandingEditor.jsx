@@ -38,7 +38,7 @@ function parseSections(raw) {
   }
 }
 
-function resizeImage(file, maxPx = 800, quality = 0.75) {
+function resizeImage(file, maxPx = 800, quality = 0.80) {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -46,10 +46,12 @@ function resizeImage(file, maxPx = 800, quality = 0.75) {
       img.onload = () => {
         const scale = Math.min(1, maxPx / Math.max(img.width, img.height));
         const canvas = document.createElement('canvas');
-        canvas.width  = img.width  * scale;
-        canvas.height = img.height * scale;
+        canvas.width  = Math.round(img.width  * scale);
+        canvas.height = Math.round(img.height * scale);
         canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-        resolve(canvas.toDataURL('image/jpeg', quality));
+        // WebP is 25-35% smaller than JPEG at same quality
+        const webp = canvas.toDataURL('image/webp', quality);
+        resolve(webp !== 'data:,' ? webp : canvas.toDataURL('image/jpeg', quality));
       };
       img.src = e.target.result;
     };
@@ -196,7 +198,7 @@ export default function LandingEditor() {
                 onChange={async (e) => {
                   const file = e.target.files[0];
                   if (!file) return;
-                  const base64 = await resizeImage(file);
+                  const base64 = await resizeImage(file, 500, 0.82);
                   set('hero_image', base64);
                   e.target.value = '';
                 }}

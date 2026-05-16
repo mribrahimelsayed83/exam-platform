@@ -75,7 +75,7 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-10">
           <h2 className="text-3xl font-extrabold text-slate-800 mb-2">لحظات من المنصة</h2>
-          <p className="text-slate-500">صور المدرس مع الطلاب</p>
+          <p className="text-slate-600">صور المدرس مع الطلاب</p>
         </div>
 
         <div
@@ -404,7 +404,7 @@ export default function LandingPage() {
               <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-14">
                   <h2 className="text-3xl font-extrabold text-slate-800 mb-3">الكورسات المتاحة</h2>
-                  <p className="text-slate-500 text-lg">اختر الكورس المناسب لك وابدأ رحلتك</p>
+                  <p className="text-slate-600 text-lg">اختر الكورس المناسب لك وابدأ رحلتك</p>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {courses.map(c => (
@@ -446,7 +446,7 @@ export default function LandingPage() {
               <div className="max-w-5xl mx-auto px-4">
                 <div className="text-center mb-14">
                   <h2 className="text-3xl font-extrabold text-slate-800 mb-3">لماذا تنضم إلينا؟</h2>
-                  <p className="text-slate-500 text-lg">كل ما تحتاجه في مكان واحد</p>
+                  <p className="text-slate-600 text-lg">كل ما تحتاجه في مكان واحد</p>
                 </div>
                 <div className="grid md:grid-cols-3 gap-6">
                   {features.map((f,i) => (
@@ -466,7 +466,7 @@ export default function LandingPage() {
               <div className="max-w-5xl mx-auto px-4">
                 <div className="text-center mb-14">
                   <h2 className="text-3xl font-extrabold text-slate-800 mb-3">ماذا يقول طلابنا؟</h2>
-                  <p className="text-slate-500 text-lg">آراء حقيقية من طلابنا</p>
+                  <p className="text-slate-600 text-lg">آراء حقيقية من طلابنا</p>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {testimonials.map((t,i) => (
@@ -481,7 +481,7 @@ export default function LandingPage() {
                         </div>
                         <div>
                           <p className="font-bold text-slate-800 text-sm">{t.name}</p>
-                          {t.grade && <p className="text-xs text-slate-400">{t.grade}</p>}
+                          {t.grade && <p className="text-xs text-slate-500">{t.grade}</p>}
                         </div>
                       </div>
                     </div>
@@ -499,7 +499,7 @@ export default function LandingPage() {
                     🏆 لوحة الشرف
                   </div>
                   <h2 className="text-3xl font-extrabold text-slate-800 mb-2">أبطال المنصة</h2>
-                  <p className="text-slate-500">أعلى الطلاب أداءً من جميع الصفوف</p>
+                  <p className="text-slate-600">أعلى الطلاب أداءً من جميع الصفوف</p>
                 </div>
                 <div className="space-y-3">
                   {honorBoard.map((s,i) => (
@@ -515,14 +515,14 @@ export default function LandingPage() {
                         </div>
                       </div>
                       <div className="flex items-center justify-around pt-2 border-t border-black/5">
-                        <div className="text-center"><p className="text-xs text-slate-400">الامتحانات</p><p className="font-bold text-slate-700">{s.exam_count}</p></div>
-                        <div className="text-center"><p className="text-xs text-slate-400">المتوسط</p><p className="font-bold text-emerald-600">{s.avg_score}%</p></div>
-                        <div className="text-center"><p className="text-xs text-slate-400">النقاط</p><p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p></div>
+                        <div className="text-center"><p className="text-xs text-slate-500">الامتحانات</p><p className="font-bold text-slate-700">{s.exam_count}</p></div>
+                        <div className="text-center"><p className="text-xs text-slate-500">المتوسط</p><p className="font-bold text-emerald-600">{s.avg_score}%</p></div>
+                        <div className="text-center"><p className="text-xs text-slate-500">النقاط</p><p className="font-extrabold text-lg" style={{color:bg}}>{s.honor_score}</p></div>
                       </div>
                     </div>
                   ))}
                 </div>
-                <p className="text-center text-xs text-slate-400 mt-6">النقاط = متوسط الدرجات × عدد الامتحانات — يُحدَّث تلقائياً</p>
+                <p className="text-center text-xs text-slate-500 mt-6">النقاط = متوسط الدرجات × عدد الامتحانات — يُحدَّث تلقائياً</p>
               </div>
             </section>
           ) : null;

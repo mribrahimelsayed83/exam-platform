@@ -16,7 +16,7 @@ function serveBase64Image(res, base64str) {
   const mimeType   = mimeMatch[1];
   const base64Data = base64str.slice(mimeMatch[0].length);
   res.setHeader('Content-Type', mimeType);
-  res.setHeader('Cache-Control', 'public, max-age=86400');
+  res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
   res.send(Buffer.from(base64Data, 'base64'));
 }
 
@@ -50,6 +50,7 @@ router.get('/', async (req, res) => {
     // og_image not needed in public JSON response
     delete d.og_image;
 
+    res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
     res.json(d);
   } catch (err) {
     console.error(err);
