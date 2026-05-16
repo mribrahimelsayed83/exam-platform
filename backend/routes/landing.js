@@ -27,8 +27,10 @@ router.get('/', async (req, res) => {
     if (!result.rows[0]) return res.status(404).json({ message: 'not found' });
     const d = { ...result.rows[0] };
 
-    // Build absolute base URL from the incoming request (points to Railway itself)
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Build absolute base URL — use x-forwarded-proto so HTTPS is preserved behind Railway's proxy
+    const proto   = (req.headers['x-forwarded-proto'] || req.protocol).split(',')[0].trim();
+    const host    = req.headers['x-forwarded-host']   || req.get('host');
+    const baseUrl = `${proto}://${host}`;
 
     // Replace base64 hero_image with absolute URL
     if (d.hero_image?.startsWith('data:')) {
