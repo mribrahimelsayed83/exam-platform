@@ -66,10 +66,14 @@ export default function LandingEditor() {
   const ogImgInputRef         = useRef();
   const galleryInputRef       = useRef();
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [galleryProgress, setGalleryProgress]   = useState({ current: 0, total: 0 });
+  const [processingHero, setProcessingHero]     = useState(false);
+  const [processingOg, setProcessingOg]         = useState(false);
   const [allPlaylists, setAllPlaylists]         = useState([]);
   const [togglingId, setTogglingId]             = useState(null);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving]   = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
   const [success, setSuccess] = useState('');
   const [error, setError]   = useState('');
 
@@ -95,13 +99,19 @@ export default function LandingEditor() {
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const handleSave = async () => {
-    setSaving(true); setError(''); setSuccess('');
+    setSaving(true); setError(''); setSuccess(''); setSaveProgress(0);
     try {
-      await api.put('/landing', form);
+      await api.put('/landing', form, {
+        onUploadProgress: (e) => {
+          if (e.total) setSaveProgress(Math.round((e.loaded / e.total) * 100));
+        },
+      });
+      setSaveProgress(100);
       setSuccess('✅ تم الحفظ بنجاح');
-      setTimeout(() => setSuccess(''), 3000);
+      setTimeout(() => { setSuccess(''); setSaveProgress(0); }, 3000);
     } catch(err) {
       setError(err.response?.data?.message || 'خطأ في الحفظ');
+      setSaveProgress(0);
     } finally { setSaving(false); }
   };
 
@@ -130,9 +140,25 @@ export default function LandingEditor() {
             <a href="/" target="_blank" className="text-blue-500 hover:underline">معاينة الصفحة ↗</a>
           </p>
         </div>
-        <button onClick={handleSave} className="btn-primary" disabled={saving}>
-          {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ التعديلات'}
-        </button>
+        <div className="flex flex-col items-end gap-1.5">
+          <button onClick={handleSave} className="btn-primary" disabled={saving}>
+            {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ التعديلات'}
+          </button>
+          {saving && (
+            <div className="w-40">
+              <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+                <span>جاري الرفع...</span>
+                <span className="font-bold text-blue-600">{saveProgress}%</span>
+              </div>
+              <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                  style={{ width: `${saveProgress}%` }}
+                />
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {error   && <div className="alert alert-danger mb-4">{error}</div>}
@@ -185,9 +211,12 @@ export default function LandingEditor() {
                 <button
                   type="button"
                   onClick={() => imgInputRef.current?.click()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap"
+                  disabled={processingHero}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap disabled:opacity-60"
                 >
-                  📁 رفع صورة
+                  {processingHero
+                    ? <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"/>جاري ضغط الصورة...</span>
+                    : '📁 رفع صورة'}
                 </button>
               </div>
               <input
@@ -198,8 +227,10 @@ export default function LandingEditor() {
                 onChange={async (e) => {
                   const file = e.target.files[0];
                   if (!file) return;
+                  setProcessingHero(true);
                   const base64 = await resizeImage(file, 500, 0.82);
                   set('hero_image', base64);
+                  setProcessingHero(false);
                   e.target.value = '';
                 }}
               />
@@ -225,9 +256,12 @@ export default function LandingEditor() {
                 <button
                   type="button"
                   onClick={() => ogImgInputRef.current?.click()}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap"
+                  disabled={processingOg}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold hover:bg-blue-700 whitespace-nowrap disabled:opacity-60"
                 >
-                  📁 رفع صورة
+                  {processingOg
+                    ? <span className="flex items-center gap-1.5"><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block"/>جاري ضغط الصورة...</span>
+                    : '📁 رفع صورة'}
                 </button>
                 {form.og_image && (
                   <button
@@ -247,8 +281,10 @@ export default function LandingEditor() {
                 onChange={async (e) => {
                   const file = e.target.files[0];
                   if (!file) return;
+                  setProcessingOg(true);
                   const base64 = await resizeImage(file, 1200, 0.85);
                   set('og_image', base64);
+                  setProcessingOg(false);
                   e.target.value = '';
                 }}
               />
@@ -389,9 +425,15 @@ export default function LandingEditor() {
                 const files = Array.from(e.target.files);
                 if (!files.length) return;
                 setUploadingGallery(true);
-                const results = await Promise.all(files.map(f => resizeImage(f, 1200, 0.8)));
+                setGalleryProgress({ current: 0, total: files.length });
+                const results = [];
+                for (let i = 0; i < files.length; i++) {
+                  setGalleryProgress({ current: i + 1, total: files.length });
+                  results.push(await resizeImage(files[i], 1200, 0.80));
+                }
                 setForm(f => ({ ...f, gallery: [...(f.gallery || []), ...results] }));
                 setUploadingGallery(false);
+                setGalleryProgress({ current: 0, total: 0 });
                 e.target.value = '';
               }}
             />
@@ -399,13 +441,34 @@ export default function LandingEditor() {
               type="button"
               onClick={() => galleryInputRef.current?.click()}
               disabled={uploadingGallery}
-              className="w-full border-2 border-dashed border-blue-300 rounded-2xl py-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer mb-5"
+              className="w-full border-2 border-dashed border-blue-300 rounded-2xl py-8 text-center hover:border-blue-500 hover:bg-blue-50 transition-all cursor-pointer mb-3"
             >
               {uploadingGallery
-                ? <span className="flex items-center justify-center gap-2 text-blue-600 font-bold"><span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>جاري الرفع...</span>
+                ? <span className="flex flex-col items-center justify-center gap-2 text-blue-600 font-bold">
+                    <span className="flex items-center gap-2">
+                      <span className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+                      جاري ضغط الصورة {galleryProgress.current} من {galleryProgress.total}...
+                    </span>
+                  </span>
                 : <span className="text-slate-500 font-semibold">📁 اختر صور من الجهاز<br/><span className="text-xs text-slate-400">تقدر تختار أكتر من صورة في نفس الوقت</span></span>
               }
             </button>
+            {uploadingGallery && galleryProgress.total > 0 && (
+              <div className="mb-5">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>جاري المعالجة...</span>
+                  <span className="font-bold text-blue-600">
+                    {Math.round((galleryProgress.current / galleryProgress.total) * 100)}%
+                  </span>
+                </div>
+                <div className="h-2 bg-slate-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.round((galleryProgress.current / galleryProgress.total) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
             {(form.gallery || []).length === 0 ? (
               <p className="text-center text-slate-400 text-sm py-4">لا توجد صور بعد</p>
             ) : (
@@ -546,10 +609,24 @@ export default function LandingEditor() {
       </div>
 
       {/* Save button at bottom */}
-      <div className="mt-5 flex justify-end">
+      <div className="mt-5 flex flex-col items-end gap-1.5">
         <button onClick={handleSave} className="btn-primary" disabled={saving}>
           {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ التعديلات'}
         </button>
+        {saving && (
+          <div className="w-40">
+            <div className="flex justify-between text-xs text-slate-500 mb-0.5">
+              <span>جاري الرفع...</span>
+              <span className="font-bold text-blue-600">{saveProgress}%</span>
+            </div>
+            <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                style={{ width: `${saveProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
