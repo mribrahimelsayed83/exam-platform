@@ -185,7 +185,7 @@ router.get('/assistants', staff, async (req, res) => {
   }
 });
 
-router.post('/assistants', staff, async (req, res) => {
+router.post('/assistants', auth('teacher'), async (req, res) => {
   const { name, username, password } = req.body;
   if (!name || !username || !password)
     return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
@@ -205,7 +205,7 @@ router.post('/assistants', staff, async (req, res) => {
   }
 });
 
-router.delete('/assistants/:id', staff, async (req, res) => {
+router.delete('/assistants/:id', auth('teacher'), async (req, res) => {
   try {
     await pool.query('DELETE FROM assistants WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم حذف المساعد' });

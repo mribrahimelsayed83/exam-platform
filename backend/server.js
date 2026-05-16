@@ -1,7 +1,9 @@
 require('dotenv').config();
-const express = require('express');
-const cors    = require('cors');
-const pool    = require('./db/pool');
+const express   = require('express');
+const cors      = require('cors');
+const helmet    = require('helmet');
+const rateLimit = require('express-rate-limit');
+const pool      = require('./db/pool');
 
 // ── Auto-migration: run on every startup (safe — uses IF NOT EXISTS) ──────
 async function runMigrations() {
@@ -224,9 +226,44 @@ async function runMigrations() {
 runMigrations();
 
 const app = express();
-app.use(cors({ origin: '*' }));
+
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}));
+
+const allowedOrigins = process.env.FRONTEND_URL
+  ? [process.env.FRONTEND_URL]
+  : ['http://localhost:5173', 'http://localhost:3000'];
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+    cb(new Error('Not allowed by CORS'));
+  },
+  credentials: true,
+}));
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  message: { message: 'محاولات كثيرة جداً — انتظر 15 دقيقة' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const forgotLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 5,
+  message: { message: 'محاولات كثيرة جداً — انتظر ساعة' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(express.json({ limit: '25mb' }));
 
+app.use('/api/auth/student/login',   loginLimiter);
+app.use('/api/auth/teacher/login',   loginLimiter);
+app.use('/api/auth/assistant/login', loginLimiter);
+app.use('/api/auth/forgot-password', forgotLimiter);
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/exams',       require('./routes/exams'));
 app.use('/api/submissions', require('./routes/submissions'));

@@ -315,6 +315,14 @@ router.post('/manage/playlists/:id/items', staff, async (req, res) => {
     if (!getYouTubeId(youtube_url)) return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
   }
   if (type === 'exam' && !exam_id) return res.status(400).json({ message: 'اختر امتحاناً' });
+  if (type === 'file' && file_data) {
+    const ALLOWED_MIME_PREFIXES = ['data:application/pdf', 'data:application/msword',
+      'data:application/vnd.openxmlformats', 'data:application/vnd.ms-',
+      'data:image/jpeg', 'data:image/png', 'data:image/gif', 'data:image/webp',
+      'data:text/plain', 'data:video/mp4', 'data:audio/'];
+    if (!ALLOWED_MIME_PREFIXES.some(p => file_data.startsWith(p)))
+      return res.status(400).json({ message: 'نوع الملف غير مسموح به' });
+  }
   try {
     const maxPos = await pool.query(
       'SELECT COALESCE(MAX(position),0) AS m FROM playlist_items WHERE playlist_id=$1',
@@ -400,14 +408,17 @@ router.get('/manage/items/:id/download', staff, async (req, res) => {
   }
 });
 
-// GET /videos/items/:id/download — تنزيل ملف للطالب
+// GET /videos/items/:id/download — تنزيل ملف للطالب (grade-gated)
 router.get('/items/:id/download', auth('student'), async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT file_name, file_data FROM playlist_items WHERE id=$1',
-      [req.params.id]
+      `SELECT pi.file_name, pi.file_data
+       FROM playlist_items pi
+       JOIN playlists p ON p.id = pi.playlist_id
+       WHERE pi.id=$1 AND p.grade=$2`,
+      [req.params.id, req.user.grade]
     );
-    if (!result.rows[0]) return res.status(404).json({ message: 'مش موجود' });
+    if (!result.rows[0]) return res.status(404).json({ message: 'مش موجود أو مش لصفك' });
     res.json({ file_name: result.rows[0].file_name, file_data: result.rows[0].file_data });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });

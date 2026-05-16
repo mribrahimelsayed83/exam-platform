@@ -54,31 +54,49 @@ router.post('/submit', auth('student'), async (req, res) => {
   try {
     const studentId = req.user.id;
     const { questions, answers } = req.body;
-    // questions: [{id, text, options, correct}]
+    // questions: [{id, text, options}]  — correct is fetched from DB, never trusted from client
     // answers:   {questionId: chosenIndex}
 
     if (!Array.isArray(questions) || questions.length === 0) {
       return res.status(400).json({ message: 'لا توجد أسئلة' });
     }
 
+    const questionIds = questions.map(q => Number(q.id)).filter(Boolean);
+
+    // Fetch authoritative correct answers from DB
+    const { rows: dbQuestions } = await pool.query(
+      `SELECT q.id, q.text, q.options, q.correct
+       FROM questions q
+       JOIN exams e ON e.id = q.exam_id
+       WHERE q.id = ANY($1::int[]) AND q.type IN ('mcq','truefalse')
+         AND EXISTS (
+           SELECT 1 FROM submissions s WHERE s.exam_id = e.id AND s.student_id = $2
+         )`,
+      [questionIds, studentId]
+    );
+
+    const dbMap = new Map(dbQuestions.map(q => [q.id, q]));
+
     let correct = 0;
     const review = [];
 
     for (const q of questions) {
+      const dbQ = dbMap.get(Number(q.id));
+      if (!dbQ) continue;
       const chosen    = answers[q.id] ?? answers[String(q.id)];
-      const isCorrect = chosen === q.correct;
+      const isCorrect = chosen !== undefined && Number(chosen) === dbQ.correct;
       if (isCorrect) correct++;
       review.push({
-        questionId: q.id,
-        question:   q.text,
-        options:    q.options,
-        correct:    q.correct,
-        chosen:     chosen ?? null,
+        questionId: dbQ.id,
+        question:   dbQ.text,
+        options:    dbQ.options,
+        correct:    dbQ.correct,
+        chosen:     chosen !== undefined ? Number(chosen) : null,
         isCorrect,
       });
     }
 
-    const total = questions.length;
+    const total = review.length;
     const score = total > 0 ? Math.round((correct / total) * 100) : 0;
 
     const { rows } = await pool.query(

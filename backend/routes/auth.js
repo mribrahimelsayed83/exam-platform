@@ -22,7 +22,7 @@ router.post('/register', async (req, res) => {
     return res.status(400).json({ message: 'رقم تليفون الطالب غلط — 11 رقم يبدأ بـ 01' });
   if (!phoneRegex.test(parent_phone))
     return res.status(400).json({ message: 'رقم تليفون ولي الأمر غلط — 11 رقم يبدأ بـ 01' });
-  if (![4,5,6,7,8,9,10,11,12].includes(Number(grade)))
+  if (![9,10,11,12].includes(Number(grade)))
     return res.status(400).json({ message: 'الصف الدراسي غير صحيح' });
   if (password.length < 6)
     return res.status(400).json({ message: 'كلمة المرور 6 حروف على الأقل' });

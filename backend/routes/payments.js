@@ -97,8 +97,12 @@ router.post('/callback', async (req, res) => {
     const orderId = String(data.order?.id || '');
     const txId    = String(data.id || '');
 
-    // HMAC verification
-    if (PAYMOB_HMAC_SECRET && data.hmac) {
+    // HMAC verification — mandatory when secret is configured
+    if (PAYMOB_HMAC_SECRET) {
+      if (!data.hmac) {
+        console.warn('PayMob callback missing HMAC');
+        return res.status(400).json({ message: 'invalid hmac' });
+      }
       const concat = [
         data.amount_cents, data.created_at, data.currency, data.error_occured,
         data.has_parent_transaction, data.id, data.integration_id,
@@ -119,6 +123,15 @@ router.post('/callback', async (req, res) => {
     }
 
     if (success && orderId) {
+      // Verify amount matches what we stored to prevent amount tampering
+      const { rows: [stored] } = await pool.query(
+        `SELECT amount FROM payments WHERE paymob_order_id=$1`, [orderId]
+      );
+      if (stored && data.amount_cents && Number(data.amount_cents) !== stored.amount * 100) {
+        console.warn(`PayMob amount mismatch: got ${data.amount_cents}, expected ${stored.amount * 100}`);
+        return res.status(400).json({ message: 'amount mismatch' });
+      }
+
       await pool.query(
         `UPDATE payments SET status='paid', paymob_transaction_id=$1, paid_at=NOW()
          WHERE paymob_order_id=$2`,

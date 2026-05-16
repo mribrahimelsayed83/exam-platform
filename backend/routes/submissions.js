@@ -19,9 +19,38 @@ router.post('/', auth('student'), async (req, res) => {
     if (existing.rows.length)
       return res.status(409).json({ message: 'سبق وأديت هذا الامتحان' });
 
-    const examRes = await pool.query('SELECT * FROM exams WHERE id=$1', [examId]);
-    if (!examRes.rows[0]) return res.status(404).json({ message: 'الامتحان مش موجود' });
+    const examRes = await pool.query(
+      'SELECT * FROM exams WHERE id=$1 AND grade=$2',
+      [examId, req.user.grade]
+    );
+    if (!examRes.rows[0]) return res.status(404).json({ message: 'الامتحان مش موجود أو مش لصفك' });
     const exam = examRes.rows[0];
+
+    // Payment check
+    if (exam.price && exam.price > 0) {
+      const payRes = await pool.query(
+        `SELECT id FROM payments WHERE exam_id=$1 AND student_id=$2 AND status='paid'`,
+        [examId, studentId]
+      );
+      if (!payRes.rows.length)
+        return res.status(403).json({ message: 'هذا الامتحان مدفوع — يرجى الدفع أولاً' });
+    }
+
+    // require_previous_exams check
+    if (exam.require_previous_exams) {
+      const prevExams = await pool.query(
+        `SELECT id FROM exams WHERE grade=$1 AND position < $2 ORDER BY position`,
+        [req.user.grade, exam.position]
+      );
+      for (const prev of prevExams.rows) {
+        const done = await pool.query(
+          `SELECT id FROM submissions WHERE exam_id=$1 AND student_id=$2 AND final_score IS NOT NULL`,
+          [prev.id, studentId]
+        );
+        if (!done.rows.length)
+          return res.status(403).json({ message: 'يجب إكمال الامتحانات السابقة أولاً' });
+      }
+    }
 
     const questionsRes = await pool.query(
       'SELECT * FROM questions WHERE exam_id=$1 ORDER BY position', [examId]

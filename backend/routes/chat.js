@@ -27,6 +27,7 @@ router.post('/send', auth('student'), async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
+    if (message.trim().length > 2000) return res.status(400).json({ message: 'الرسالة طويلة جداً (2000 حرف كحد أقصى)' });
     const { rows } = await pool.query(
       `INSERT INTO chat_messages (student_id, from_role, from_name, message)
        VALUES ($1,'student',$2,$3) RETURNING *`,
@@ -136,6 +137,7 @@ router.post('/teacher/:studentId/reply', staff, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
+    if (message.trim().length > 2000) return res.status(400).json({ message: 'الرسالة طويلة جداً (2000 حرف كحد أقصى)' });
     const { rows } = await pool.query(
       `INSERT INTO chat_messages (student_id, from_role, from_name, message)
        VALUES ($1,$2,$3,$4) RETURNING *`,
