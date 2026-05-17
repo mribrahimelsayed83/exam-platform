@@ -1,7 +1,8 @@
-const jwt = require('jsonwebtoken');
+const jwt  = require('jsonwebtoken');
+const pool = require('../db/pool');
 
 function authMiddleware(role) {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith('Bearer '))
       return res.status(401).json({ message: 'غير مصرح — لازم تسجل دخول' });
@@ -15,10 +16,20 @@ function authMiddleware(role) {
         if (!allowed.includes(decoded.role))
           return res.status(403).json({ message: 'ممنوع — صلاحيات غير كافية' });
       }
+      // تحقق إن الطالب لسه approved في الـ DB (مش بس في التوكن)
+      if (decoded.role === 'student') {
+        const { rows } = await pool.query(
+          'SELECT status FROM students WHERE id=$1', [decoded.id]
+        );
+        if (!rows[0] || rows[0].status !== 'approved')
+          return res.status(403).json({ message: 'حسابك موقوف أو غير مفعّل — تواصل مع المدرس' });
+      }
       req.user = decoded;
       next();
-    } catch {
-      return res.status(401).json({ message: 'Token غير صالح أو منتهي الصلاحية' });
+    } catch (err) {
+      if (err.name === 'JsonWebTokenError' || err.name === 'TokenExpiredError')
+        return res.status(401).json({ message: 'Token غير صالح أو منتهي الصلاحية' });
+      return res.status(500).json({ message: 'خطأ في السيرفر' });
     }
   };
 }

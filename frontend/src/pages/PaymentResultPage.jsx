@@ -44,7 +44,7 @@ export default function PaymentResultPage() {
             </div>
             <button onClick={() => navigate('/student?tab=exams')}
               className="btn-primary btn-block">
-              اذهب للامتحانا�� الآن
+              اذهب للامتحانات الآن
             </button>
           </div>
         ) : (

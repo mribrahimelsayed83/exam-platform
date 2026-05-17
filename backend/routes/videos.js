@@ -543,8 +543,6 @@ router.get('/viewed', auth('student'), async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // ════════════════════════════════════════
 // LIKES
 // ════════════════════════════════════════
@@ -668,3 +666,5 @@ router.delete('/manage/comments/:id', staff, async (req, res) => {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
+
+module.exports = router;

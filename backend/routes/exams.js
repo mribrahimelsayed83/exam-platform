@@ -312,7 +312,7 @@ router.put('/:id/toggle', staff, async (req, res) => {
   }
 });
 
-router.delete('/:id', staff, async (req, res) => {
+router.delete('/:id', auth('teacher'), async (req, res) => {
   try {
     await pool.query('DELETE FROM exams WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم حذف الامتحان' });

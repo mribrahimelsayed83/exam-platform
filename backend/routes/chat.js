@@ -239,18 +239,22 @@ router.put('/messages/:id', staff, async (req, res) => {
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
     const { rows } = await pool.query(
       `UPDATE chat_messages SET message=$1
-       WHERE id=$2 AND from_role=ANY($3) RETURNING *`,
-      [message.trim(), req.params.id, ['teacher', 'assistant']]
+       WHERE id=$2 AND from_id=$3 AND from_role=ANY($4) RETURNING *`,
+      [message.trim(), req.params.id, req.user.id, ['teacher', 'assistant']]
     );
     if (!rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
     res.json(rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
-// ── Staff: delete a message ───────────────────────────────────────────────
+// ── Staff: delete a message (own messages only) ───────────────────────────
 router.delete('/messages/:id', staff, async (req, res) => {
   try {
-    await pool.query('DELETE FROM chat_messages WHERE id=$1', [req.params.id]);
+    const { rows } = await pool.query(
+      'DELETE FROM chat_messages WHERE id=$1 AND from_id=$2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (!rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
     res.json({ message: 'تم الحذف' });
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });

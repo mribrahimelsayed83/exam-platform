@@ -128,8 +128,8 @@ export default function TakeExamPage() {
         const q = currentExamData?.questions.find(q => String(q.id) === String(qId));
         remapped[qId] = q?._shuffleMap ? q._shuffleMap[displayIdx] : displayIdx;
       }
-      clearDraft(id);
       const { data } = await api.post('/submissions', { examId: Number(id), answers: remapped });
+      clearDraft(id);
       navigate(`/student/result/${data.submissionId}`, { state: data });
     } catch (err) {
       setError(err.response?.data?.message || 'خطأ في التسليم');

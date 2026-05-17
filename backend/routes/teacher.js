@@ -264,8 +264,6 @@ router.put('/settings', auth('teacher'), async (req, res) => {
   }
 });
 
-module.exports = router;
-
 // ════════════════════════════════════════
 // TEACHER NOTIFICATIONS
 // ════════════════════════════════════════
@@ -337,3 +335,5 @@ router.delete('/my-notifications/:id', staff, async (req, res) => {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
+
+module.exports = router;

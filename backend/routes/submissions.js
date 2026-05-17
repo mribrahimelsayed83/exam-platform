@@ -274,14 +274,16 @@ router.put('/:id/grade-essay', staff, async (req, res) => {
     const examRes = await pool.query('SELECT * FROM exams WHERE id=$1', [sub.exam_id]);
     const exam = examRes.rows[0];
 
-    // Update review with grades
+    // Update review with grades — cap score to maxScore to prevent grade inflation
     const review = sub.review.map(r => {
       if (r.type !== 'essay') return r;
       const g = grades[r.questionId];
       if (!g) return r;
+      const raw = Number(g.score);
+      const capped = Math.max(0, Number.isFinite(raw) ? Math.min(raw, r.maxScore ?? raw) : 0);
       return {
         ...r,
-        earnedScore: Number(g.score),
+        earnedScore: capped,
         comment: g.comment || '',
         graded: true,
       };

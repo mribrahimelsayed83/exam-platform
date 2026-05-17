@@ -176,7 +176,10 @@ router.get('/honor-board', async (req, res) => {
       `SELECT s.name, s.grade,
               COUNT(sub.id)::int                                     AS exam_count,
               ROUND(AVG(sub.final_score))::int                       AS avg_score,
-              (COUNT(sub.id) * ROUND(AVG(sub.final_score)))::int     AS honor_score
+              (COUNT(sub.id) * ROUND(AVG(sub.final_score)))::int     AS honor_score,
+              ROW_NUMBER() OVER (
+                ORDER BY (COUNT(sub.id) * ROUND(AVG(sub.final_score))) DESC
+              )::int                                                 AS rank
        FROM students s
        JOIN submissions sub ON sub.student_id = s.id
        WHERE sub.final_score IS NOT NULL AND s.status = 'approved'

@@ -97,29 +97,31 @@ router.post('/callback', async (req, res) => {
     const orderId = String(data.order?.id || '');
     const txId    = String(data.id || '');
 
-    // HMAC verification — mandatory when secret is configured
-    if (PAYMOB_HMAC_SECRET) {
-      if (!data.hmac) {
-        console.warn('PayMob callback missing HMAC');
-        return res.status(400).json({ message: 'invalid hmac' });
-      }
-      const concat = [
-        data.amount_cents, data.created_at, data.currency, data.error_occured,
-        data.has_parent_transaction, data.id, data.integration_id,
-        data.is_3d_secure, data.is_auth, data.is_capture, data.is_refunded,
-        data.is_standalone_payment, data.is_voided,
-        data.order?.id, data.owner, data.pending,
-        data.source_data?.pan, data.source_data?.sub_type, data.source_data?.type,
-        data.success,
-      ].map(v => String(v ?? '')).join('');
+    // HMAC verification — always required; reject callback if secret not configured
+    if (!PAYMOB_HMAC_SECRET) {
+      console.error('PayMob callback rejected: PAYMOB_HMAC_SECRET not configured');
+      return res.status(503).json({ message: 'payment verification not configured' });
+    }
+    if (!data.hmac) {
+      console.warn('PayMob callback missing HMAC');
+      return res.status(400).json({ message: 'invalid hmac' });
+    }
+    const concat = [
+      data.amount_cents, data.created_at, data.currency, data.error_occured,
+      data.has_parent_transaction, data.id, data.integration_id,
+      data.is_3d_secure, data.is_auth, data.is_capture, data.is_refunded,
+      data.is_standalone_payment, data.is_voided,
+      data.order?.id, data.owner, data.pending,
+      data.source_data?.pan, data.source_data?.sub_type, data.source_data?.type,
+      data.success,
+    ].map(v => String(v ?? '')).join('');
 
-      const expected = crypto.createHmac('sha512', PAYMOB_HMAC_SECRET)
-        .update(concat).digest('hex');
+    const expected = crypto.createHmac('sha512', PAYMOB_HMAC_SECRET)
+      .update(concat).digest('hex');
 
-      if (data.hmac !== expected) {
-        console.warn('PayMob HMAC mismatch');
-        return res.status(400).json({ message: 'invalid hmac' });
-      }
+    if (data.hmac !== expected) {
+      console.warn('PayMob HMAC mismatch');
+      return res.status(400).json({ message: 'invalid hmac' });
     }
 
     if (success && orderId) {

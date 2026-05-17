@@ -170,21 +170,19 @@ router.post('/forgot-password', async (req, res) => {
   if (!username || !email)
     return res.status(400).json({ message: 'اسم المستخدم والبريد الإلكتروني مطلوبان' });
 
+  // رسالة موحدة دايماً — مش بنكشف إيه إذا كان الحساب موجود أو لأ
+  const GENERIC_MSG = 'إذا كانت البيانات صحيحة، ستصلك رسالة على بريدك الإلكتروني';
   try {
-    // Find by username first
     const byUsername = await pool.query(
       'SELECT * FROM students WHERE username=$1', [username.toLowerCase()]
     );
-    if (!byUsername.rows[0])
-      return res.status(404).json({ message: 'اسم المستخدم غير موجود' });
-
     const student = byUsername.rows[0];
 
-    // Check email matches
-    if (student.email?.toLowerCase() !== email.toLowerCase())
-      return res.status(400).json({ message: 'البريد الإلكتروني لا يطابق هذا الحساب' });
+    // لو الحساب مش موجود أو الإيميل مش متطابق — نرد بنفس الرسالة بدون كشف السبب
+    if (!student || student.email?.toLowerCase() !== email.toLowerCase()) {
+      return res.json({ message: GENERIC_MSG });
+    }
 
-    // Generate token
     const token   = crypto.randomBytes(32).toString('hex');
     const expires = new Date(Date.now() + 30 * 60 * 1000);
 
@@ -194,12 +192,9 @@ router.post('/forgot-password', async (req, res) => {
     );
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    const sent = await sendPasswordReset(student.email, student.name, resetLink);
+    await sendPasswordReset(student.email, student.name, resetLink);
 
-    if (!sent)
-      return res.status(500).json({ message: 'فشل إرسال الإيميل — حاول مرة أخرى' });
-
-    res.json({ message: 'تم إرسال رابط إعادة التعيين على بريدك الإلكتروني' });
+    res.json({ message: GENERIC_MSG });
   } catch (err) {
     console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
