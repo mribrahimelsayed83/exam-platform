@@ -203,13 +203,6 @@
 
 .lp-blob { border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; }
 
-.lp-mark {
-  background-image: linear-gradient(transparent 62%, var(--lp-mark-color, #fcd34d) 62%);
-  background-repeat: no-repeat;
-  box-decoration-break: clone;
-  -webkit-box-decoration-break: clone;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .lp-float, .lp-float-delay, .lp-float-delay2 { animation: none; }
 }
