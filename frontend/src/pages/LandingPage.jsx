@@ -4,7 +4,9 @@ import api from '../utils/api';
 import mr from '../mr.png';
 import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
-import { FaSun, FaMoon, FaGraduationCap, FaPencilAlt, FaBookOpen, FaFlask } from 'react-icons/fa';
+import { FaSun, FaMoon, FaGraduationCap, FaPencilAlt, FaBookOpen, FaFlask, FaSchool } from 'react-icons/fa';
+
+const CENTER_URL = 'https://center.mribrahimfarouk.com/login';
 
 function UserNavMenu({ user, bg, onLogout }) {
   const [open, setOpen] = useState(false);
@@ -293,6 +295,16 @@ export default function LandingPage() {
                 {dark ? <FaMoon size={11}/> : <FaSun size={11}/>}
               </span>
             </button>
+            <a
+              href={CENTER_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 text-sm font-bold px-3 py-2 rounded-xl border-2 transition-all hover:bg-slate-50 flex-shrink-0"
+              style={{borderColor:`${bg}55`, color:bg}}
+            >
+              <FaSchool size={14}/>
+              <span className="hidden sm:inline">السنتر</span>
+            </a>
             {user ? (
               <UserNavMenu user={user} bg={bg} onLogout={() => { logout(); }} />
             ) : (
