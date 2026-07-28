@@ -4,6 +4,11 @@ import api from '../utils/api';
 import mr from '../mr.png';
 import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
+import {
+  FaSun, FaMoon, FaGraduationCap, FaPencilAlt, FaBookOpen, FaFlask,
+  FaUser, FaHome, FaChartBar, FaSignOutAlt, FaChevronDown,
+  FaTrophy, FaMedal, FaWhatsapp, FaTelegramPlane, FaFacebookF, FaYoutube, FaStar,
+} from 'react-icons/fa';
 
 function UserNavMenu({ user, bg, onLogout }) {
   const [open, setOpen] = useState(false);
@@ -23,9 +28,9 @@ function UserNavMenu({ user, bg, onLogout }) {
       <button onClick={() => setOpen(o => !o)}
         className="flex items-center gap-2 px-4 py-2 rounded-xl font-bold text-sm text-white transition-all hover:opacity-90"
         style={{ background: bg }}>
-        <span>👤</span>
+        <FaUser size={14}/>
         <span className="hidden sm:block max-w-[120px] truncate">{user.name}</span>
-        <span className="text-xs opacity-70">▾</span>
+        <FaChevronDown size={10} className="opacity-70"/>
       </button>
       {open && (
         <div className="absolute left-0 top-12 bg-white rounded-2xl shadow-2xl border border-slate-100 min-w-[180px] z-50 overflow-hidden" dir="rtl">
@@ -35,18 +40,18 @@ function UserNavMenu({ user, bg, onLogout }) {
           </div>
           <button onClick={() => { navigate(dest); setOpen(false); }}
             className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-            🏠 ادخل المنصة
+            <FaHome size={13}/> ادخل المنصة
           </button>
           {user.role === 'student' && (
             <button onClick={() => { navigate('/student?tab=results'); setOpen(false); }}
               className="w-full text-right px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 flex items-center gap-2">
-              📊 نتائجي
+              <FaChartBar size={13}/> نتائجي
             </button>
           )}
           <div className="border-t border-slate-100"/>
           <button onClick={onLogout}
             className="w-full text-right px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 flex items-center gap-2">
-            🚪 خروج
+            <FaSignOutAlt size={13}/> خروج
           </button>
         </div>
       )}
@@ -74,7 +79,7 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
     <section className="py-16 bg-slate-50">
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-10">
-          <h2 className="text-3xl font-extrabold text-slate-800 mb-2">لحظات من المنصة</h2>
+          <h2 className="text-3xl font-black text-slate-900 mb-2">لحظات من المنصة</h2>
           <p className="text-slate-600">صور المدرس مع الطلاب</p>
         </div>
 
@@ -146,7 +151,7 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
 }
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
-const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
+const MEDAL_COLORS = { 1:'#d4af37', 2:'#9ca3af', 3:'#c17a3f' };
 
 const DEFAULT_SECTIONS = [
   { key:'stats',        label:'📊 الأرقام',     visible: true },
@@ -212,6 +217,7 @@ export default function LandingPage() {
   const gallery         = Array.isArray(data.gallery)      ? data.gallery      : JSON.parse(data.gallery      || '[]');
   const galleryInterval = (Number(data.gallery_interval) || 2) * 1000;
   const bg              = data.hero_bg_color || '#2563eb';
+  const footerBg        = `color-mix(in srgb, ${bg} 35%, #04141c 65%)`;
   const sections        = parseSections(data.sections_config);
 
   const siteUrl = 'https://mribrahimfarouk.com';
@@ -251,6 +257,12 @@ export default function LandingPage() {
     ],
   };
 
+  const toggleTheme = () => {
+    const isDark = document.documentElement.classList.toggle('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    setDark(isDark);
+  };
+
   return (
     <div className="min-h-screen bg-white" dir="rtl">
       <SEO
@@ -263,21 +275,31 @@ export default function LandingPage() {
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{background:bg}}/>
+          <div className="flex items-center gap-2.5">
+            <span className="w-8 h-8 rounded-xl flex items-center justify-center text-white text-sm font-black flex-shrink-0"
+              style={{background:bg}}>
+              {(data.platform_tagline || 'م').charAt(0)}
+            </span>
             <span className="font-extrabold text-slate-800 text-lg">{data.platform_tagline || 'منصة الامتحانات'}</span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Theme pill toggle */}
             <button
-              onClick={() => {
-                const isDark = document.documentElement.classList.toggle('dark');
-                localStorage.setItem('theme', isDark ? 'dark' : 'light');
-                setDark(isDark);
-              }}
+              onClick={toggleTheme}
               aria-label={dark ? 'تفعيل الوضع الفاتح' : 'تفعيل الوضع الداكن'}
-              className="p-2 rounded-lg hover:bg-slate-100 transition-colors text-lg"
+              className="relative w-14 h-8 rounded-full transition-colors flex-shrink-0"
+              style={{background: dark ? '#1e293b' : `${bg}1f`}}
             >
-              {dark ? '☀️' : '🌙'}
+              <span className="absolute inset-0 flex items-center justify-between px-2.5 opacity-50 pointer-events-none"
+                style={{color: dark ? '#e2e8f0' : bg}}>
+                <FaMoon size={11}/><FaSun size={11}/>
+              </span>
+              <span
+                className="absolute top-1 w-6 h-6 rounded-full bg-white shadow flex items-center justify-center transition-all duration-300"
+                style={{ [dark ? 'left' : 'right']: '4px', color: dark ? '#1e293b' : '#f59e0b' }}
+              >
+                {dark ? <FaMoon size={11}/> : <FaSun size={11}/>}
+              </span>
             </button>
             {user ? (
               <UserNavMenu user={user} bg={bg} onLogout={() => { logout(); }} />
@@ -301,36 +323,34 @@ export default function LandingPage() {
       <main>
 
       {/* ── Hero ───────────────────────────────────────────────────────── */}
-      <section style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}dd 60%, ${bg}99 100%)`}}
-        className="relative overflow-hidden">
-        {/* Background pattern */}
-        <div className="absolute inset-0 opacity-10"
-          style={{backgroundImage:'radial-gradient(circle at 2px 2px, white 1px, transparent 0)', backgroundSize:'32px 32px'}}/>
+      <section className="relative overflow-hidden bg-white">
+        <div className="max-w-6xl mx-auto px-4 py-16 lg:py-24 relative z-10">
+          <div className="flex flex-col lg:flex-row items-center gap-14">
 
-        <div className="max-w-6xl mx-auto px-4 py-20 relative z-10">
-          <div className="flex flex-col lg:flex-row items-center gap-12">
-            {/* Text */}
-            <div className="flex-1 text-white text-center lg:text-right">
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-                <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"/>
+            {/* Text side */}
+            <div className="flex-1 text-center lg:text-right">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-6"
+                style={{background:`${bg}14`, color:bg}}>
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{background:bg}}/>
                 {data.hero_title}
               </div>
-              <h1 className="text-4xl lg:text-6xl font-extrabold mb-4 leading-tight">
-                {data.hero_name}
+              <h1 className="text-4xl lg:text-6xl font-black mb-5 leading-tight text-slate-900 text-wrap-balance">
+                <span style={{color:bg}}>منصة</span> {data.hero_name}
               </h1>
-              <p className="text-lg lg:text-xl text-white/80 mb-8 max-w-lg leading-relaxed">
+              <p className="text-lg lg:text-xl text-slate-500 mb-9 max-w-lg leading-relaxed mx-auto lg:mx-0">
                 {data.hero_desc}
               </p>
               {user ? (
                 <div className="flex flex-col items-center lg:items-start gap-4">
-                  <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur px-4 py-2 rounded-full text-white/90 text-sm font-semibold">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse"/>
+                  <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
+                    style={{background:`${bg}14`, color:bg}}>
+                    <span className="w-2 h-2 rounded-full animate-pulse" style={{background:bg}}/>
                     أهلاً، {user.name}! أنت مسجل دخولك
                   </div>
                   <button
                     onClick={() => navigate(user.role === 'student' ? '/student' : '/teacher')}
-                    className="group flex items-center gap-3 bg-white font-extrabold px-10 py-4 rounded-2xl text-lg shadow-2xl hover:shadow-white/30 hover:-translate-y-1 transition-all duration-200"
-                    style={{color:bg}}>
+                    className="group flex items-center gap-3 text-white font-extrabold px-10 py-4 rounded-2xl text-lg shadow-xl hover:-translate-y-1 transition-all duration-200"
+                    style={{background:bg}}>
                     <span>ادخل المنصة الآن</span>
                     <span className="text-xl group-hover:translate-x-[-4px] transition-transform">←</span>
                   </button>
@@ -338,40 +358,41 @@ export default function LandingPage() {
               ) : (
                 <div className="flex flex-wrap gap-3 justify-center lg:justify-start">
                   <Link to="/register"
-                    className="bg-white font-bold px-8 py-3 rounded-xl text-base hover:shadow-lg transition-all hover:-translate-y-0.5"
-                    style={{color:bg}}>
+                    className="text-white font-bold px-8 py-3.5 rounded-xl text-base hover:shadow-lg transition-all hover:-translate-y-0.5 shadow-md"
+                    style={{background:bg}}>
                     ابدأ الآن مجاناً ←
                   </Link>
                   <Link to="/login"
-                    className="border-2 border-white/60 text-white font-bold px-8 py-3 rounded-xl text-base hover:bg-white/10 transition-all">
+                    className="border-2 font-bold px-8 py-3.5 rounded-xl text-base transition-all hover:bg-slate-50"
+                    style={{borderColor:`${bg}55`, color:bg}}>
                     تسجيل الدخول
                   </Link>
                 </div>
               )}
             </div>
 
-            {/* Teacher image / avatar */}
-            <div className="flex-shrink-0">
-              <div className="w-56 h-56 lg:w-72 lg:h-72 rounded-3xl overflow-hidden bg-white/20 border-4 border-white/30 shadow-2xl">
+            {/* Illustration side */}
+            <div className="flex-shrink-0 relative w-64 h-64 lg:w-80 lg:h-80">
+              {/* organic blob backdrop */}
+              <div className="lp-blob absolute inset-0" style={{background:`linear-gradient(135deg, ${bg}33, ${bg})`}}/>
+              {/* photo / avatar */}
+              <div className="absolute inset-4 rounded-[2.5rem] overflow-hidden shadow-xl bg-white/40">
                 {data.hero_image ? (
-                  <img src={data.hero_image || mr} alt={data.hero_name}
-                    className="w-full h-full object-cover"/>
+                  <img src={data.hero_image || mr} alt={data.hero_name} className="w-full h-full object-cover"/>
                 ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center">
-                    <span className="text-8xl">👨‍🏫</span>
-                    <span className="text-white/70 text-sm mt-2 font-semibold">{data.hero_name}</span>
+                  <div className="w-full h-full flex flex-col items-center justify-center" style={{background:`${bg}dd`}}>
+                    <span className="text-7xl">👨‍🏫</span>
+                    <span className="text-white/80 text-sm mt-2 font-semibold">{data.hero_name}</span>
                   </div>
                 )}
               </div>
+              {/* floating doodle chips */}
+              <span className="lp-float absolute -top-3 -left-3 w-11 h-11 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-slate-100" style={{color:bg}}><FaGraduationCap size={20}/></span>
+              <span className="lp-float-delay absolute top-1/3 -right-5 w-10 h-10 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-slate-100" style={{color:bg}}><FaPencilAlt size={16}/></span>
+              <span className="lp-float-delay2 absolute -bottom-4 left-6 w-11 h-11 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-slate-100" style={{color:bg}}><FaBookOpen size={19}/></span>
+              <span className="lp-float absolute bottom-8 -right-6 w-9 h-9 bg-white rounded-2xl shadow-lg flex items-center justify-center border border-slate-100" style={{color:bg}}><FaFlask size={15}/></span>
             </div>
           </div>
-        </div>
-
-        {/* Wave */}
-        <div className="absolute bottom-0 left-0 right-0">
-          <svg viewBox="0 0 1440 60" fill="white" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="none">
-            <path d="M0,30 C360,60 1080,0 1440,30 L1440,60 L0,60 Z"/>
-          </svg>
         </div>
       </section>
 
@@ -380,14 +401,14 @@ export default function LandingPage() {
         switch (s.key) {
 
           case 'stats': return (
-            <section key="stats" className="py-16 bg-white">
+            <section key="stats" className="py-14" style={{background:bg}}>
               <div className="max-w-5xl mx-auto px-4">
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                   {[{num:data.stat1_num,label:data.stat1_label},{num:data.stat2_num,label:data.stat2_label},
                     {num:data.stat3_num,label:data.stat3_label},{num:data.stat4_num,label:data.stat4_label}].map((s,i) => (
-                    <div key={i} className="text-center p-6 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="text-4xl font-extrabold mb-1" style={{color:bg}}>{s.num}</div>
-                      <div className="text-slate-500 font-semibold text-sm">{s.label}</div>
+                    <div key={i} className="text-center p-5 rounded-2xl bg-white/10 backdrop-blur">
+                      <div className="text-3xl lg:text-4xl font-black mb-1 text-white">{s.num}</div>
+                      <div className="text-white/75 font-semibold text-sm">{s.label}</div>
                     </div>
                   ))}
                 </div>
@@ -403,12 +424,12 @@ export default function LandingPage() {
             <section key="courses" className="py-20 bg-white">
               <div className="max-w-6xl mx-auto px-4">
                 <div className="text-center mb-14">
-                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">الكورسات المتاحة</h2>
+                  <h2 className="text-3xl font-black text-slate-900 mb-3">الكورسات المتاحة</h2>
                   <p className="text-slate-600 text-lg">اختر الكورس المناسب لك وابدأ رحلتك</p>
                 </div>
                 <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
                   {courses.map(c => (
-                    <div key={c.id} className="rounded-2xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 bg-white">
+                    <div key={c.id} className="rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-xl transition-all hover:-translate-y-1 bg-white">
                       <div className="relative aspect-video bg-gradient-to-br from-blue-100 to-blue-200">
                         {c.thumbnail
                           ? <img src={c.thumbnail} alt={c.title} loading="lazy" decoding="async" className="w-full h-full object-cover"/>
@@ -442,17 +463,28 @@ export default function LandingPage() {
           ) : null;
 
           case 'features': return features.length > 0 ? (
-            <section key="features" className="py-20 bg-slate-50">
+            <section key="features" className="py-20 bg-white">
               <div className="max-w-5xl mx-auto px-4">
-                <div className="text-center mb-14">
-                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">لماذا تنضم إلينا؟</h2>
-                  <p className="text-slate-600 text-lg">كل ما تحتاجه في مكان واحد</p>
+                <div className="text-center mb-6">
+                  <h2 className="text-3xl lg:text-4xl font-black text-slate-900 mb-3">إزاي هنساعدك تتفوق؟</h2>
                 </div>
-                <div className="grid md:grid-cols-3 gap-6">
+                <div className="flex justify-center mb-12" aria-hidden="true">
+                  <svg width="160" height="20" viewBox="0 0 160 20" fill="none">
+                    <path d="M4 4 C 50 20, 110 20, 156 4" stroke={bg} strokeWidth="3" strokeLinecap="round"/>
+                  </svg>
+                </div>
+                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-5">
                   {features.map((f,i) => (
-                    <div key={i} className="bg-white rounded-2xl p-7 border border-slate-100 shadow-sm hover:shadow-lg transition-all hover:-translate-y-1 text-center">
-                      <div className="text-5xl mb-4">{f.icon}</div>
-                      <h3 className="text-lg font-bold text-slate-800 mb-2">{f.title}</h3>
+                    <div key={i}
+                      className="rounded-3xl p-7 text-center transition-all hover:-translate-y-1.5"
+                      style={{background:`${bg}0d`}}>
+                      <div className="w-16 h-16 rounded-2xl mx-auto mb-5 flex items-center justify-center text-3xl"
+                        style={{background:`${bg}1f`}}>
+                        {f.icon}
+                      </div>
+                      <h3 className="text-lg font-extrabold text-slate-900 mb-2">
+                        <span className="lp-mark" style={{'--lp-mark-color':`${bg}33`}}>{f.title}</span>
+                      </h3>
                       <p className="text-slate-500 text-sm leading-relaxed">{f.desc}</p>
                     </div>
                   ))}
@@ -462,18 +494,18 @@ export default function LandingPage() {
           ) : null;
 
           case 'testimonials': return testimonials.length > 0 ? (
-            <section key="testimonials" className="py-20 bg-white">
+            <section key="testimonials" className="py-20 bg-slate-50">
               <div className="max-w-5xl mx-auto px-4">
                 <div className="text-center mb-14">
-                  <h2 className="text-3xl font-extrabold text-slate-800 mb-3">ماذا يقول طلابنا؟</h2>
+                  <h2 className="text-3xl font-black text-slate-900 mb-3">ماذا يقول طلابنا؟</h2>
                   <p className="text-slate-600 text-lg">آراء حقيقية من طلابنا</p>
                 </div>
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {testimonials.map((t,i) => (
-                    <div key={i} className="bg-slate-50 rounded-2xl p-6 border border-slate-100 hover:shadow-md transition-shadow">
-                      <div className="flex items-center gap-1 mb-4">
+                    <div key={i} className="bg-white rounded-3xl p-6 border border-slate-100 hover:shadow-lg transition-shadow">
+                      <div className="flex items-center gap-1 mb-4 text-amber-500">
                         <span aria-hidden="true" className="flex gap-0.5">
-                          {[1,2,3,4,5].map(n=><span key={n} className="text-amber-500 text-lg">★</span>)}
+                          {[1,2,3,4,5].map(n=><FaStar key={n} size={14}/>)}
                         </span>
                         <span className="sr-only">5 من 5 نجوم</span>
                       </div>
@@ -495,20 +527,27 @@ export default function LandingPage() {
           ) : null;
 
           case 'honor_board': return honorBoard.length > 0 ? (
-            <section key="honor_board" className="py-20 bg-slate-50">
+            <section key="honor_board" className="py-20 bg-white">
               <div className="max-w-3xl mx-auto px-4">
                 <div className="text-center mb-12">
-                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4 text-white" style={{background:bg}}>
-                    🏆 لوحة الشرف
+                  <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-sm font-bold mb-4"
+                    style={{background:'#fef3c7', color:'#92400e'}}>
+                    <FaTrophy size={13}/> لوحة الشرف
                   </div>
-                  <h2 className="text-3xl font-extrabold text-slate-800 mb-2">أبطال المنصة</h2>
+                  <h2 className="text-3xl font-black text-slate-900 mb-2">أبطال المنصة</h2>
                   <p className="text-slate-600">أعلى الطلاب أداءً من جميع الصفوف</p>
                 </div>
                 <div className="space-y-3">
                   {honorBoard.map((s,i) => (
                     <div key={i} className={`p-4 rounded-2xl border-2 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${MEDAL_STYLES[s.rank]||'bg-white border-slate-200'}`}>
                       <div className="flex items-center gap-3 mb-3">
-                        <div className="text-2xl flex-shrink-0 w-8 text-center">{MEDALS[s.rank]||s.rank}</div>
+                        <div className="flex-shrink-0 w-8 flex items-center justify-center">
+                          {MEDAL_COLORS[s.rank] ? (
+                            <FaMedal size={22} style={{color: MEDAL_COLORS[s.rank]}}/>
+                          ) : (
+                            <span className="w-6 h-6 rounded-full bg-slate-100 text-slate-500 text-xs font-extrabold flex items-center justify-center">{s.rank}</span>
+                          )}
+                        </div>
                         <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-extrabold text-base flex-shrink-0 shadow-sm" style={{background:bg}}>
                           {s.name.charAt(0)}
                         </div>
@@ -531,9 +570,9 @@ export default function LandingPage() {
           ) : null;
 
           case 'cta': return (
-            <section key="cta" className="py-20" style={{background:`linear-gradient(135deg, ${bg} 0%, ${bg}cc 100%)`}}>
+            <section key="cta" className="py-20" style={{background:bg}}>
               <div className="max-w-3xl mx-auto px-4 text-center text-white">
-                <h2 className="text-3xl lg:text-4xl font-extrabold mb-4">
+                <h2 className="text-3xl lg:text-4xl font-black mb-4">
                   {user ? `أهلاً بك، ${user.name}!` : data.cta_title}
                 </h2>
                 <p className="text-white/80 text-lg mb-8">
@@ -563,12 +602,12 @@ export default function LandingPage() {
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <footer className="bg-slate-900 text-white py-12">
+      <footer className="text-white py-12" style={{background:footerBg}}>
         <div className="max-w-5xl mx-auto px-4">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-6">
             <div className="text-center lg:text-right">
               <div className="text-xl font-extrabold mb-1">{data.platform_tagline}</div>
-              <div className="text-slate-400 text-sm">{data.hero_name} — {data.hero_title}</div>
+              <div className="text-white/60 text-sm">{data.hero_name} — {data.hero_title}</div>
             </div>
 
             {/* Social links */}
@@ -576,43 +615,56 @@ export default function LandingPage() {
               {data.whatsapp && (
                 <a href={`https://wa.me/${data.whatsapp}`} target="_blank" rel="noreferrer"
                   aria-label="واتساب"
-                  className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
-                  💬
+                  className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity">
+                  <FaWhatsapp size={17}/>
                 </a>
               )}
               {data.telegram && (
                 <a href={data.telegram} target="_blank" rel="noreferrer"
                   aria-label="تليجرام"
-                  className="w-10 h-10 bg-blue-500 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
-                  ✈️
+                  className="w-10 h-10 bg-sky-500 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity">
+                  <FaTelegramPlane size={15}/>
                 </a>
               )}
               {data.facebook && (
                 <a href={data.facebook} target="_blank" rel="noreferrer"
                   aria-label="فيسبوك"
-                  className="w-10 h-10 bg-blue-700 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
-                  👤
+                  className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity">
+                  <FaFacebookF size={15}/>
                 </a>
               )}
               {data.youtube && (
                 <a href={data.youtube} target="_blank" rel="noreferrer"
                   aria-label="يوتيوب"
-                  className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center text-lg hover:opacity-80 transition-opacity">
-                  ▶️
+                  className="w-10 h-10 bg-red-600 rounded-full flex items-center justify-center hover:opacity-80 transition-opacity">
+                  <FaYoutube size={17}/>
                 </a>
               )}
             </div>
 
             <div className="flex gap-4 text-sm">
-              <Link to="/login" className="text-slate-400 hover:text-white transition-colors">تسجيل الدخول</Link>
-              <Link to="/register" className="text-slate-400 hover:text-white transition-colors">إنشاء حساب</Link>
+              <Link to="/login" className="text-white/60 hover:text-white transition-colors">تسجيل الدخول</Link>
+              <Link to="/register" className="text-white/60 hover:text-white transition-colors">إنشاء حساب</Link>
             </div>
           </div>
-          <div className="border-t border-slate-800 mt-8 pt-6 text-center text-slate-500 text-xs">
+          <div className="border-t border-white/10 mt-8 pt-6 text-center text-white/50 text-xs">
             © {new Date().getFullYear()} {data.platform_tagline} — جميع الحقوق محفوظة
           </div>
         </div>
       </footer>
+
+      {/* ── Floating WhatsApp button ──────────────────────────────────── */}
+      {data.whatsapp && (
+        <a
+          href={`https://wa.me/${data.whatsapp}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label="تواصل عبر واتساب"
+          className="fixed bottom-6 left-6 z-50 w-14 h-14 bg-green-500 rounded-full shadow-xl flex items-center justify-center text-white hover:scale-105 transition-transform"
+        >
+          <FaWhatsapp size={26}/>
+        </a>
+      )}
     </div>
   );
 }

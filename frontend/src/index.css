@@ -188,3 +188,28 @@
 .dark ::-webkit-scrollbar-track { background: #0f172a; }
 .dark ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
 .dark ::-webkit-scrollbar-thumb:hover { background: #475569; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   LANDING PAGE — نظام الأشكال العضوية والحركة الخفيفة
+   ═══════════════════════════════════════════════════════════════════ */
+
+@keyframes lp-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50%      { transform: translateY(-12px) rotate(-4deg); }
+}
+.lp-float        { animation: lp-float 5.5s ease-in-out infinite; }
+.lp-float-delay  { animation: lp-float 5.5s ease-in-out infinite; animation-delay: 1.3s; }
+.lp-float-delay2 { animation: lp-float 5.5s ease-in-out infinite; animation-delay: 2.6s; }
+
+.lp-blob { border-radius: 63% 37% 54% 46% / 55% 48% 52% 45%; }
+
+.lp-mark {
+  background-image: linear-gradient(transparent 62%, var(--lp-mark-color, #fcd34d) 62%);
+  background-repeat: no-repeat;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-float, .lp-float-delay, .lp-float-delay2 { animation: none; }
+}
