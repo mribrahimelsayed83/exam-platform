@@ -272,11 +272,11 @@ export default function LandingPage() {
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-3 rounded-full" style={{background:bg}}/>
-            <span className="font-extrabold text-slate-800 text-lg">{data.platform_tagline || 'منصة الامتحانات'}</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-3 h-3 rounded-full flex-shrink-0" style={{background:bg}}/>
+            <span className="font-extrabold text-slate-800 text-base sm:text-lg truncate">{data.platform_tagline || 'منصة الامتحانات'}</span>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Theme pill toggle */}
             <button
               onClick={toggleTheme}
@@ -303,17 +303,24 @@ export default function LandingPage() {
               style={{borderColor:`${bg}55`, color:bg}}
             >
               <FaSchool size={14}/>
-              <span className="hidden sm:inline">السنتر</span>
+              <span>السنتر</span>
             </a>
             {user ? (
               <UserNavMenu user={user} bg={bg} onLogout={() => { logout(); }} />
             ) : (
               <>
-                <Link to="/login" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
+                {/* Mobile: single button covers login + register (login page links to register too) */}
+                <Link to="/login"
+                  className="sm:hidden text-sm font-bold text-white px-4 py-2 rounded-xl transition-all hover:opacity-90 flex-shrink-0"
+                  style={{background:bg}}>
+                  تسجيل الدخول
+                </Link>
+                {/* Desktop: both actions visible */}
+                <Link to="/login" className="hidden sm:inline text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">
                   تسجيل الدخول
                 </Link>
                 <Link to="/register"
-                  className="text-sm font-bold text-white px-4 py-2 rounded-xl transition-all hover:opacity-90"
+                  className="hidden sm:inline-block text-sm font-bold text-white px-4 py-2 rounded-xl transition-all hover:opacity-90"
                   style={{background:bg}}>
                   سجّل الآن
                 </Link>
