@@ -272,10 +272,10 @@ export default function LandingPage() {
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
       <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2 min-w-0">
+          <Link to="/" className="flex items-center gap-2 min-w-0">
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{background:bg}}/>
             <span className="font-extrabold text-slate-800 text-base sm:text-lg truncate">{data.platform_tagline || 'منصة الامتحانات'}</span>
-          </div>
+          </Link>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Theme pill toggle */}
             <button
