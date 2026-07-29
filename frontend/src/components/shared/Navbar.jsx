@@ -217,15 +217,12 @@ export default function Navbar({ title }) {
     <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => navigate(user?.role === 'student' ? '/student' : '/teacher')}
-            className="flex items-center gap-2"
-          >
+          <a href="https://mribrahimfarouk.com/" className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
             <span className="font-extrabold text-blue-600 text-base">
               {title || user?.platform_name || 'منصة الامتحانات'}
             </span>
-          </button>
+          </a>
           {user?.role === 'student' && !isStudentHome && (
             <button
               onClick={() => navigate('/student')}
