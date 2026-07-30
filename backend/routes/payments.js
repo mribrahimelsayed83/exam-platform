@@ -92,7 +92,12 @@ router.post('/initiate', auth('student'), async (req, res) => {
 // ── POST /api/payments/callback ──────────────────────────────────────────────
 router.post('/callback', async (req, res) => {
   try {
-    const data    = req.body;
+    console.log('PayMob callback DEBUG — content-type:', req.headers['content-type']);
+    console.log('PayMob callback DEBUG — query keys:', Object.keys(req.query || {}));
+    console.log('PayMob callback DEBUG — body keys:', Object.keys(req.body || {}));
+    console.log('PayMob callback DEBUG — raw body:', JSON.stringify(req.body).slice(0, 1000));
+    console.log('PayMob callback DEBUG — raw query:', JSON.stringify(req.query).slice(0, 1000));
+    const data    = { ...req.query, ...req.body };
     const success = data.success === true || data.success === 'true';
     const orderId = String(data.order?.id || '');
     const txId    = String(data.id || '');
