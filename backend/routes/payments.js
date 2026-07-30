@@ -68,6 +68,9 @@ router.post('/initiate', auth('student'), async (req, res) => {
     if (!intentRes.ok)
       throw new Error(intention?.detail || intention?.message || `Paymob ${intentRes.status}`);
 
+    console.log('PayMob intention DEBUG — keys:', Object.keys(intention));
+    console.log('PayMob intention DEBUG — raw:', JSON.stringify(intention).slice(0, 1500));
+
     const clientSecret = intention.client_secret;
     // Store the numeric PayMob order id (not the "pi_..." intention id) — the
     // transaction-processed webhook only reports back obj.order.id, so this is
