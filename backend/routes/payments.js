@@ -69,7 +69,10 @@ router.post('/initiate', auth('student'), async (req, res) => {
       throw new Error(intention?.detail || intention?.message || `Paymob ${intentRes.status}`);
 
     const clientSecret = intention.client_secret;
-    const orderId      = intention.id || intention.order?.id || '';
+    // Store the numeric PayMob order id (not the "pi_..." intention id) — the
+    // transaction-processed webhook only reports back obj.order.id, so this is
+    // what we need to match on when the callback arrives.
+    const orderId      = intention.order?.id || intention.id || '';
 
     // Save pending payment
     await pool.query(
@@ -92,39 +95,38 @@ router.post('/initiate', auth('student'), async (req, res) => {
 // ── POST /api/payments/callback ──────────────────────────────────────────────
 router.post('/callback', async (req, res) => {
   try {
-    console.log('PayMob callback DEBUG — content-type:', req.headers['content-type']);
-    console.log('PayMob callback DEBUG — query keys:', Object.keys(req.query || {}));
-    console.log('PayMob callback DEBUG — body keys:', Object.keys(req.body || {}));
-    console.log('PayMob callback DEBUG — raw body:', JSON.stringify(req.body).slice(0, 1000));
-    console.log('PayMob callback DEBUG — raw query:', JSON.stringify(req.query).slice(0, 1000));
-    const data    = { ...req.query, ...req.body };
-    const success = data.success === true || data.success === 'true';
-    const orderId = String(data.order?.id || '');
-    const txId    = String(data.id || '');
+    // PayMob's "transaction processed" webhook sends the transaction fields
+    // nested under body.obj (body = { type: 'TRANSACTION', obj: {...} }),
+    // and signs them with an HMAC delivered as a query param, not in the body.
+    const obj     = req.body?.obj || {};
+    const hmac    = req.query.hmac;
+    const success = obj.success === true || obj.success === 'true';
+    const orderId = String(obj.order?.id || '');
+    const txId    = String(obj.id || '');
 
     // HMAC verification — always required; reject callback if secret not configured
     if (!PAYMOB_HMAC_SECRET) {
       console.error('PayMob callback rejected: PAYMOB_HMAC_SECRET not configured');
       return res.status(503).json({ message: 'payment verification not configured' });
     }
-    if (!data.hmac) {
+    if (!hmac) {
       console.warn('PayMob callback missing HMAC');
       return res.status(400).json({ message: 'invalid hmac' });
     }
     const concat = [
-      data.amount_cents, data.created_at, data.currency, data.error_occured,
-      data.has_parent_transaction, data.id, data.integration_id,
-      data.is_3d_secure, data.is_auth, data.is_capture, data.is_refunded,
-      data.is_standalone_payment, data.is_voided,
-      data.order?.id, data.owner, data.pending,
-      data.source_data?.pan, data.source_data?.sub_type, data.source_data?.type,
-      data.success,
+      obj.amount_cents, obj.created_at, obj.currency, obj.error_occured,
+      obj.has_parent_transaction, obj.id, obj.integration_id,
+      obj.is_3d_secure, obj.is_auth, obj.is_capture, obj.is_refunded,
+      obj.is_standalone_payment, obj.is_voided,
+      obj.order?.id, obj.owner, obj.pending,
+      obj.source_data?.pan, obj.source_data?.sub_type, obj.source_data?.type,
+      obj.success,
     ].map(v => String(v ?? '')).join('');
 
     const expected = crypto.createHmac('sha512', PAYMOB_HMAC_SECRET)
       .update(concat).digest('hex');
 
-    if (data.hmac !== expected) {
+    if (hmac !== expected) {
       console.warn('PayMob HMAC mismatch');
       return res.status(400).json({ message: 'invalid hmac' });
     }
@@ -134,8 +136,8 @@ router.post('/callback', async (req, res) => {
       const { rows: [stored] } = await pool.query(
         `SELECT amount FROM payments WHERE paymob_order_id=$1`, [orderId]
       );
-      if (stored && data.amount_cents && Number(data.amount_cents) !== stored.amount * 100) {
-        console.warn(`PayMob amount mismatch: got ${data.amount_cents}, expected ${stored.amount * 100}`);
+      if (stored && obj.amount_cents && Number(obj.amount_cents) !== stored.amount * 100) {
+        console.warn(`PayMob amount mismatch: got ${obj.amount_cents}, expected ${stored.amount * 100}`);
         return res.status(400).json({ message: 'amount mismatch' });
       }
 
