@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
 import { FaSun, FaMoon, FaGraduationCap, FaPencilAlt, FaBookOpen, FaFlask, FaSchool } from 'react-icons/fa';
 
-const CENTER_URL = 'https://center.mribrahimfarouk.com/login';
+const CENTER_URL = 'https://center.mribrahimfarouk.com/';
 
 function UserNavMenu({ user, bg, onLogout }) {
   const [open, setOpen] = useState(false);
