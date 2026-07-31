@@ -215,13 +215,21 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS og_image TEXT DEFAULT '';
     `);
-    // Restrict grades to 9-12 only (drop old constraint, add new one)
-    await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
-    await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);
-    await pool.query(`ALTER TABLE exams DROP CONSTRAINT IF EXISTS exams_grade_check;`);
-    await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11,12));`);
-    await pool.query(`ALTER TABLE playlists DROP CONSTRAINT IF EXISTS playlists_grade_check;`);
-    await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11,12));`);
+    // Restrict grades to 9-12 only (drop old constraint, add new one).
+    // Isolated in its own try/catch: existing out-of-range rows (e.g. a
+    // legacy student from before the 9-12 restriction) make the ADD
+    // CONSTRAINT fail, and that must not abort every migration statement
+    // that follows it in this shared function.
+    try {
+      await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
+      await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);
+      await pool.query(`ALTER TABLE exams DROP CONSTRAINT IF EXISTS exams_grade_check;`);
+      await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11,12));`);
+      await pool.query(`ALTER TABLE playlists DROP CONSTRAINT IF EXISTS playlists_grade_check;`);
+      await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11,12));`);
+    } catch (err) {
+      console.error('⚠️  Grade-check constraint migration skipped:', err.message);
+    }
 
     // Performance indexes
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_exams_grade_active ON exams(grade, is_active)`);
