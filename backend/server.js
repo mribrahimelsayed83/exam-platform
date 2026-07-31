@@ -233,6 +233,25 @@ async function runMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_exam_status ON payments(exam_id, status)`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_notifications_grade ON notifications(grade)`);
 
+    // ── Course (playlist) payments — extend payments to also cover top-level playlists ──
+    await pool.query(`ALTER TABLE playlists ADD COLUMN IF NOT EXISTS price INTEGER DEFAULT 0;`);
+    await pool.query(`ALTER TABLE payments ALTER COLUMN exam_id DROP NOT NULL;`);
+    await pool.query(`
+      ALTER TABLE payments ADD COLUMN IF NOT EXISTS playlist_id INTEGER REFERENCES playlists(id) ON DELETE CASCADE;
+    `);
+    await pool.query(`ALTER TABLE payments DROP CONSTRAINT IF EXISTS payments_item_check;`);
+    await pool.query(`
+      ALTER TABLE payments ADD CONSTRAINT payments_item_check
+        CHECK ( (exam_id IS NOT NULL AND playlist_id IS NULL)
+             OR (exam_id IS NULL AND playlist_id IS NOT NULL) );
+    `);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_payments_student_playlist
+        ON payments (student_id, playlist_id) WHERE playlist_id IS NOT NULL;
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_playlist ON payments(playlist_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_playlist_status ON payments(playlist_id, status);`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

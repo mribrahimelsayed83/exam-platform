@@ -74,7 +74,7 @@ export default function App() {
         <Route path="/student/personal-exam/result/:id" element={
           <RequireAuth role="student"><PersonalExamResultPage/></RequireAuth>
         }/>
-        <Route path="/student/payment/:examId" element={
+        <Route path="/student/payment/:type/:id" element={
           <RequireAuth role="student"><PaymentPage/></RequireAuth>
         }/>
         <Route path="/student/payment-result" element={

@@ -174,7 +174,7 @@ export default function StudentDashboard() {
                 {exams.map(exam => (
                   <ExamCard key={exam.id} exam={exam}
                     onStart={() => navigate(`/student/exam/${exam.id}`)}
-                    onPay={() => navigate(`/student/payment/${exam.id}`)}
+                    onPay={() => navigate(`/student/payment/exam/${exam.id}`)}
                   />
                 ))}
               </div>

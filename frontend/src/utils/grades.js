@@ -10,8 +10,3 @@ export const GRADE_LIST = Object.entries(GRADES).map(([value, label]) => ({
 }));
 
 export const gradeLabel = (g) => GRADES[g] || '—';
-
-export const GradeOptions = () =>
-  GRADE_LIST.map(g => (
-    <option key={g.value} value={g.value}>{g.label}</option>
-  ));

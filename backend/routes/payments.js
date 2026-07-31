@@ -11,28 +11,43 @@ const PAYMOB_HMAC_SECRET    = process.env.PAYMOB_HMAC_SECRET;
 const BASE                  = 'https://accept.paymob.com';
 
 // ── POST /api/payments/initiate ──────────────────────────────────────────────
+// Accepts either { examId } or { playlistId } — never both.
 router.post('/initiate', auth('student'), async (req, res) => {
   try {
-    const { examId } = req.body;
-    const student    = req.user;
+    const { examId, playlistId } = req.body;
+    const student = req.user;
 
+    if (!examId && !playlistId)
+      return res.status(400).json({ message: 'يجب تحديد امتحان أو قائمة' });
+    if (examId && playlistId)
+      return res.status(400).json({ message: 'حدد نوعاً واحداً فقط' });
     if (!PAYMOB_SECRET_KEY || !PAYMOB_PUBLIC_KEY || !PAYMOB_INTEGRATION_ID) {
       return res.status(503).json({ message: 'خدمة الدفع غير مُفعَّلة — تواصل مع المدرس' });
     }
 
-    const { rows: [exam] } = await pool.query(
-      'SELECT id, title, price FROM exams WHERE id=$1', [examId]
-    );
-    if (!exam)                          return res.status(404).json({ message: 'الامتحان غير موجود' });
-    if (!exam.price || exam.price <= 0) return res.status(400).json({ message: 'هذا الامتحان مجاني' });
+    let item, itemType;
+    if (examId) {
+      const { rows: [exam] } = await pool.query('SELECT id, title, price FROM exams WHERE id=$1', [examId]);
+      if (!exam) return res.status(404).json({ message: 'الامتحان غير موجود' });
+      item = exam; itemType = 'exam';
+    } else {
+      const { rows: [pl] } = await pool.query(
+        'SELECT id, title, price FROM playlists WHERE id=$1 AND parent_id IS NULL', [playlistId]
+      );
+      if (!pl) return res.status(404).json({ message: 'القائمة غير موجودة' });
+      item = pl; itemType = 'playlist';
+    }
+    if (!item.price || item.price <= 0)
+      return res.status(400).json({ message: itemType === 'exam' ? 'هذا الامتحان مجاني' : 'هذه القائمة مجانية' });
 
+    const idCol = itemType === 'exam' ? 'exam_id' : 'playlist_id';
     const { rows: paid } = await pool.query(
-      `SELECT id FROM payments WHERE exam_id=$1 AND student_id=$2 AND status='paid'`,
-      [examId, student.id]
+      `SELECT id FROM payments WHERE ${idCol}=$1 AND student_id=$2 AND status='paid'`,
+      [item.id, student.id]
     );
-    if (paid.length) return res.status(400).json({ message: 'دفعت هذا الامتحان بالفعل', alreadyPaid: true });
+    if (paid.length) return res.status(400).json({ message: 'دفعت هذا العنصر بالفعل', alreadyPaid: true });
 
-    const amountCents = exam.price * 100;
+    const amountCents = item.price * 100;
     const nameParts   = (student.name || 'Student').split(' ');
 
     // Paymob v2 — Intention API
@@ -47,9 +62,9 @@ router.post('/initiate', auth('student'), async (req, res) => {
         currency:        'EGP',
         payment_methods: PAYMOB_INTEGRATION_ID.split(',').map(id => Number(id.trim())),
         items: [{
-          name:        exam.title,
+          name:        item.title,
           amount:      amountCents,
-          description: exam.title,
+          description: item.title,
           quantity:    1,
         }],
         billing_data: {
@@ -77,17 +92,27 @@ router.post('/initiate', auth('student'), async (req, res) => {
                        || intention.payment_keys?.[0]?.order_id
                        || intention.id || '';
 
-    // Save pending payment
-    await pool.query(
-      `INSERT INTO payments (student_id, exam_id, amount, paymob_order_id, status)
-       VALUES ($1,$2,$3,$4,'pending')
-       ON CONFLICT (student_id, exam_id)
-       DO UPDATE SET paymob_order_id=$4, status='pending', created_at=NOW()`,
-      [student.id, examId, exam.price, String(orderId)]
-    );
+    // Save pending payment — ON CONFLICT target depends on which item type this is.
+    if (itemType === 'exam') {
+      await pool.query(
+        `INSERT INTO payments (student_id, exam_id, amount, paymob_order_id, status)
+         VALUES ($1,$2,$3,$4,'pending')
+         ON CONFLICT (student_id, exam_id)
+         DO UPDATE SET paymob_order_id=$4, status='pending', created_at=NOW()`,
+        [student.id, item.id, item.price, String(orderId)]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO payments (student_id, playlist_id, amount, paymob_order_id, status)
+         VALUES ($1,$2,$3,$4,'pending')
+         ON CONFLICT (student_id, playlist_id) WHERE playlist_id IS NOT NULL
+         DO UPDATE SET paymob_order_id=$4, status='pending', created_at=NOW()`,
+        [student.id, item.id, item.price, String(orderId)]
+      );
+    }
 
     const iframeUrl = `${BASE}/unifiedcheckout/?publicKey=${PAYMOB_PUBLIC_KEY}&clientSecret=${clientSecret}`;
-    res.json({ iframeUrl, orderId, amount: exam.price, title: exam.title });
+    res.json({ iframeUrl, orderId, amount: item.price, title: item.title, type: itemType });
 
   } catch (err) {
     console.error('PayMob initiate error:', err.message);
@@ -182,6 +207,25 @@ router.get('/check/:examId', auth('student'), async (req, res) => {
   }
 });
 
+// ── GET /api/payments/check-playlist/:playlistId ─────────────────────────────
+router.get('/check-playlist/:playlistId', auth('student'), async (req, res) => {
+  try {
+    const { rows: [pl] } = await pool.query(
+      'SELECT id, price FROM playlists WHERE id=$1 AND parent_id IS NULL', [req.params.playlistId]
+    );
+    if (!pl) return res.status(404).json({ message: 'غير موجود' });
+    if (!pl.price || pl.price <= 0) return res.json({ paid: true, free: true });
+
+    const { rows: [payment] } = await pool.query(
+      `SELECT id FROM payments WHERE playlist_id=$1 AND student_id=$2 AND status='paid'`,
+      [req.params.playlistId, req.user.id]
+    );
+    res.json({ paid: !!payment, free: false, price: pl.price });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── GET /api/payments/exam/:examId — teacher sees who paid ──────────────────
 router.get('/exam/:examId', auth.staff, async (req, res) => {
   try {
@@ -200,22 +244,97 @@ router.get('/exam/:examId', auth.staff, async (req, res) => {
   }
 });
 
+// ── GET /api/payments/playlist/:playlistId — teacher sees who paid ──────────
+router.get('/playlist/:playlistId', auth.staff, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT p.id, p.amount, p.status, p.paid_at, p.created_at,
+              s.name AS student_name, s.grade, p.paymob_transaction_id
+       FROM   payments p
+       JOIN   students s ON s.id = p.student_id
+       WHERE  p.playlist_id = $1
+       ORDER  BY p.created_at DESC`,
+      [req.params.playlistId]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── POST /api/payments/mark-paid — teacher marks a student as paid manually ─
+// Accepts either { studentId, examId } or { studentId, playlistId }.
 router.post('/mark-paid', auth.staff, async (req, res) => {
   try {
-    const { studentId, examId } = req.body;
-    const { rows: [exam] } = await pool.query('SELECT price FROM exams WHERE id=$1', [examId]);
-    if (!exam) return res.status(404).json({ message: 'الامتحان غير موجود' });
+    const { studentId, examId, playlistId } = req.body;
+    if (!examId && !playlistId)
+      return res.status(400).json({ message: 'يجب تحديد امتحان أو قائمة' });
 
-    await pool.query(
-      `INSERT INTO payments (student_id, exam_id, amount, status, paid_at)
-       VALUES ($1,$2,$3,'paid',NOW())
-       ON CONFLICT (student_id, exam_id)
-       DO UPDATE SET status='paid', paid_at=NOW()`,
-      [studentId, examId, exam.price || 0]
-    );
+    if (examId) {
+      const { rows: [exam] } = await pool.query('SELECT price FROM exams WHERE id=$1', [examId]);
+      if (!exam) return res.status(404).json({ message: 'الامتحان غير موجود' });
+      await pool.query(
+        `INSERT INTO payments (student_id, exam_id, amount, status, paid_at)
+         VALUES ($1,$2,$3,'paid',NOW())
+         ON CONFLICT (student_id, exam_id)
+         DO UPDATE SET status='paid', paid_at=NOW()`,
+        [studentId, examId, exam.price || 0]
+      );
+    } else {
+      const { rows: [pl] } = await pool.query('SELECT price FROM playlists WHERE id=$1', [playlistId]);
+      if (!pl) return res.status(404).json({ message: 'القائمة غير موجودة' });
+      await pool.query(
+        `INSERT INTO payments (student_id, playlist_id, amount, status, paid_at)
+         VALUES ($1,$2,$3,'paid',NOW())
+         ON CONFLICT (student_id, playlist_id) WHERE playlist_id IS NOT NULL
+         DO UPDATE SET status='paid', paid_at=NOW()`,
+        [studentId, playlistId, pl.price || 0]
+      );
+    }
     res.json({ message: 'تم تفعيل الوصول يدوياً' });
   } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── GET /api/payments/overview — teacher payments dashboard ─────────────────
+router.get('/overview', auth.staff, async (req, res) => {
+  try {
+    const totalsQ = pool.query(`
+      SELECT
+        COALESCE(SUM(amount) FILTER (WHERE status='paid'), 0)::int AS total_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE status='paid' AND paid_at >= date_trunc('day', NOW())), 0)::int AS today_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE status='paid' AND paid_at >= date_trunc('week', NOW())), 0)::int AS week_revenue,
+        COALESCE(SUM(amount) FILTER (WHERE status='paid' AND paid_at >= date_trunc('month', NOW())), 0)::int AS month_revenue,
+        COUNT(*) FILTER (WHERE status='paid')::int    AS paid_count,
+        COUNT(*) FILTER (WHERE status='pending')::int AS pending_count,
+        COUNT(*) FILTER (WHERE status='failed')::int  AS failed_count
+      FROM payments
+    `);
+    const byGradeQ = pool.query(`
+      SELECT s.grade,
+             COALESCE(SUM(p.amount) FILTER (WHERE p.status='paid'), 0)::int AS revenue,
+             COUNT(*) FILTER (WHERE p.status='paid')::int AS paid_count
+      FROM payments p JOIN students s ON s.id = p.student_id
+      GROUP BY s.grade ORDER BY s.grade
+    `);
+    const listQ = pool.query(`
+      SELECT p.id, p.student_id, s.name AS student_name, s.grade,
+             p.exam_id, p.playlist_id,
+             COALESCE(e.title, pl.title) AS item_title,
+             COALESCE(e.grade, pl.grade) AS item_grade,
+             CASE WHEN p.exam_id IS NOT NULL THEN 'exam' ELSE 'playlist' END AS item_type,
+             p.amount, p.status, p.paid_at, p.created_at, p.paymob_transaction_id
+      FROM payments p
+      JOIN students s        ON s.id = p.student_id
+      LEFT JOIN exams e      ON e.id = p.exam_id
+      LEFT JOIN playlists pl ON pl.id = p.playlist_id
+      ORDER BY p.created_at DESC
+    `);
+    const [totals, byGrade, list] = await Promise.all([totalsQ, byGradeQ, listQ]);
+    res.json({ totals: totals.rows[0], byGrade: byGrade.rows, payments: list.rows });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });

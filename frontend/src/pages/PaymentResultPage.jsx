@@ -12,12 +12,14 @@ export default function PaymentResultPage() {
   const success    = params.get('success') === 'true';
   const orderId    = params.get('order_id') || params.get('id');
 
-  // Auto-redirect after success
+  // Auto-redirect after success — this page's URL is a fixed Redirect URL
+  // configured once in PayMob's dashboard, so it has no way to know whether
+  // the purchase was an exam or a playlist; land back on the student home.
   useEffect(() => {
     if (!success) return;
     const t = setInterval(() => {
       setCountdown(c => {
-        if (c <= 1) { clearInterval(t); navigate('/student?tab=exams'); }
+        if (c <= 1) { clearInterval(t); navigate('/student'); }
         return c - 1;
       });
     }, 1000);
@@ -33,18 +35,18 @@ export default function PaymentResultPage() {
           <div className="card">
             <div className="text-6xl mb-4">🎉</div>
             <h1 className="text-2xl font-extrabold text-emerald-600 mb-2">تم الدفع بنجاح!</h1>
-            <p className="text-slate-500 mb-2">تم تفعيل وصولك للامتحان</p>
+            <p className="text-slate-500 mb-2">تم تفعيل وصولك</p>
             {orderId && (
               <p className="text-xs text-slate-400 mb-6">رقم الطلب: {orderId}</p>
             )}
             <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 mb-6">
               <p className="text-emerald-700 text-sm font-semibold">
-                سيتم تحويلك للامتحانات خلال {countdown} ثانية...
+                سيتم تحويلك للصفحة الرئيسية خلال {countdown} ثانية...
               </p>
             </div>
-            <button onClick={() => navigate('/student?tab=exams')}
+            <button onClick={() => navigate('/student')}
               className="btn-primary btn-block">
-              اذهب للامتحانات الآن
+              اذهب للصفحة الرئيسية الآن
             </button>
           </div>
         ) : (

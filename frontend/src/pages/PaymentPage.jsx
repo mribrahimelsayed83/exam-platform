@@ -4,8 +4,10 @@ import Navbar from '../components/shared/Navbar';
 import api from '../utils/api';
 
 export default function PaymentPage() {
-  const { examId } = useParams();
-  const navigate   = useNavigate();
+  const { type, id } = useParams();
+  const navigate      = useNavigate();
+  const isExam         = type === 'exam';
+  const itemLabel       = isExam ? 'الامتحان' : 'القائمة';
 
   const [exam,      setExam]      = useState(null);
   const [iframeUrl, setIframeUrl] = useState('');
@@ -13,25 +15,27 @@ export default function PaymentPage() {
   const [initiating, setInitiating] = useState(false);
   const [error,     setError]     = useState('');
 
-  // Load exam info + payment status
+  // Load item info + payment status
   useEffect(() => {
-    api.get(`/payments/check/${examId}`)
+    const checkUrl = isExam ? `/payments/check/${id}` : `/payments/check-playlist/${id}`;
+    api.get(checkUrl)
       .then(r => {
         if (r.data.paid) {
-          navigate(`/student/exam/${examId}`, { replace: true });
+          navigate(isExam ? `/student/exam/${id}` : '/student/videos', { replace: true });
         } else {
           setExam({ price: r.data.price });
           setLoading(false);
         }
       })
       .catch(() => { setError('خطأ في تحميل البيانات'); setLoading(false); });
-  }, [examId, navigate]);
+  }, [type, id, isExam, navigate]);
 
   const handlePay = async () => {
     setInitiating(true);
     setError('');
     try {
-      const { data } = await api.post('/payments/initiate', { examId: Number(examId) });
+      const body = isExam ? { examId: Number(id) } : { playlistId: Number(id) };
+      const { data } = await api.post('/payments/initiate', body);
       setIframeUrl(data.iframeUrl);
       setExam(d => ({ ...d, title: data.title, amount: data.amount }));
     } catch (err) {
@@ -67,7 +71,7 @@ export default function PaymentPage() {
               allow="payment"
             />
             <p className="text-xs text-slate-400 text-center mt-3">
-              بعد إتمام الدفع سيتم تفعيل الامتحان تلقائياً خلال لحظات
+              بعد إتمام الدفع سيتم تفعيل {itemLabel} تلقائياً خلال لحظات
             </p>
           </div>
         </div>
@@ -80,23 +84,23 @@ export default function PaymentPage() {
     <div className="min-h-screen bg-slate-100">
       <Navbar />
       <div className="max-w-md mx-auto px-4 py-12">
-        <button onClick={() => navigate('/student?tab=exams')}
+        <button onClick={() => navigate(isExam ? '/student?tab=exams' : '/student/videos')}
           className="text-slate-500 hover:text-slate-800 text-sm mb-5 flex items-center gap-1">
-          ← رجوع للامتحانات
+          ← رجوع {isExam ? 'للامتحانات' : 'للفيديوهات'}
         </button>
 
         <div className="card text-center">
           <div className="text-6xl mb-4">💳</div>
           <h1 className="text-xl font-extrabold text-slate-800 mb-2">الدفع مطلوب</h1>
           <p className="text-slate-500 mb-6 text-sm">
-            هذا الامتحان يتطلب رسوم اشتراك للوصول إليه
+            {itemLabel} ده يتطلب رسوم اشتراك للوصول إليه
           </p>
 
           <div className="bg-orange-50 border border-orange-200 rounded-2xl p-5 mb-6">
             <div className="text-4xl font-extrabold text-orange-600 mb-1">
               {exam?.price} جنيه
             </div>
-            <div className="text-orange-700 text-sm font-semibold">رسوم الامتحان</div>
+            <div className="text-orange-700 text-sm font-semibold">رسوم {itemLabel}</div>
           </div>
 
           <div className="space-y-2 text-xs text-slate-500 mb-6">

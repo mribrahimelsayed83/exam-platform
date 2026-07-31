@@ -19,17 +19,20 @@ function getYouTubeId(url) {
 // GET /videos/playlists — قوائم الطالب حسب صفه (top-level only)
 router.get('/playlists', auth('student'), async (req, res) => {
   try {
-    const { grade } = req.user;
+    const { grade, id: studentId } = req.user;
     const result = await pool.query(
-      `SELECT p.id, p.title, p.description, p.thumbnail, p.position,
+      `SELECT p.id, p.title, p.description, p.thumbnail, p.position, p.price,
               COUNT(v.id)::int AS video_count,
-              (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count
+              (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count,
+              (p.price > 0 AND pay.id IS NULL) AS needs_payment,
+              (pay.status = 'paid') AS is_paid
        FROM playlists p
        LEFT JOIN videos v ON v.playlist_id = p.id
+       LEFT JOIN payments pay ON pay.playlist_id = p.id AND pay.student_id = $2 AND pay.status = 'paid'
        WHERE p.grade = $1 AND p.parent_id IS NULL
-       GROUP BY p.id
+       GROUP BY p.id, pay.id, pay.status
        ORDER BY p.position, p.created_at`,
-      [grade]
+      [grade, studentId]
     );
     res.json(result.rows);
   } catch (err) {
@@ -38,22 +41,32 @@ router.get('/playlists', auth('student'), async (req, res) => {
   }
 });
 
-// GET /videos/playlists/:id — فيديوهات أو سب-بلايليستات قائمة معينة
+// GET /videos/playlists/:id — فيديوهات أو سب-بلايليستات قائمة معينة (legacy direct-videos mode)
 router.get('/playlists/:id', auth('student'), async (req, res) => {
   try {
-    const { grade } = req.user;
+    const { grade, id: studentId } = req.user;
     const playlist = await pool.query(
       'SELECT * FROM playlists WHERE id=$1 AND grade=$2 AND parent_id IS NULL',
       [req.params.id, grade]
     );
     if (!playlist.rows[0])
       return res.status(404).json({ message: 'القائمة مش موجودة أو مش لصفك' });
+    const pl = playlist.rows[0];
+
+    if (pl.price && pl.price > 0) {
+      const { rows: payRows } = await pool.query(
+        `SELECT id FROM payments WHERE playlist_id=$1 AND student_id=$2 AND status='paid'`,
+        [pl.id, studentId]
+      );
+      if (!payRows.length)
+        return res.status(402).json({ message: 'هذه القائمة مدفوعة — يرجى الدفع أولاً', needsPayment: true, price: pl.price });
+    }
 
     const videos = await pool.query(
       'SELECT id, title, youtube_url, description, position FROM videos WHERE playlist_id=$1 ORDER BY position',
       [req.params.id]
     );
-    res.json({ playlist: playlist.rows[0], videos: videos.rows });
+    res.json({ playlist: pl, videos: videos.rows });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
@@ -62,13 +75,24 @@ router.get('/playlists/:id', auth('student'), async (req, res) => {
 // GET /videos/playlists/:id/subs — سب-بلايليستات قائمة للطالب
 router.get('/playlists/:id/subs', auth('student'), async (req, res) => {
   try {
-    const { grade } = req.user;
+    const { grade, id: studentId } = req.user;
     const parent = await pool.query(
       'SELECT * FROM playlists WHERE id=$1 AND grade=$2 AND parent_id IS NULL',
       [req.params.id, grade]
     );
     if (!parent.rows[0])
       return res.status(404).json({ message: 'القائمة مش موجودة أو مش لصفك' });
+    const pl = parent.rows[0];
+
+    let isPaid = true, needsPayment = false;
+    if (pl.price && pl.price > 0) {
+      const { rows: payRows } = await pool.query(
+        `SELECT id FROM payments WHERE playlist_id=$1 AND student_id=$2 AND status='paid'`,
+        [pl.id, studentId]
+      );
+      isPaid = payRows.length > 0;
+      needsPayment = !isPaid;
+    }
 
     const subs = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.position,
@@ -80,19 +104,19 @@ router.get('/playlists/:id/subs', auth('student'), async (req, res) => {
        ORDER BY p.position, p.created_at`,
       [req.params.id]
     );
-    res.json({ parent: parent.rows[0], subs: subs.rows });
+    res.json({ parent: { ...pl, needs_payment: needsPayment, is_paid: isPaid }, subs: subs.rows });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
 
-// GET /videos/playlists/:id/items — محتوى سب-بلايليست للطالب
+// GET /videos/playlists/:id/items — محتوى سب-بلايليست للطالب (gated via parent's payment)
 router.get('/playlists/:id/items', auth('student'), async (req, res) => {
   try {
-    const { grade } = req.user;
+    const { grade, id: studentId } = req.user;
     // verify this is a sub-playlist whose parent belongs to student's grade
     const sub = await pool.query(
-      `SELECT p.*, pp.grade AS parent_grade
+      `SELECT p.*, pp.grade AS parent_grade, pp.id AS parent_id, pp.price AS parent_price
        FROM playlists p
        JOIN playlists pp ON pp.id = p.parent_id
        WHERE p.id = $1 AND pp.grade = $2 AND p.parent_id IS NOT NULL`,
@@ -100,6 +124,19 @@ router.get('/playlists/:id/items', auth('student'), async (req, res) => {
     );
     if (!sub.rows[0])
       return res.status(404).json({ message: 'الدرس مش موجود أو مش لصفك' });
+    const subRow = sub.rows[0];
+
+    if (subRow.parent_price && subRow.parent_price > 0) {
+      const { rows: payRows } = await pool.query(
+        `SELECT id FROM payments WHERE playlist_id=$1 AND student_id=$2 AND status='paid'`,
+        [subRow.parent_id, studentId]
+      );
+      if (!payRows.length)
+        return res.status(402).json({
+          message: 'هذه القائمة مدفوعة — يرجى الدفع أولاً',
+          needsPayment: true, price: subRow.parent_price, playlistId: subRow.parent_id,
+        });
+    }
 
     const items = await pool.query(
       `SELECT pi.id, pi.type, pi.title, pi.description, pi.position,
@@ -112,7 +149,7 @@ router.get('/playlists/:id/items', auth('student'), async (req, res) => {
        ORDER BY pi.position`,
       [req.params.id]
     );
-    res.json({ playlist: sub.rows[0], items: items.rows });
+    res.json({ playlist: subRow, items: items.rows });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
@@ -127,7 +164,7 @@ router.get('/manage/playlists', staff, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
-              p.show_on_landing,
+              p.show_on_landing, p.price,
               COUNT(v.id)::int AS video_count,
               (SELECT COUNT(*) FROM playlists sp WHERE sp.parent_id = p.id)::int AS sub_count
        FROM playlists p
@@ -159,16 +196,17 @@ router.get('/manage/playlists/:id', staff, async (req, res) => {
 
 // POST /videos/manage/playlists — إنشاء قائمة
 router.post('/manage/playlists', staff, async (req, res) => {
-  const { title, description, thumbnail, grade } = req.body;
+  const { title, description, thumbnail, grade, price } = req.body;
   if (!title || !grade)
     return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
+  const validPrice = Math.max(0, Number(price) || 0);
   try {
     // Get max position
     const maxPos = await pool.query('SELECT COALESCE(MAX(position),0) AS m FROM playlists WHERE grade=$1', [grade]);
     const position = maxPos.rows[0].m + 1;
     const result = await pool.query(
-      'INSERT INTO playlists (title,description,thumbnail,grade,position) VALUES ($1,$2,$3,$4,$5) RETURNING *',
-      [title, description||'', thumbnail||'', Number(grade), position]
+      'INSERT INTO playlists (title,description,thumbnail,grade,position,price) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      [title, description||'', thumbnail||'', Number(grade), position, validPrice]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -206,11 +244,12 @@ router.put('/manage/playlists/reorder', staff, async (req, res) => {
 
 // PUT /videos/manage/playlists/:id — تعديل قائمة
 router.put('/manage/playlists/:id', staff, async (req, res) => {
-  const { title, description, thumbnail, grade } = req.body;
+  const { title, description, thumbnail, grade, price } = req.body;
+  const validPrice = Math.max(0, Number(price) || 0);
   try {
     await pool.query(
-      'UPDATE playlists SET title=$1, description=$2, thumbnail=$3, grade=$4 WHERE id=$5',
-      [title, description||'', thumbnail||'', Number(grade), req.params.id]
+      'UPDATE playlists SET title=$1, description=$2, thumbnail=$3, grade=$4, price=$5 WHERE id=$6',
+      [title, description||'', thumbnail||'', Number(grade), validPrice, req.params.id]
     );
     res.json({ message: 'تم التعديل' });
   } catch (err) {
@@ -412,18 +451,30 @@ router.get('/manage/items/:id/download', staff, async (req, res) => {
   }
 });
 
-// GET /videos/items/:id/download — تنزيل ملف للطالب (grade-gated)
+// GET /videos/items/:id/download — تنزيل ملف للطالب (grade-gated + payment-gated)
 router.get('/items/:id/download', auth('student'), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT pi.file_name, pi.file_data
+      `SELECT pi.file_name, pi.file_data, pp.id AS parent_id, pp.price AS parent_price
        FROM playlist_items pi
-       JOIN playlists p ON p.id = pi.playlist_id
-       WHERE pi.id=$1 AND p.grade=$2`,
+       JOIN playlists p  ON p.id = pi.playlist_id
+       JOIN playlists pp ON pp.id = p.parent_id
+       WHERE pi.id=$1 AND pp.grade=$2`,
       [req.params.id, req.user.grade]
     );
     if (!result.rows[0]) return res.status(404).json({ message: 'مش موجود أو مش لصفك' });
-    res.json({ file_name: result.rows[0].file_name, file_data: result.rows[0].file_data });
+    const row = result.rows[0];
+
+    if (row.parent_price && row.parent_price > 0) {
+      const { rows: payRows } = await pool.query(
+        `SELECT id FROM payments WHERE playlist_id=$1 AND student_id=$2 AND status='paid'`,
+        [row.parent_id, req.user.id]
+      );
+      if (!payRows.length)
+        return res.status(402).json({ message: 'هذه القائمة مدفوعة — يرجى الدفع أولاً', needsPayment: true });
+    }
+
+    res.json({ file_name: row.file_name, file_data: row.file_data });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }

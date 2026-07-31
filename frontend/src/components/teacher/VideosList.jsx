@@ -208,6 +208,7 @@ function PlaylistModal({ playlist, onClose, onSave }) {
     description: playlist?.description || '',
     thumbnail:   playlist?.thumbnail || '',
     grade:       playlist?.grade || 4,
+    price:       playlist?.price || 0,
   });
   const [loading, setLoading]   = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -267,6 +268,12 @@ function PlaylistModal({ playlist, onClose, onSave }) {
             <label className="block text-xs font-bold text-slate-500 mb-1">وصف (اختياري)</label>
             <textarea className="input resize-none" rows={2} value={form.description}
               onChange={e=>set('description',e.target.value)}/>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1.5">💰 سعر القائمة (جنيه)</label>
+            <input type="number" className="input" min="0" placeholder="0 = مجانية"
+              value={form.price} onChange={e=>set('price', e.target.value)}/>
+            <p className="text-xs text-slate-400 mt-1">اتركه 0 إذا كانت القائمة مجانية</p>
           </div>
           <ImageUploadField
             value={form.thumbnail}

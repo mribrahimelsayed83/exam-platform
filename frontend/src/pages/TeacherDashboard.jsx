@@ -10,6 +10,7 @@ import StudentsList    from '../components/teacher/StudentsList';
 import AssistantsList  from '../components/teacher/AssistantsList';
 import TeacherSettings from '../components/teacher/TeacherSettings';
 import VideosList            from '../components/teacher/VideosList';
+import PaymentsOverview      from '../components/teacher/PaymentsOverview';
 import NotificationsSender from '../components/teacher/NotificationsSender';
 import LandingEditor       from '../components/teacher/LandingEditor';
 import TeacherChat         from '../components/teacher/TeacherChat';
@@ -67,6 +68,7 @@ export default function TeacherDashboard() {
     { path:'videos',      label:'الفيديوهات',   icon:'🎬',  teacherOnly: false },
     { path:'chat',         label:'الرسائل',      icon:'💬',  teacherOnly: false },
     { path:'notifications', label:'الإشعارات',  icon:'🔔',  teacherOnly: false },
+    { path:'payments',    label:'المدفوعات',    icon:'💰',  teacherOnly: true  },
     { path:'assistants',  label:'المساعدون',    icon:'🤝',  teacherOnly: true  },
     { path:'settings',    label:'الإعدادات',    icon:'⚙️',  teacherOnly: true  },
   ];
@@ -121,6 +123,7 @@ export default function TeacherDashboard() {
               <Route path="chat"         element={<TeacherChat />} />
               <Route path="notifications" element={<NotificationsSender />} />
               {isTeacher && <>
+                <Route path="payments"   element={<PaymentsOverview />} />
                 <Route path="assistants" element={<AssistantsList />} />
                 <Route path="settings"   element={<CombinedSettings />} />
               </>}

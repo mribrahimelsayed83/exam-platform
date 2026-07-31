@@ -41,6 +41,10 @@ export default function VideosPage() {
 
   // ── Open a top-level playlist ──
   const openPlaylist = async (pl) => {
+    if (pl.needs_payment) {
+      navigate(`/student/payment/playlist/${pl.id}`);
+      return;
+    }
     setLoading(true);
     try {
       if (pl.sub_count > 0) {
@@ -72,6 +76,10 @@ export default function VideosPage() {
       const firstVideo = (data.items || []).find(i => i.type === 'video');
       setCurrentVideo(firstVideo || null);
       setView('items');
+    } catch (err) {
+      if (err.response?.status === 402) {
+        navigate(`/student/payment/playlist/${err.response.data.playlistId}`);
+      }
     } finally { setLoading(false); }
   };
 
@@ -302,6 +310,21 @@ export default function VideosPage() {
             <p className="text-slate-500 text-sm mb-5">{parentPlaylist.description}</p>
           )}
 
+          {parentPlaylist?.needs_payment && (
+            <div className="bg-orange-50 border border-orange-200 rounded-xl p-4 mb-5 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-orange-700 text-sm font-semibold">
+                <span>🔒</span>
+                <span>القائمة دي مدفوعة — {parentPlaylist.price} جنيه</span>
+              </div>
+              <button
+                onClick={() => navigate(`/student/payment/playlist/${parentPlaylist.id}`)}
+                className="btn-primary btn-sm flex-shrink-0"
+              >
+                ادفع الآن
+              </button>
+            </div>
+          )}
+
           <p className="text-sm text-slate-500 mb-4">{subs.length} درس</p>
 
           {subs.length === 0 ? (
@@ -386,6 +409,13 @@ export default function VideosPage() {
                       </span>
                     )}
                   </div>
+                  {pl.price > 0 && (
+                    <div className="absolute top-2 right-2">
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${pl.needs_payment ? 'bg-orange-500 text-white' : 'bg-emerald-500 text-white'}`}>
+                        {pl.needs_payment ? `🔒 ${pl.price} جنيه` : '✓ مدفوعة'}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="p-4">
                   <h3 className="font-bold text-slate-800 mb-1">{pl.title}</h3>
