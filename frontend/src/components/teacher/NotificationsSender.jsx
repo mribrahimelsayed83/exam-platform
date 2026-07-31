@@ -10,6 +10,7 @@ export default function NotificationsSender() {
   const [sending, setSending] = useState(false);
   const [success, setSuccess] = useState('');
   const [error, setError]     = useState('');
+  const [selected, setSelected] = useState(new Set());
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const load = () => {
@@ -18,6 +19,25 @@ export default function NotificationsSender() {
       .finally(() => setLoading(false));
   };
   useEffect(load, []);
+
+  const allSelected = sent.length > 0 && selected.size === sent.length;
+  const toggleSelectAll = () => {
+    setSelected(allSelected ? new Set() : new Set(sent.map(n => n.id)));
+  };
+  const toggleOne = (id) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+  const deleteSelected = async () => {
+    if (selected.size === 0) return;
+    if (!confirm(`هل أنت متأكد من حذف ${selected.size} إشعار؟`)) return;
+    await api.post('/notifications/bulk-delete', { ids: [...selected] });
+    setSelected(new Set());
+    load();
+  };
 
   const handleSend = async (e) => {
     e.preventDefault();
@@ -90,7 +110,22 @@ export default function NotificationsSender() {
 
       {/* Sent notifications */}
       <div className="card">
-        <h3 className="font-bold text-slate-700 mb-4">الإشعارات المُرسَلة</h3>
+        <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <h3 className="font-bold text-slate-700">الإشعارات المُرسَلة</h3>
+          {sent.length > 0 && (
+            <div className="flex items-center gap-2">
+              <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 cursor-pointer select-none">
+                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}/>
+                تحديد الكل
+              </label>
+              {selected.size > 0 && (
+                <button onClick={deleteSelected} className="btn-danger btn-sm">
+                  🗑️ حذف المحدد ({selected.size})
+                </button>
+              )}
+            </div>
+          )}
+        </div>
         {loading ? (
           <div className="flex justify-center py-8">
             <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
@@ -105,21 +140,25 @@ export default function NotificationsSender() {
             {sent.map(n => (
               <div key={n.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-bold text-slate-800 text-sm">{n.title}</span>
-                      <span className={`badge text-xs ${n.grade ? 'badge-blue' : 'badge-gray'}`}>
-                        {n.grade ? GRADES[n.grade] : 'كل الطلاب'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-slate-600 leading-relaxed mb-2">{n.body}</p>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <span>{new Date(n.created_at).toLocaleDateString('ar-EG',{
-                        year:'numeric', month:'short', day:'numeric',
-                        hour:'2-digit', minute:'2-digit'
-                      })}</span>
-                      <span>•</span>
-                      <span>قرأه {n.read_count} طالب</span>
+                  <div className="flex items-start gap-3 flex-1">
+                    <input type="checkbox" className="mt-1.5 flex-shrink-0"
+                      checked={selected.has(n.id)} onChange={() => toggleOne(n.id)}/>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="font-bold text-slate-800 text-sm">{n.title}</span>
+                        <span className={`badge text-xs ${n.grade ? 'badge-blue' : 'badge-gray'}`}>
+                          {n.grade ? GRADES[n.grade] : 'كل الطلاب'}
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-600 leading-relaxed mb-2">{n.body}</p>
+                      <div className="flex items-center gap-3 text-xs text-slate-400">
+                        <span>{new Date(n.created_at).toLocaleDateString('ar-EG',{
+                          year:'numeric', month:'short', day:'numeric',
+                          hour:'2-digit', minute:'2-digit'
+                        })}</span>
+                        <span>•</span>
+                        <span>قرأه {n.read_count} طالب</span>
+                      </div>
                     </div>
                   </div>
                   <button onClick={() => deleteNotif(n.id)} className="btn-ghost btn-sm text-red-500 flex-shrink-0">
