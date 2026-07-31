@@ -260,6 +260,9 @@ async function runMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_playlist ON payments(playlist_id);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_payments_playlist_status ON payments(playlist_id, status);`);
 
+    // Track when a student last logged in
+    await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ DEFAULT NULL;`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

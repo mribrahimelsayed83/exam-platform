@@ -11,6 +11,15 @@ const gradingLabels = {
   auto_graded:  { label:'قيد التصحيح', cls:'badge-amber'  },
   partial:      { label:'جزئي',         cls:'badge-amber'  },
 };
+const paymentStatusLabels = {
+  paid:    { label: 'مدفوع', cls: 'badge-green' },
+  pending: { label: 'معلّق', cls: 'badge-amber' },
+  failed:  { label: 'فشل',   cls: 'badge-red'   },
+};
+const paymentTypeLabels = {
+  exam:     { label: 'امتحان', icon: '📝' },
+  playlist: { label: 'قائمة',  icon: '🎬' },
+};
 
 export default function StudentDetail({ studentId, onBack }) {
   const [data, setData]         = useState(null);
@@ -30,7 +39,7 @@ export default function StudentDetail({ studentId, onBack }) {
   );
   if (!data) return null;
 
-  const { student, submissions, video_views = [] } = data;
+  const { student, submissions, video_views = [], payments = [] } = data;
   const approved = submissions.filter(s => s.grading_status === 'fully_graded');
   const avgScore = approved.length
     ? Math.round(approved.reduce((a,s) => a + s.final_score, 0) / approved.length)
@@ -100,7 +109,49 @@ export default function StudentDetail({ studentId, onBack }) {
               {new Date(student.created_at).toLocaleDateString('ar-EG', { year: 'numeric', month: 'short', day: 'numeric' })}
             </span>
           </div>
+          <div>
+            <span className="text-xs font-bold text-slate-400 block mb-0.5">آخر دخول للمنصة</span>
+            <span className="text-slate-700">
+              {student.last_login_at
+                ? new Date(student.last_login_at).toLocaleDateString('ar-EG', {
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                  })
+                : <span className="text-slate-400">لم يسجّل دخول بعد</span>
+              }
+            </span>
+          </div>
         </div>
+      </div>
+
+      {/* Subscriptions / Payments */}
+      <div className="card mb-4">
+        <h3 className="font-bold text-slate-700 mb-3">💰 الاشتراكات ({payments.length})</h3>
+        {payments.length === 0 ? (
+          <p className="text-sm text-slate-400 text-center py-4">لم يشترك الطالب في أي امتحان أو قائمة مدفوعة بعد</p>
+        ) : (
+          <div className="space-y-2 max-h-60 overflow-y-auto">
+            {payments.map(p => {
+              const st = paymentStatusLabels[p.status] || paymentStatusLabels.pending;
+              const tp = paymentTypeLabels[p.item_type] || { label: p.item_type, icon: '📄' };
+              return (
+                <div key={p.id} className="flex items-center justify-between py-2 border-b border-slate-50 last:border-0 gap-2">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="text-base flex-shrink-0">{tp.icon}</span>
+                    <span className="text-sm font-semibold text-slate-700 truncate">{p.item_title}</span>
+                    <span className="badge badge-gray text-xs flex-shrink-0">{tp.label}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs font-bold text-slate-600">{p.amount} جنيه</span>
+                    <span className={`badge ${st.cls} text-xs`}>{st.label}</span>
+                    <span className="text-xs text-slate-400">
+                      {new Date(p.paid_at || p.created_at).toLocaleDateString('ar-EG', { month:'short', day:'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* Video Views */}

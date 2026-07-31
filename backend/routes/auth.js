@@ -78,6 +78,8 @@ router.post('/student/login', async (req, res) => {
     const valid = await bcrypt.compare(password, student.password);
     if (!valid) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غلط' });
 
+    await pool.query('UPDATE students SET last_login_at=NOW() WHERE id=$1', [student.id]);
+
     notify('login', '🔑 تسجيل دخول طالب',
       `${student.name} سجّل دخوله للمنصة`, 'student', student.id);
 

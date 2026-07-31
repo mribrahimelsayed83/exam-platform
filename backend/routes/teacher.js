@@ -11,7 +11,7 @@ router.get('/students/:id', staff, async (req, res) => {
   try {
     const studentRes = await pool.query(
       `SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
-              st.email, st.status, st.created_at,
+              st.email, st.status, st.created_at, st.last_login_at,
               t.name AS approved_by_name,
               a.name AS approved_by_asst_name
        FROM students st
@@ -42,10 +42,23 @@ router.get('/students/:id', staff, async (req, res) => {
       [req.params.id]
     );
 
+    const paymentsRes = await pool.query(
+      `SELECT p.id, p.amount, p.status, p.paid_at, p.created_at,
+              COALESCE(e.title, pl.title) AS item_title,
+              CASE WHEN p.exam_id IS NOT NULL THEN 'exam' ELSE 'playlist' END AS item_type
+       FROM payments p
+       LEFT JOIN exams e      ON e.id = p.exam_id
+       LEFT JOIN playlists pl ON pl.id = p.playlist_id
+       WHERE p.student_id = $1
+       ORDER BY p.created_at DESC`,
+      [req.params.id]
+    );
+
     res.json({
       student: studentRes.rows[0],
       submissions: subsRes.rows,
       video_views: viewsRes.rows,
+      payments: paymentsRes.rows,
     });
   } catch (err) {
     console.error(err);
