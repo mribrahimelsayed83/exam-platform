@@ -4,6 +4,7 @@ const { notifyGrade } = require('../utils/studentNotif');
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 const staff  = auth.staff;
+const perm   = auth.permission('videos');
 
 // ── Helper: extract YouTube video ID ─────────────────────────────────────
 function getYouTubeId(url) {
@@ -160,7 +161,7 @@ router.get('/playlists/:id/items', auth('student'), async (req, res) => {
 // ════════════════════════════════════════
 
 // GET /videos/manage/playlists — القوائم الرئيسية للمدرس (top-level only)
-router.get('/manage/playlists', staff, async (req, res) => {
+router.get('/manage/playlists', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
@@ -180,7 +181,7 @@ router.get('/manage/playlists', staff, async (req, res) => {
 });
 
 // GET /videos/manage/playlists/:id — فيديوهات قائمة للمدرس
-router.get('/manage/playlists/:id', staff, async (req, res) => {
+router.get('/manage/playlists/:id', staff, perm, async (req, res) => {
   try {
     const playlist = await pool.query('SELECT * FROM playlists WHERE id=$1', [req.params.id]);
     if (!playlist.rows[0]) return res.status(404).json({ message: 'مش موجودة' });
@@ -195,7 +196,7 @@ router.get('/manage/playlists/:id', staff, async (req, res) => {
 });
 
 // POST /videos/manage/playlists — إنشاء قائمة
-router.post('/manage/playlists', staff, async (req, res) => {
+router.post('/manage/playlists', staff, perm, async (req, res) => {
   const { title, description, thumbnail, grade, price } = req.body;
   if (!title || !grade)
     return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
@@ -215,7 +216,7 @@ router.post('/manage/playlists', staff, async (req, res) => {
 });
 
 // PATCH /videos/manage/playlists/:id/landing — toggle show_on_landing
-router.patch('/manage/playlists/:id/landing', staff, async (req, res) => {
+router.patch('/manage/playlists/:id/landing', staff, perm, async (req, res) => {
   try {
     const { rows: [pl] } = await pool.query(
       `UPDATE playlists SET show_on_landing = NOT show_on_landing WHERE id=$1 AND parent_id IS NULL RETURNING show_on_landing`,
@@ -229,7 +230,7 @@ router.patch('/manage/playlists/:id/landing', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/playlists/reorder — إعادة ترتيب القوائم (قبل /:id)
-router.put('/manage/playlists/reorder', staff, async (req, res) => {
+router.put('/manage/playlists/reorder', staff, perm, async (req, res) => {
   const { ids } = req.body;
   if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
   try {
@@ -243,7 +244,7 @@ router.put('/manage/playlists/reorder', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/playlists/:id — تعديل قائمة
-router.put('/manage/playlists/:id', staff, async (req, res) => {
+router.put('/manage/playlists/:id', staff, perm, async (req, res) => {
   const { title, description, thumbnail, grade, price } = req.body;
   const validPrice = Math.max(0, Number(price) || 0);
   try {
@@ -258,7 +259,7 @@ router.put('/manage/playlists/:id', staff, async (req, res) => {
 });
 
 // DELETE /videos/manage/playlists/:id
-router.delete('/manage/playlists/:id', staff, async (req, res) => {
+router.delete('/manage/playlists/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM playlists WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });
@@ -272,7 +273,7 @@ router.delete('/manage/playlists/:id', staff, async (req, res) => {
 // ════════════════════════════════════════
 
 // GET /videos/manage/playlists/:id/subs — سب-بلايليستات قائمة
-router.get('/manage/playlists/:id/subs', staff, async (req, res) => {
+router.get('/manage/playlists/:id/subs', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.id, p.title, p.description, p.thumbnail, p.grade, p.position, p.created_at,
@@ -291,7 +292,7 @@ router.get('/manage/playlists/:id/subs', staff, async (req, res) => {
 });
 
 // POST /videos/manage/playlists/:id/subs — إنشاء سب-بلايليست
-router.post('/manage/playlists/:id/subs', staff, async (req, res) => {
+router.post('/manage/playlists/:id/subs', staff, perm, async (req, res) => {
   const { title, description, thumbnail } = req.body;
   if (!title) return res.status(400).json({ message: 'العنوان مطلوب' });
   try {
@@ -313,7 +314,7 @@ router.post('/manage/playlists/:id/subs', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/playlists/subs/reorder — إعادة ترتيب السب-بلايليستات
-router.put('/manage/playlists/subs/reorder', staff, async (req, res) => {
+router.put('/manage/playlists/subs/reorder', staff, perm, async (req, res) => {
   const { ids } = req.body;
   if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
   try {
@@ -331,7 +332,7 @@ router.put('/manage/playlists/subs/reorder', staff, async (req, res) => {
 // ════════════════════════════════════════
 
 // GET /videos/manage/playlists/:id/items — محتوى سب-بلايليست
-router.get('/manage/playlists/:id/items', staff, async (req, res) => {
+router.get('/manage/playlists/:id/items', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT pi.id, pi.type, pi.title, pi.description, pi.position,
@@ -350,7 +351,7 @@ router.get('/manage/playlists/:id/items', staff, async (req, res) => {
 });
 
 // POST /videos/manage/playlists/:id/items — إضافة عنصر
-router.post('/manage/playlists/:id/items', staff, async (req, res) => {
+router.post('/manage/playlists/:id/items', staff, perm, async (req, res) => {
   const { type, title, description, youtube_url, exam_id, file_url, file_name, file_data } = req.body;
   if (!type || !title) return res.status(400).json({ message: 'النوع والعنوان مطلوبان' });
   if (type === 'video') {
@@ -394,7 +395,7 @@ router.post('/manage/playlists/:id/items', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/items/reorder — إعادة ترتيب العناصر (قبل /:id)
-router.put('/manage/items/reorder', staff, async (req, res) => {
+router.put('/manage/items/reorder', staff, perm, async (req, res) => {
   const { ids } = req.body;
   if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
   try {
@@ -408,7 +409,7 @@ router.put('/manage/items/reorder', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/items/:id — تعديل عنصر
-router.put('/manage/items/:id', staff, async (req, res) => {
+router.put('/manage/items/:id', staff, perm, async (req, res) => {
   const { title, description, youtube_url, exam_id, file_url, file_name, file_data } = req.body;
   if (youtube_url && !getYouTubeId(youtube_url))
     return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
@@ -438,7 +439,7 @@ router.put('/manage/items/:id', staff, async (req, res) => {
 });
 
 // GET /videos/manage/items/:id/download — تنزيل ملف مرفوع
-router.get('/manage/items/:id/download', staff, async (req, res) => {
+router.get('/manage/items/:id/download', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT file_name, file_data FROM playlist_items WHERE id=$1',
@@ -481,7 +482,7 @@ router.get('/items/:id/download', auth('student'), async (req, res) => {
 });
 
 // DELETE /videos/manage/items/:id — حذف عنصر
-router.delete('/manage/items/:id', staff, async (req, res) => {
+router.delete('/manage/items/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM playlist_items WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });
@@ -491,7 +492,7 @@ router.delete('/manage/items/:id', staff, async (req, res) => {
 });
 
 // GET /videos/manage/exams-list — قائمة الامتحانات للإضافة في السب-بلايليست
-router.get('/manage/exams-list', staff, async (req, res) => {
+router.get('/manage/exams-list', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT id, title, grade FROM exams WHERE is_active=TRUE ORDER BY grade, created_at DESC'
@@ -503,7 +504,7 @@ router.get('/manage/exams-list', staff, async (req, res) => {
 });
 
 // POST /videos/manage/playlists/:id/videos — إضافة فيديو
-router.post('/manage/playlists/:id/videos', staff, async (req, res) => {
+router.post('/manage/playlists/:id/videos', staff, perm, async (req, res) => {
   const { title, youtube_url, description } = req.body;
   if (!title || !youtube_url)
     return res.status(400).json({ message: 'العنوان والرابط مطلوبان' });
@@ -527,7 +528,7 @@ router.post('/manage/playlists/:id/videos', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/videos/reorder — إعادة ترتيب الفيديوهات (قبل /:id)
-router.put('/manage/videos/reorder', staff, async (req, res) => {
+router.put('/manage/videos/reorder', staff, perm, async (req, res) => {
   const { ids } = req.body;
   if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
   try {
@@ -541,7 +542,7 @@ router.put('/manage/videos/reorder', staff, async (req, res) => {
 });
 
 // PUT /videos/manage/videos/:id — تعديل فيديو
-router.put('/manage/videos/:id', staff, async (req, res) => {
+router.put('/manage/videos/:id', staff, perm, async (req, res) => {
   const { title, youtube_url, description } = req.body;
   if (youtube_url && !getYouTubeId(youtube_url))
     return res.status(400).json({ message: 'رابط YouTube غير صحيح' });
@@ -557,7 +558,7 @@ router.put('/manage/videos/:id', staff, async (req, res) => {
 });
 
 // DELETE /videos/manage/videos/:id
-router.delete('/manage/videos/:id', staff, async (req, res) => {
+router.delete('/manage/videos/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM videos WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });
@@ -692,7 +693,7 @@ router.post('/:id/comments', auth('student'), async (req, res) => {
 });
 
 // GET /videos/manage/:id/comments — للمدرس
-router.get('/manage/:id/comments', staff, async (req, res) => {
+router.get('/manage/:id/comments', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c.id, c.body, c.created_at, s.name AS student_name, s.grade
@@ -709,7 +710,7 @@ router.get('/manage/:id/comments', staff, async (req, res) => {
 });
 
 // DELETE /videos/manage/comments/:id — المدرس يحذف كومنت
-router.delete('/manage/comments/:id', staff, async (req, res) => {
+router.delete('/manage/comments/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM video_comments WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });

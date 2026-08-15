@@ -120,6 +120,20 @@ export default function StudentDetail({ studentId, onBack }) {
               }
             </span>
           </div>
+          <div>
+            <span className="text-xs font-bold text-slate-400 block mb-0.5">المحافظة / المدينة</span>
+            <span className="text-slate-700">
+              {student.governorate || student.city
+                ? `${student.governorate || '—'} — ${student.city || '—'}`
+                : <span className="text-slate-400">—</span>}
+            </span>
+          </div>
+          <div>
+            <span className="text-xs font-bold text-slate-400 block mb-0.5">كود التفعيل</span>
+            <span className="inline-flex items-center gap-1.5 font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded" dir="ltr">
+              {student.activation_code || '—'}
+            </span>
+          </div>
         </div>
       </div>
 

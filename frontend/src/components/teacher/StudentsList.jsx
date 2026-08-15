@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import StudentDetail from './StudentDetail';
+import { EGYPT_GOVERNORATES } from '../../utils/governorates';
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 const gradeLabel = (g) => GRADES[g] || '—';
@@ -320,6 +321,8 @@ function EditStudentModal({ student, onClose, onSave }) {
     phone:        student.phone       || '',
     parent_phone: student.parent_phone|| '',
     email:        student.email       || '',
+    governorate:  student.governorate || '',
+    city:         student.city        || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
@@ -387,6 +390,18 @@ function EditStudentModal({ student, onClose, onSave }) {
             <input className="input" type="email" value={form.email} dir="ltr"
               onChange={e => set('email', e.target.value)}/>
           </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="المحافظة">
+              <select className="input" value={form.governorate} onChange={e => set('governorate', e.target.value)}>
+                <option value="">—</option>
+                {EGYPT_GOVERNORATES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </Field>
+            <Field label="المدينة">
+              <input className="input" value={form.city} onChange={e => set('city', e.target.value)}/>
+            </Field>
+          </div>
 
         </div>
 

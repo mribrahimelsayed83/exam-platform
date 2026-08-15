@@ -5,6 +5,7 @@ import NotificationBell from './NotificationBell';
 import TeacherNotificationBell from './TeacherNotificationBell';
 import StudentChat from './StudentChat';
 import SearchModal from './SearchModal';
+import PushPrompt from './PushPrompt';
 import api from '../../utils/api';
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
@@ -277,6 +278,11 @@ export default function Navbar({ title }) {
         </div>
       </div>
     </nav>
+    {user && (
+      <div className="max-w-6xl mx-auto px-4 pt-3">
+        <PushPrompt/>
+      </div>
+    )}
     </>
   );
 }

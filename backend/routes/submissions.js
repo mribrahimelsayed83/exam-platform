@@ -3,6 +3,7 @@ const notify = require('../utils/teacherNotif');
 const pool   = require('../db/pool');
 const auth          = require('../middleware/auth');
 const staff         = auth.staff;
+const perm          = auth.permission('submissions');
 
 // ── POST /submissions — student submits exam ──────────────────────────────
 router.post('/', auth('student'), async (req, res) => {
@@ -213,7 +214,7 @@ router.get('/my-report', auth('student'), async (req, res) => {
 });
 
 // ── GET /submissions — staff sees all ────────────────────────────────────
-router.get('/', staff, async (req, res) => {
+router.get('/', staff, perm, async (req, res) => {
   try {
     const { exam_id, grade, grading_status } = req.query;
     let query = `
@@ -239,7 +240,7 @@ router.get('/', staff, async (req, res) => {
 });
 
 // ── GET /submissions/:id — full detail for staff ──────────────────────────
-router.get('/:id', staff, async (req, res) => {
+router.get('/:id', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT s.*,
@@ -259,7 +260,7 @@ router.get('/:id', staff, async (req, res) => {
 });
 
 // ── PUT /submissions/:id/grade-essay — staff grades essay questions ────────
-router.put('/:id/grade-essay', staff, async (req, res) => {
+router.put('/:id/grade-essay', staff, perm, async (req, res) => {
   // body: { grades: { questionId: { score: 8, comment: 'كويس' } } }
   const { grades } = req.body;
   if (!grades) return res.status(400).json({ message: 'grades مطلوبة' });
@@ -341,7 +342,7 @@ router.put('/:id/grade-essay', staff, async (req, res) => {
 });
 
 // ── DELETE /submissions/:id/retake — staff deletes submission to allow retake
-router.delete('/:id/retake', staff, async (req, res) => {
+router.delete('/:id/retake', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       'DELETE FROM submissions WHERE id=$1 RETURNING id, student_id, exam_id',

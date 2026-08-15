@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import SEO from '../components/SEO';
+import { EGYPT_GOVERNORATES } from '../utils/governorates';
 
 const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
     first_name:'', last_name:'', username:'', email:'',
-    grade:'', phone:'', parent_phone:'', password:'', confirm:''
+    grade:'', phone:'', parent_phone:'', governorate:'', city:'', password:'', confirm:''
   });
   const [error, setError]     = useState('');
   const [success, setSuccess] = useState('');
@@ -33,6 +34,8 @@ export default function RegisterPage() {
         grade:        Number(form.grade),
         phone:        form.phone,
         parent_phone: form.parent_phone,
+        governorate:  form.governorate,
+        city:         form.city,
       });
       setSuccess('✅ تم إرسال طلب التسجيل — في انتظار موافقة المدرس');
       setTimeout(() => navigate('/login'), 2500);
@@ -113,6 +116,22 @@ export default function RegisterPage() {
               <input className="input" placeholder="01xxxxxxxxx" value={form.parent_phone}
                 onChange={e=>set('parent_phone',e.target.value.replace(/\D/g,'').slice(0,11))}
                 pattern="01[0-9]{9}" maxLength={11} inputMode="numeric" required/>
+            </div>
+          </div>
+
+          {/* Location row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">المحافظة *</label>
+              <select className="input" value={form.governorate} onChange={e=>set('governorate',e.target.value)} required>
+                <option value="">اختار المحافظة</option>
+                {EGYPT_GOVERNORATES.map(g => <option key={g} value={g}>{g}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1">المدينة *</label>
+              <input className="input" placeholder="اسم المدينة أو المركز" value={form.city}
+                onChange={e=>set('city',e.target.value)} required/>
             </div>
           </div>
 

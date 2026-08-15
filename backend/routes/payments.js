@@ -3,6 +3,7 @@ const router  = express.Router();
 const crypto  = require('crypto');
 const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
+const perm    = auth.permission('payments');
 
 const PAYMOB_SECRET_KEY     = process.env.PAYMOB_API_KEY;        // egy_sk_test_...
 const PAYMOB_PUBLIC_KEY     = process.env.PAYMOB_PUBLIC_KEY;     // egy_pk_test_...
@@ -227,7 +228,7 @@ router.get('/check-playlist/:playlistId', auth('student'), async (req, res) => {
 });
 
 // ── GET /api/payments/exam/:examId — teacher sees who paid ──────────────────
-router.get('/exam/:examId', auth.staff, async (req, res) => {
+router.get('/exam/:examId', auth.staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT p.id, p.amount, p.status, p.paid_at, p.created_at,
@@ -245,7 +246,7 @@ router.get('/exam/:examId', auth.staff, async (req, res) => {
 });
 
 // ── GET /api/payments/playlist/:playlistId — teacher sees who paid ──────────
-router.get('/playlist/:playlistId', auth.staff, async (req, res) => {
+router.get('/playlist/:playlistId', auth.staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT p.id, p.amount, p.status, p.paid_at, p.created_at,
@@ -262,43 +263,85 @@ router.get('/playlist/:playlistId', auth.staff, async (req, res) => {
   }
 });
 
+// ── GET /api/payments/payable-items — paid exams/playlists, for the "activate by code" picker ─
+router.get('/payable-items', auth.staff, perm, async (req, res) => {
+  try {
+    const [exams, playlists] = await Promise.all([
+      pool.query(`SELECT id, title, grade, price FROM exams WHERE price > 0 AND is_active = TRUE ORDER BY grade, title`),
+      pool.query(`SELECT id, title, grade, price FROM playlists WHERE price > 0 AND parent_id IS NULL ORDER BY grade, title`),
+    ]);
+    res.json({ exams: exams.rows, playlists: playlists.rows });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// Shared by /mark-paid and /activate-by-code — marks one exam or playlist as paid for a student.
+async function activatePayment(studentId, examId, playlistId) {
+  if (examId) {
+    const { rows: [exam] } = await pool.query('SELECT price FROM exams WHERE id=$1', [examId]);
+    if (!exam) return { error: 'الامتحان غير موجود' };
+    await pool.query(
+      `INSERT INTO payments (student_id, exam_id, amount, status, paid_at)
+       VALUES ($1,$2,$3,'paid',NOW())
+       ON CONFLICT (student_id, exam_id)
+       DO UPDATE SET status='paid', paid_at=NOW()`,
+      [studentId, examId, exam.price || 0]
+    );
+  } else {
+    const { rows: [pl] } = await pool.query('SELECT price FROM playlists WHERE id=$1', [playlistId]);
+    if (!pl) return { error: 'القائمة غير موجودة' };
+    await pool.query(
+      `INSERT INTO payments (student_id, playlist_id, amount, status, paid_at)
+       VALUES ($1,$2,$3,'paid',NOW())
+       ON CONFLICT (student_id, playlist_id) WHERE playlist_id IS NOT NULL
+       DO UPDATE SET status='paid', paid_at=NOW()`,
+      [studentId, playlistId, pl.price || 0]
+    );
+  }
+  return { error: null };
+}
+
 // ── POST /api/payments/mark-paid — teacher marks a student as paid manually ─
 // Accepts either { studentId, examId } or { studentId, playlistId }.
-router.post('/mark-paid', auth.staff, async (req, res) => {
+router.post('/mark-paid', auth.staff, perm, async (req, res) => {
   try {
     const { studentId, examId, playlistId } = req.body;
     if (!examId && !playlistId)
       return res.status(400).json({ message: 'يجب تحديد امتحان أو قائمة' });
-
-    if (examId) {
-      const { rows: [exam] } = await pool.query('SELECT price FROM exams WHERE id=$1', [examId]);
-      if (!exam) return res.status(404).json({ message: 'الامتحان غير موجود' });
-      await pool.query(
-        `INSERT INTO payments (student_id, exam_id, amount, status, paid_at)
-         VALUES ($1,$2,$3,'paid',NOW())
-         ON CONFLICT (student_id, exam_id)
-         DO UPDATE SET status='paid', paid_at=NOW()`,
-        [studentId, examId, exam.price || 0]
-      );
-    } else {
-      const { rows: [pl] } = await pool.query('SELECT price FROM playlists WHERE id=$1', [playlistId]);
-      if (!pl) return res.status(404).json({ message: 'القائمة غير موجودة' });
-      await pool.query(
-        `INSERT INTO payments (student_id, playlist_id, amount, status, paid_at)
-         VALUES ($1,$2,$3,'paid',NOW())
-         ON CONFLICT (student_id, playlist_id) WHERE playlist_id IS NOT NULL
-         DO UPDATE SET status='paid', paid_at=NOW()`,
-        [studentId, playlistId, pl.price || 0]
-      );
-    }
+    const { error } = await activatePayment(studentId, examId, playlistId);
+    if (error) return res.status(404).json({ message: error });
     res.json({ message: 'تم تفعيل الوصول يدوياً' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
 
+// ── POST /api/payments/activate-by-code — same, but looks the student up by
+// their personal activation code instead of an id (for cash/Vodafone-Cash
+// payments made outside the platform — the student reads their code out loud). ─
+router.post('/activate-by-code', auth.staff, perm, async (req, res) => {
+  try {
+    const { code, examId, playlistId } = req.body;
+    if (!code) return res.status(400).json({ message: 'الكود مطلوب' });
+    if (!examId && !playlistId)
+      return res.status(400).json({ message: 'يجب تحديد امتحان أو قائمة' });
+
+    const { rows: [student] } = await pool.query(
+      'SELECT id, name FROM students WHERE activation_code=$1', [code.trim().toUpperCase()]
+    );
+    if (!student) return res.status(404).json({ message: 'الكود غير صحيح — تأكد من الطالب' });
+
+    const { error } = await activatePayment(student.id, examId, playlistId);
+    if (error) return res.status(404).json({ message: error });
+    res.json({ message: `تم تفعيل الوصول لـ ${student.name}`, studentName: student.name });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── GET /api/payments/overview — teacher payments dashboard ─────────────────
-router.get('/overview', auth.staff, async (req, res) => {
+router.get('/overview', auth.staff, perm, async (req, res) => {
   try {
     const totalsQ = pool.query(`
       SELECT

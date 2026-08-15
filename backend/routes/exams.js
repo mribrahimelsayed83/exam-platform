@@ -2,6 +2,7 @@ const router = require('express').Router();
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 const staff  = auth.staff;
+const perm   = auth.permission('exams');
 const { notifyGrade } = require('../utils/studentNotif');
 
 router.get('/', auth('student'), async (req, res) => {
@@ -47,7 +48,7 @@ router.get('/', auth('student'), async (req, res) => {
   }
 });
 
-router.get('/all', staff, async (req, res) => {
+router.get('/all', staff, perm, async (req, res) => {
   try {
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
@@ -68,7 +69,7 @@ router.get('/all', staff, async (req, res) => {
 });
 
 // ── GET /exams/:id/questions/edit — staff gets questions with correct answers ──
-router.get('/:id/questions/edit', staff, async (req, res) => {
+router.get('/:id/questions/edit', staff, perm, async (req, res) => {
   try {
     const questions = await pool.query(
       `SELECT id, text, type, options, correct, max_score, position
@@ -82,7 +83,7 @@ router.get('/:id/questions/edit', staff, async (req, res) => {
 });
 
 // ── PUT /exams/:id/questions — staff replaces all questions ───────────────
-router.put('/:id/questions', staff, async (req, res) => {
+router.put('/:id/questions', staff, perm, async (req, res) => {
   const { questions } = req.body;
   if (!questions?.length)
     return res.status(400).json({ message: 'لازم يكون فيه سؤال واحد على الأقل' });
@@ -188,7 +189,7 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
   }
 });
 
-router.post('/', staff, async (req, res) => {
+router.post('/', staff, perm, async (req, res) => {
   const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment,
           shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade || !questions?.length)
@@ -244,7 +245,7 @@ router.post('/', staff, async (req, res) => {
 });
 
 // ── PUT /exams/reorder — reorder exams by teacher ──────────────────────────
-router.put('/reorder', staff, async (req, res) => {
+router.put('/reorder', staff, perm, async (req, res) => {
   const { ids } = req.body;
   if (!Array.isArray(ids)) return res.status(400).json({ message: 'ids مطلوب' });
   const client = await pool.connect();
@@ -262,7 +263,7 @@ router.put('/reorder', staff, async (req, res) => {
 });
 
 // ── PUT /exams/:id — edit exam ────────────────────────────────────────────
-router.put('/:id', staff, async (req, res) => {
+router.put('/:id', staff, perm, async (req, res) => {
   const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
           shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
@@ -289,7 +290,7 @@ router.put('/:id', staff, async (req, res) => {
 });
 
 // ── PUT /exams/:id/comment — update exam comment ──────────────────────────
-router.put('/:id/comment', staff, async (req, res) => {
+router.put('/:id/comment', staff, perm, async (req, res) => {
   try {
     await pool.query(
       'UPDATE exams SET exam_comment=$1 WHERE id=$2',
@@ -301,7 +302,7 @@ router.put('/:id/comment', staff, async (req, res) => {
   }
 });
 
-router.put('/:id/toggle', staff, async (req, res) => {
+router.put('/:id/toggle', staff, perm, async (req, res) => {
   try {
     const r = await pool.query(
       'UPDATE exams SET is_active=NOT is_active WHERE id=$1 RETURNING is_active', [req.params.id]

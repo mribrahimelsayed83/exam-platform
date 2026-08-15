@@ -1,4 +1,5 @@
 const pool = require('../db/pool');
+const { pushToStaff } = require('./webPush');
 
 async function notify(type, title, body, linkType = null, linkId = null) {
   try {
@@ -7,6 +8,7 @@ async function notify(type, title, body, linkType = null, linkId = null) {
        VALUES ($1, $2, $3, $4, $5)`,
       [type, title, body, linkType, linkId]
     );
+    pushToStaff({ title, body, url: '/teacher' }).catch(() => {});
   } catch (err) {
     console.error('Teacher notification error:', err.message);
   }

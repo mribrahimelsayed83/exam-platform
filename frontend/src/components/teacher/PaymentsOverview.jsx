@@ -21,12 +21,13 @@ export default function PaymentsOverview() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterType, setFilterType]     = useState('');
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true);
-    api.get('/payments/overview')
+    return api.get('/payments/overview')
       .then(({ data }) => setData(data))
       .finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(() => { load(); }, []);
 
   if (loading) return (
     <div className="flex justify-center py-16">
@@ -78,6 +79,8 @@ export default function PaymentsOverview() {
         )}
       </div>
       <p className="text-slate-500 text-sm mb-5">إيرادات الامتحانات والقوائم المدفوعة</p>
+
+      <ActivateByCode onActivated={load} />
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -197,6 +200,88 @@ export default function PaymentsOverview() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Activate a paid exam/course for a student using their personal code ────
+// Useful when the student paid outside the platform (cash / Vodafone Cash)
+// and dictates their code to the teacher over the phone.
+function ActivateByCode({ onActivated }) {
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState(null);
+  const [code, setCode] = useState('');
+  const [selected, setSelected] = useState(''); // "exam-3" or "playlist-7"
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState(null); // { ok, text }
+
+  useEffect(() => {
+    if (open && !items) {
+      api.get('/payments/payable-items').then(({ data }) => setItems(data)).catch(() => setItems({ exams: [], playlists: [] }));
+    }
+  }, [open]);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!code.trim() || !selected) return;
+    const [type, id] = selected.split('-');
+    setLoading(true);
+    setMessage(null);
+    try {
+      const { data } = await api.post('/payments/activate-by-code', {
+        code: code.trim(),
+        ...(type === 'exam' ? { examId: Number(id) } : { playlistId: Number(id) }),
+      });
+      setMessage({ ok: true, text: data.message });
+      setCode(''); setSelected('');
+      onActivated?.();
+    } catch (err) {
+      setMessage({ ok: false, text: err.response?.data?.message || 'حدث خطأ' });
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="card mb-6">
+      <button onClick={() => setOpen(o => !o)} className="flex items-center justify-between w-full text-right">
+        <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">🔑 تفعيل بالكود</h3>
+        <span className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}>▼</span>
+      </button>
+      {open && (
+        <div className="mt-4">
+          <p className="text-xs text-slate-400 mb-3">
+            لطالب دفع خارج المنصة (كاش / فودافون كاش) — استخدم كود التفعيل الخاص به (موجود في صفحة بياناته) لتفعيل امتحان أو قائمة مدفوعة يدويًا.
+          </p>
+          <form onSubmit={submit} className="grid sm:grid-cols-3 gap-3">
+            <input className="input font-mono" dir="ltr" placeholder="كود الطالب" value={code}
+              onChange={e => setCode(e.target.value.toUpperCase())} required />
+            <select className="input" value={selected} onChange={e => setSelected(e.target.value)} required>
+              <option value="">اختر امتحان أو قائمة مدفوعة</option>
+              {items?.exams?.length > 0 && (
+                <optgroup label="📝 امتحانات">
+                  {items.exams.map(e => (
+                    <option key={`exam-${e.id}`} value={`exam-${e.id}`}>{e.title} ({e.price} جنيه)</option>
+                  ))}
+                </optgroup>
+              )}
+              {items?.playlists?.length > 0 && (
+                <optgroup label="🎬 قوائم">
+                  {items.playlists.map(p => (
+                    <option key={`playlist-${p.id}`} value={`playlist-${p.id}`}>{p.title} ({p.price} جنيه)</option>
+                  ))}
+                </optgroup>
+              )}
+            </select>
+            <button type="submit" className="btn-primary" disabled={loading}>
+              {loading ? '...جاري التفعيل' : 'تفعيل'}
+            </button>
+          </form>
+          {message && (
+            <p className={`text-sm font-semibold mt-3 ${message.ok ? 'text-emerald-600' : 'text-red-600'}`}>
+              {message.ok ? '✅' : '⚠️'} {message.text}
+            </p>
+          )}
         </div>
       )}
     </div>

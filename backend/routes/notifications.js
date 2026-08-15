@@ -2,9 +2,10 @@ const router = require('express').Router();
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
 const staff  = auth.staff;
+const perm   = auth.permission('notifications');
 
 // ── Staff: إرسال إشعار ────────────────────────────────────────────────────
-router.post('/', staff, async (req, res) => {
+router.post('/', staff, perm, async (req, res) => {
   const { title, body, grade } = req.body;
   if (!title || !body)
     return res.status(400).json({ message: 'العنوان والمحتوى مطلوبان' });
@@ -22,7 +23,7 @@ router.post('/', staff, async (req, res) => {
 });
 
 // ── Staff: قائمة الإشعارات المُرسَلة ─────────────────────────────────────
-router.get('/sent', staff, async (req, res) => {
+router.get('/sent', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT n.*, t.name AS sender_name,
@@ -40,7 +41,7 @@ router.get('/sent', staff, async (req, res) => {
 });
 
 // ── Staff: حذف مجموعة إشعارات ────────────────────────────────────────────
-router.post('/bulk-delete', staff, async (req, res) => {
+router.post('/bulk-delete', staff, perm, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0)
@@ -53,7 +54,7 @@ router.post('/bulk-delete', staff, async (req, res) => {
 });
 
 // ── Staff: حذف إشعار ─────────────────────────────────────────────────────
-router.delete('/:id', staff, async (req, res) => {
+router.delete('/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM notifications WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم الحذف' });

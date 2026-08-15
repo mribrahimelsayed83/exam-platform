@@ -93,6 +93,18 @@ export default function StudentDashboard() {
             </div>
           </div>
 
+          {/* Activation code — used by the teacher to unlock a paid exam/course
+              after an off-platform payment (cash / Vodafone Cash) */}
+          {user?.activation_code && (
+            <div className="mb-10 flex items-center justify-between gap-3 bg-white border border-slate-200 rounded-2xl px-5 py-4 dark:bg-slate-800 dark:border-slate-700">
+              <div>
+                <p className="text-xs font-bold text-slate-400 mb-1">كودك الشخصي — استخدمه لتفعيل اشتراك مدفوع خارج المنصة</p>
+                <p className="font-mono font-extrabold text-xl text-blue-700 tracking-widest" dir="ltr">{user.activation_code}</p>
+              </div>
+              <CopyCodeButton code={user.activation_code} />
+            </div>
+          )}
+
           {/* 4 Big Blocks */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-5">
             <HomeBlock
@@ -189,6 +201,23 @@ export default function StudentDashboard() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Copy activation code button ──────────────────────────────────────────
+function CopyCodeButton({ code }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(code);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {}
+  };
+  return (
+    <button onClick={copy} className="btn-secondary btn-sm whitespace-nowrap flex-shrink-0">
+      {copied ? '✅ تم النسخ' : '📋 نسخ'}
+    </button>
   );
 }
 

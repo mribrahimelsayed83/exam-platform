@@ -5,6 +5,7 @@ const helmet      = require('helmet');
 const rateLimit   = require('express-rate-limit');
 const compression = require('compression');
 const pool        = require('./db/pool');
+const { generateUniqueActivationCode } = require('./utils/activationCode');
 
 // ── Auto-migration: run on every startup (safe — uses IF NOT EXISTS) ──────
 async function runMigrations() {
@@ -263,6 +264,54 @@ async function runMigrations() {
     // Track when a student last logged in
     await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ DEFAULT NULL;`);
 
+    // Per-assistant permissions (which dashboard sections they can access).
+    // Default is NULL, not '[]' — the backfill below only ever touches rows
+    // that were never configured, so a teacher who deliberately empties an
+    // assistant's permissions never gets overwritten back to "all" on the
+    // next server restart.
+    await pool.query(`ALTER TABLE assistants ADD COLUMN IF NOT EXISTS permissions TEXT DEFAULT NULL;`);
+    await pool.query(`
+      UPDATE assistants SET permissions =
+        '["exams","submissions","students","videos","chat","notifications","payments"]'
+      WHERE permissions IS NULL;
+    `);
+
+    // Student profile — governorate/city, and a permanent short lookup code
+    // the teacher can use to manually activate a paid exam/course for a
+    // student (e.g. after an off-platform cash/Vodafone-Cash payment).
+    await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS governorate TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS city TEXT DEFAULT '';`);
+    await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS activation_code TEXT;`);
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS uq_students_activation_code
+        ON students(activation_code) WHERE activation_code IS NOT NULL;
+    `);
+    // Backfill codes only for rows that don't have one yet (new registrations
+    // generate their own code at insert time — see routes/auth.js).
+    try {
+      const { rows: needCode } = await pool.query('SELECT id FROM students WHERE activation_code IS NULL');
+      for (const s of needCode) {
+        const code = await generateUniqueActivationCode(pool);
+        await pool.query('UPDATE students SET activation_code=$1 WHERE id=$2', [code, s.id]);
+      }
+    } catch (err) {
+      console.error('⚠️  Activation-code backfill skipped:', err.message);
+    }
+
+    // Web Push subscriptions — one row per browser/device a user enabled notifications on.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS push_subscriptions (
+        id         SERIAL PRIMARY KEY,
+        user_role  TEXT NOT NULL CHECK (user_role IN ('student','teacher','assistant')),
+        user_id    INTEGER NOT NULL,
+        endpoint   TEXT NOT NULL UNIQUE,
+        p256dh     TEXT NOT NULL,
+        auth       TEXT NOT NULL,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_role, user_id);`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
@@ -337,6 +386,7 @@ app.use('/api/landing',        require('./routes/landing'));
 app.use('/api/personal-exam', require('./routes/personalExam'));
 app.use('/api/payments',      require('./routes/payments'));
 app.use('/api/chat',          require('./routes/chat'));
+app.use('/api/push',          require('./routes/push'));
 app.use('/api/search',        searchLimiter, require('./routes/search'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));

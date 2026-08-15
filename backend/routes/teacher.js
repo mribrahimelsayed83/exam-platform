@@ -5,13 +5,15 @@ const auth   = require('../middleware/auth');
 const { notifyStudent } = require('../utils/studentNotif');
 
 const staff = auth.staff;
+const perm  = auth.permission('students');
 
 // ── GET /teacher/students/:id ─────────────────────────────────────────────
-router.get('/students/:id', staff, async (req, res) => {
+router.get('/students/:id', staff, perm, async (req, res) => {
   try {
     const studentRes = await pool.query(
       `SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
               st.email, st.status, st.created_at, st.last_login_at,
+              st.governorate, st.city, st.activation_code,
               t.name AS approved_by_name,
               a.name AS approved_by_asst_name
        FROM students st
@@ -67,12 +69,13 @@ router.get('/students/:id', staff, async (req, res) => {
 });
 
 // ── GET /teacher/students ─────────────────────────────────────────────────
-router.get('/students', staff, async (req, res) => {
+router.get('/students', staff, perm, async (req, res) => {
   try {
     const { status } = req.query;
     let query = `
       SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
              st.email, st.status, st.created_at, st.approved_at,
+             st.governorate, st.city, st.activation_code,
              t.name AS approved_by_name,
              a.name AS approved_by_asst_name,
              COUNT(s.id)::int AS submission_count,
@@ -97,7 +100,7 @@ router.get('/students', staff, async (req, res) => {
 });
 
 // ── Approve ───────────────────────────────────────────────────────────────
-router.put('/students/:id/approve', staff, async (req, res) => {
+router.put('/students/:id/approve', staff, perm, async (req, res) => {
   try {
     const { id, role } = req.user;
     const col = role === 'teacher' ? 'approved_by' : 'approved_by_asst';
@@ -113,7 +116,7 @@ router.put('/students/:id/approve', staff, async (req, res) => {
 });
 
 // ── Reject ────────────────────────────────────────────────────────────────
-router.put('/students/:id/reject', staff, async (req, res) => {
+router.put('/students/:id/reject', staff, perm, async (req, res) => {
   try {
     await pool.query(`UPDATE students SET status='rejected' WHERE id=$1`, [req.params.id]);
     res.json({ message: 'تم رفض الطالب' });
@@ -123,8 +126,8 @@ router.put('/students/:id/reject', staff, async (req, res) => {
 });
 
 // ── Edit ──────────────────────────────────────────────────────────────────
-router.put('/students/:id', staff, async (req, res) => {
-  const { name, grade, phone, parent_phone, email, username } = req.body;
+router.put('/students/:id', staff, perm, async (req, res) => {
+  const { name, grade, phone, parent_phone, email, username, governorate, city } = req.body;
   try {
     // Check username uniqueness if changed
     if (username) {
@@ -146,9 +149,11 @@ router.put('/students/:id', staff, async (req, res) => {
     await pool.query(
       `UPDATE students SET name=$1, grade=$2, phone=$3, parent_phone=$4,
         email=COALESCE(NULLIF($5,''), email),
-        username=COALESCE(NULLIF($6,''), username)
-       WHERE id=$7`,
-      [name, grade, phone, parent_phone, email||'', username||'', req.params.id]
+        username=COALESCE(NULLIF($6,''), username),
+        governorate=COALESCE(NULLIF($7,''), governorate),
+        city=COALESCE(NULLIF($8,''), city)
+       WHERE id=$9`,
+      [name, grade, phone, parent_phone, email||'', username||'', governorate||'', city||'', req.params.id]
     );
     res.json({ message: 'تم تعديل بيانات الطالب' });
   } catch (err) {
@@ -177,7 +182,7 @@ router.post('/students/:id/reset-password', auth('teacher'), async (req, res) =>
 });
 
 // ── Delete ────────────────────────────────────────────────────────────────
-router.delete('/students/:id', staff, async (req, res) => {
+router.delete('/students/:id', staff, perm, async (req, res) => {
   try {
     await pool.query('DELETE FROM students WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم حذف الطالب' });
@@ -186,31 +191,40 @@ router.delete('/students/:id', staff, async (req, res) => {
   }
 });
 
-// ── Assistants ────────────────────────────────────────────────────────────
-router.get('/assistants', staff, async (req, res) => {
+// ── Assistants — teacher-exclusive: an assistant must never be able to
+// manage other assistants' accounts or permissions, even via a direct API call.
+const ALL_PERMISSIONS = ['exams', 'submissions', 'students', 'videos', 'chat', 'notifications', 'payments'];
+
+router.get('/assistants', auth('teacher'), async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, name, username, created_at FROM assistants ORDER BY created_at DESC'
+      'SELECT id, name, username, created_at, permissions FROM assistants ORDER BY created_at DESC'
     );
-    res.json(result.rows);
+    res.json(result.rows.map(a => ({
+      ...a,
+      permissions: JSON.parse(a.permissions || 'null') || ALL_PERMISSIONS,
+    })));
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });
 
 router.post('/assistants', auth('teacher'), async (req, res) => {
-  const { name, username, password } = req.body;
+  const { name, username, password, permissions } = req.body;
   if (!name || !username || !password)
     return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
   if (password.length < 6)
     return res.status(400).json({ message: 'كلمة المرور 6 حروف على الأقل' });
+  const perms = Array.isArray(permissions)
+    ? permissions.filter(p => ALL_PERMISSIONS.includes(p))
+    : ALL_PERMISSIONS;
   try {
     const exists = await pool.query('SELECT id FROM assistants WHERE username=$1', [username]);
     if (exists.rows.length) return res.status(409).json({ message: 'اسم المستخدم مستخدم' });
     const hashed = await bcrypt.hash(password, 10);
     await pool.query(
-      'INSERT INTO assistants (name, username, password) VALUES ($1,$2,$3)',
-      [name, username, hashed]
+      'INSERT INTO assistants (name, username, password, permissions) VALUES ($1,$2,$3,$4)',
+      [name, username, hashed, JSON.stringify(perms)]
     );
     res.status(201).json({ message: 'تم إضافة المساعد' });
   } catch (err) {
@@ -222,6 +236,20 @@ router.delete('/assistants/:id', auth('teacher'), async (req, res) => {
   try {
     await pool.query('DELETE FROM assistants WHERE id=$1', [req.params.id]);
     res.json({ message: 'تم حذف المساعد' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── PUT /teacher/assistants/:id/permissions ────────────────────────────────
+router.put('/assistants/:id/permissions', auth('teacher'), async (req, res) => {
+  const { permissions } = req.body;
+  if (!Array.isArray(permissions))
+    return res.status(400).json({ message: 'صلاحيات غير صحيحة' });
+  const perms = permissions.filter(p => ALL_PERMISSIONS.includes(p));
+  try {
+    await pool.query('UPDATE assistants SET permissions=$1 WHERE id=$2', [JSON.stringify(perms), req.params.id]);
+    res.json({ message: 'تم تحديث الصلاحيات' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }

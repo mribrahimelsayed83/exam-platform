@@ -37,4 +37,19 @@ function authMiddleware(role) {
 // helper: المدرس أو المساعد
 authMiddleware.staff = authMiddleware(['teacher', 'assistant']);
 
+// helper: يتحقق إن المساعد عنده صلاحية معينة (المدرّس دايمًا عنده كل الصلاحيات).
+// بيقرا من الداتابيز مباشرة (مش من الـ JWT) عشان أي تعديل صلاحيات من المدرّس
+// يتفعّل فورًا من غير ما المساعد يحتاج يعمل تسجيل خروج ودخول تاني.
+authMiddleware.permission = (key) => async (req, res, next) => {
+  if (req.user.role === 'teacher') return next();
+  try {
+    const { rows } = await pool.query('SELECT permissions FROM assistants WHERE id=$1', [req.user.id]);
+    const perms = JSON.parse(rows[0]?.permissions || '[]');
+    if (perms.includes(key)) return next();
+    return res.status(403).json({ message: 'ممنوع — لا تملك صلاحية الوصول لهذا القسم' });
+  } catch {
+    return res.status(403).json({ message: 'ممنوع' });
+  }
+};
+
 module.exports = authMiddleware;

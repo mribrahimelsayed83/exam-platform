@@ -1,18 +1,48 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
 
+const PERMISSIONS = [
+  { key:'exams',         label:'📄 الامتحانات' },
+  { key:'submissions',   label:'📊 الإجابات' },
+  { key:'students',      label:'👥 الطلاب' },
+  { key:'videos',        label:'🎬 الفيديوهات' },
+  { key:'chat',          label:'💬 الرسائل' },
+  { key:'notifications', label:'🔔 الإشعارات' },
+  { key:'payments',      label:'💰 المدفوعات' },
+];
+const ALL_KEYS = PERMISSIONS.map(p => p.key);
+
+function PermissionGrid({ selected, onToggle }) {
+  return (
+    <div className="grid sm:grid-cols-2 gap-2">
+      {PERMISSIONS.map(p => (
+        <label key={p.key} className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 text-sm font-semibold text-slate-700">
+          <input type="checkbox" checked={selected.includes(p.key)} onChange={()=>onToggle(p.key)} className="w-4 h-4"/>
+          {p.label}
+        </label>
+      ))}
+    </div>
+  );
+}
+
 export default function AssistantsList() {
   const [assistants, setAssistants] = useState([]);
-  const [form, setForm]   = useState({name:'',username:'',password:''});
+  const [form, setForm]   = useState({name:'',username:'',password:'',permissions:[...ALL_KEYS]});
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [loading, setLoading] = useState(false);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(null); // assistant being edited, or null
+  const [editPerms, setEditPerms] = useState([]);
+  const [savingPerms, setSavingPerms] = useState(false);
 
   const load = () => api.get('/teacher/assistants').then(r=>setAssistants(r.data));
   useEffect(()=>{ load(); }, []);
 
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const toggleFormPerm = (key) => setForm(f=>({
+    ...f, permissions: f.permissions.includes(key) ? f.permissions.filter(k=>k!==key) : [...f.permissions, key],
+  }));
 
   const handleAdd = async (e) => {
     e.preventDefault();
@@ -20,7 +50,7 @@ export default function AssistantsList() {
     try {
       await api.post('/teacher/assistants', form);
       setSuccess('✅ تم إضافة المساعد');
-      setForm({name:'',username:'',password:''});
+      setForm({name:'',username:'',password:'',permissions:[...ALL_KEYS]});
       setShowForm(false);
       load();
     } catch(err) {
@@ -32,6 +62,19 @@ export default function AssistantsList() {
     if (!confirm('هل أنت متأكد من حذف هذا المساعد؟')) return;
     await api.delete(`/teacher/assistants/${id}`);
     load();
+  };
+
+  const openEdit = (a) => { setEditing(a); setEditPerms(a.permissions || []); };
+  const toggleEditPerm = (key) => setEditPerms(p => p.includes(key) ? p.filter(k=>k!==key) : [...p, key]);
+  const savePerms = async () => {
+    setSavingPerms(true);
+    try {
+      await api.put(`/teacher/assistants/${editing.id}/permissions`, { permissions: editPerms });
+      setEditing(null);
+      load();
+    } catch (err) {
+      alert(err.response?.data?.message || 'حدث خطأ');
+    } finally { setSavingPerms(false); }
   };
 
   return (
@@ -66,6 +109,10 @@ export default function AssistantsList() {
                 onChange={e=>set('password',e.target.value)} required/>
             </div>
             <div className="sm:col-span-3">
+              <label className="block text-xs font-bold text-slate-500 mb-2">الصلاحيات — الأقسام اللي يقدر يدخلها</label>
+              <PermissionGrid selected={form.permissions} onToggle={toggleFormPerm}/>
+            </div>
+            <div className="sm:col-span-3">
               <button type="submit" className="btn-primary" disabled={loading}>
                 {loading
                   ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/>
@@ -76,12 +123,6 @@ export default function AssistantsList() {
           </form>
         </div>
       )}
-
-      {/* صلاحيات المساعد */}
-      <div className="alert alert-info mb-5">
-        <strong>صلاحيات المساعد:</strong> موافقة/رفض الطلاب — تعديل/حذف الطلاب — عرض الإجابات — إنشاء امتحانات.
-        لا يقدر يضيف مساعدين أو يغير إعدادات المنصة.
-      </div>
 
       {assistants.length === 0 ? (
         <div className="text-center py-12 text-slate-400">
@@ -107,13 +148,31 @@ export default function AssistantsList() {
                     <td className="px-4 py-3 text-xs text-slate-400">
                       {new Date(a.created_at).toLocaleDateString('ar-EG')}
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3 flex gap-2">
+                      <button onClick={()=>openEdit(a)} className="btn-secondary btn-sm">🔑 صلاحيات</button>
                       <button onClick={()=>remove(a.id)} className="btn-danger btn-sm">حذف</button>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Edit-permissions modal */}
+      {editing && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4" onClick={()=>setEditing(null)}>
+          <div className="bg-white rounded-2xl p-5 w-full max-w-md" onClick={e=>e.stopPropagation()}>
+            <h3 className="font-bold text-slate-800 mb-1">صلاحيات {editing.name}</h3>
+            <p className="text-xs text-slate-400 mb-4">تحديد الأقسام اللي يقدر المساعد يدخلها في لوحة التحكم</p>
+            <PermissionGrid selected={editPerms} onToggle={toggleEditPerm}/>
+            <div className="flex gap-2 mt-5">
+              <button onClick={savePerms} className="btn-primary flex-1" disabled={savingPerms}>
+                {savingPerms ? '...جاري الحفظ' : 'حفظ'}
+              </button>
+              <button onClick={()=>setEditing(null)} className="btn-secondary flex-1">إلغاء</button>
+            </div>
           </div>
         </div>
       )}

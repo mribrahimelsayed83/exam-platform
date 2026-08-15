@@ -1,4 +1,5 @@
 const pool = require('../db/pool');
+const { pushToGrade, pushToUser } = require('./webPush');
 
 // Send notification to all students of a specific grade (or all grades if grade=null)
 async function notifyGrade(grade, title, body) {
@@ -7,6 +8,7 @@ async function notifyGrade(grade, title, body) {
       `INSERT INTO notifications (title, body, grade) VALUES ($1, $2, $3)`,
       [title, body, grade || null]
     );
+    pushToGrade(grade, { title, body, url: '/student' }).catch(() => {});
   } catch (err) {
     console.error('Student grade notification error:', err.message);
   }
@@ -19,6 +21,7 @@ async function notifyStudent(studentId, title, body) {
       `INSERT INTO notifications (title, body, student_id) VALUES ($1, $2, $3)`,
       [title, body, studentId]
     );
+    pushToUser('student', studentId, { title, body, url: '/student' }).catch(() => {});
   } catch (err) {
     console.error('Student notification error:', err.message);
   }

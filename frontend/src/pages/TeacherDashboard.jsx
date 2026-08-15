@@ -68,12 +68,16 @@ export default function TeacherDashboard() {
     { path:'videos',      label:'الفيديوهات',   icon:'🎬',  teacherOnly: false },
     { path:'chat',         label:'الرسائل',      icon:'💬',  teacherOnly: false },
     { path:'notifications', label:'الإشعارات',  icon:'🔔',  teacherOnly: false },
-    { path:'payments',    label:'المدفوعات',    icon:'💰',  teacherOnly: true  },
+    { path:'payments',    label:'المدفوعات',    icon:'💰',  teacherOnly: false },
     { path:'assistants',  label:'المساعدون',    icon:'🤝',  teacherOnly: true  },
     { path:'settings',    label:'الإعدادات',    icon:'⚙️',  teacherOnly: true  },
   ];
 
-  const navItems = allNavItems.filter(item => !item.teacherOnly || isTeacher);
+  // مساعد بدون صلاحية لتاب معيّن (غير teacherOnly) ميشوفوش خالص — المدرّس دايمًا يشوف كل حاجة.
+  const hasPermission = (key) => isTeacher || (user?.permissions || []).includes(key);
+  const navItems = allNavItems.filter(item =>
+    item.teacherOnly ? isTeacher : (item.path === '' || hasPermission(item.path))
+  );
   const go = (path) => navigate(path ? `/teacher/${path}` : '/teacher');
 
   return (
@@ -116,14 +120,14 @@ export default function TeacherDashboard() {
           <main className="flex-1 min-w-0 pb-20 md:pb-0">
             <Routes>
               <Route index            element={<TeacherHome />} />
-              <Route path="exams"     element={<ExamsList />} />
-              <Route path="submissions" element={<SubmissionsList />} />
-              <Route path="students"  element={<StudentsList />} />
-              <Route path="videos"    element={<VideosList />} />
-              <Route path="chat"         element={<TeacherChat />} />
-              <Route path="notifications" element={<NotificationsSender />} />
+              {hasPermission('exams')         && <Route path="exams"         element={<ExamsList />} />}
+              {hasPermission('submissions')   && <Route path="submissions"   element={<SubmissionsList />} />}
+              {hasPermission('students')      && <Route path="students"      element={<StudentsList />} />}
+              {hasPermission('videos')        && <Route path="videos"        element={<VideosList />} />}
+              {hasPermission('chat')          && <Route path="chat"          element={<TeacherChat />} />}
+              {hasPermission('notifications') && <Route path="notifications" element={<NotificationsSender />} />}
+              {hasPermission('payments')      && <Route path="payments"      element={<PaymentsOverview />} />}
               {isTeacher && <>
-                <Route path="payments"   element={<PaymentsOverview />} />
                 <Route path="assistants" element={<AssistantsList />} />
                 <Route path="settings"   element={<CombinedSettings />} />
               </>}

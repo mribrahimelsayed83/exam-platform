@@ -6,16 +6,28 @@ const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 const notify  = require('../utils/teacherNotif');
 const { sendPasswordReset } = require('../utils/sendEmail');
+const { generateUniqueActivationCode } = require('../utils/activationCode');
 
 const sign = (payload) =>
   jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN || '30d' });
 
+const EGYPT_GOVERNORATES = [
+  'القاهرة','الجيزة','الإسكندرية','الدقهلية','البحر الأحمر','البحيرة','الفيوم','الغربية',
+  'الإسماعيلية','المنوفية','المنيا','القليوبية','الوادي الجديد','السويس','أسوان','أسيوط',
+  'بني سويف','بورسعيد','دمياط','الشرقية','جنوب سيناء','كفر الشيخ','مطروح','الأقصر',
+  'قنا','شمال سيناء','سوهاج',
+];
+
 // ── Student Register ───────────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
-  const { first_name, last_name, username, password, grade, phone, parent_phone, email } = req.body;
+  const { first_name, last_name, username, password, grade, phone, parent_phone, email, governorate, city } = req.body;
 
-  if (!first_name || !last_name || !username || !password || !grade || !phone || !parent_phone || !email)
+  if (!first_name || !last_name || !username || !password || !grade || !phone || !parent_phone || !email || !governorate || !city)
     return res.status(400).json({ message: 'جميع الحقول مطلوبة' });
+  if (!EGYPT_GOVERNORATES.includes(governorate))
+    return res.status(400).json({ message: 'المحافظة غير صحيحة' });
+  if (city.trim().length < 2)
+    return res.status(400).json({ message: 'اسم المدينة غير صحيح' });
 
   const phoneRegex = /^01[0-9]{9}$/;
   if (!phoneRegex.test(phone))
@@ -42,13 +54,16 @@ router.post('/register', async (req, res) => {
 
     const hashed  = await bcrypt.hash(password, 10);
     const fullName = `${first_name.trim()} ${last_name.trim()}`;
+    const activationCode = await generateUniqueActivationCode(pool);
 
     const inserted = await pool.query(
       `INSERT INTO students
-         (first_name, last_name, name, username, password, grade, phone, parent_phone, email, status)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'pending') RETURNING id`,
+         (first_name, last_name, name, username, password, grade, phone, parent_phone, email,
+          governorate, city, activation_code, status)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending') RETURNING id`,
       [first_name.trim(), last_name.trim(), fullName,
-       username.toLowerCase(), hashed, Number(grade), phone, parent_phone, email.toLowerCase()]
+       username.toLowerCase(), hashed, Number(grade), phone, parent_phone, email.toLowerCase(),
+       governorate, city.trim(), activationCode]
     );
 
     notify('register', '📝 طلب تسجيل جديد',
@@ -148,11 +163,16 @@ router.get('/me', auth(), async (req, res) => {
     let result;
     if (role === 'teacher')
       result = await pool.query('SELECT id,name,username,subject,platform_name FROM teachers WHERE id=$1', [id]);
-    else if (role === 'assistant')
-      result = await pool.query('SELECT id,name,username FROM assistants WHERE id=$1', [id]);
-    else
+    else if (role === 'assistant') {
+      result = await pool.query('SELECT id,name,username,permissions FROM assistants WHERE id=$1', [id]);
+      if (result.rows[0]) {
+        result.rows[0].permissions = JSON.parse(result.rows[0].permissions || 'null')
+          || ['exams','submissions','students','videos','chat','notifications','payments'];
+      }
+    } else
       result = await pool.query(
         `SELECT s.id, s.name, s.username, s.grade, s.email, s.phone, s.created_at,
+                s.governorate, s.city, s.activation_code,
                 COALESCE(t.platform_name, 'منصة الامتحانات') AS platform_name
          FROM students s
          LEFT JOIN teachers t ON t.id = s.approved_by

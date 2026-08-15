@@ -3,8 +3,10 @@ const router  = express.Router();
 const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 const notify  = require('../utils/teacherNotif');
+const { pushToUser } = require('../utils/webPush');
 
 const staff = auth(['teacher', 'assistant']);
+const perm  = auth.permission('chat');
 
 // ── Student: get my messages (marks teacher messages as read) ─────────────
 router.get('/messages', auth('student'), async (req, res) => {
@@ -53,7 +55,7 @@ router.get('/unread-count', auth('student'), async (req, res) => {
 // ══ TEACHER ROUTES — specific paths BEFORE parameterized /:studentId ══════
 
 // ── Teacher: all conversations ────────────────────────────────────────────
-router.get('/teacher/conversations', staff, async (req, res) => {
+router.get('/teacher/conversations', staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT
@@ -72,7 +74,7 @@ router.get('/teacher/conversations', staff, async (req, res) => {
 });
 
 // ── Teacher: unread count ─────────────────────────────────────────────────
-router.get('/teacher/unread-count', staff, async (req, res) => {
+router.get('/teacher/unread-count', staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT COUNT(*)::int AS count FROM chat_messages
@@ -83,7 +85,7 @@ router.get('/teacher/unread-count', staff, async (req, res) => {
 });
 
 // ── Teacher: search students + assistants ─────────────────────────────────
-router.get('/teacher/search', staff, async (req, res) => {
+router.get('/teacher/search', staff, perm, async (req, res) => {
   try {
     const q = `%${(req.query.q || '').trim()}%`;
     const [s, a] = await Promise.all([
@@ -95,7 +97,7 @@ router.get('/teacher/search', staff, async (req, res) => {
 });
 
 // ── Teacher: staff conversations list ────────────────────────────────────
-router.get('/teacher/staff-conversations', staff, async (req, res) => {
+router.get('/teacher/staff-conversations', staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT
@@ -117,7 +119,7 @@ router.get('/teacher/staff-conversations', staff, async (req, res) => {
 });
 
 // ── Teacher: messages for one student — MUST be after specific routes above ─
-router.get('/teacher/:studentId', staff, async (req, res) => {
+router.get('/teacher/:studentId', staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       `SELECT * FROM chat_messages WHERE student_id=$1 ORDER BY created_at ASC`,
@@ -133,7 +135,7 @@ router.get('/teacher/:studentId', staff, async (req, res) => {
 });
 
 // ── Teacher: reply to student ─────────────────────────────────────────────
-router.post('/teacher/:studentId/reply', staff, async (req, res) => {
+router.post('/teacher/:studentId/reply', staff, perm, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
@@ -143,6 +145,9 @@ router.post('/teacher/:studentId/reply', staff, async (req, res) => {
        VALUES ($1,$2,$3,$4) RETURNING *`,
       [req.params.studentId, req.user.role, req.user.name, message.trim()]
     );
+    pushToUser('student', Number(req.params.studentId), {
+      title: `💬 رسالة من ${req.user.name}`, body: message.trim().slice(0, 100), url: '/student',
+    }).catch(() => {});
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
@@ -181,6 +186,9 @@ router.post('/assistant/send', auth('assistant'), async (req, res) => {
        VALUES ($1,'assistant',$2,$3,'teacher',$4,$5) RETURNING *`,
       [req.user.id, req.user.name, teacher.id, teacher.name, message.trim()]
     );
+    pushToUser('teacher', teacher.id, {
+      title: `💬 رسالة من ${req.user.name}`, body: message.trim().slice(0, 100), url: '/teacher/chat',
+    }).catch(() => {});
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
@@ -198,7 +206,7 @@ router.get('/assistant/unread-count', auth('assistant'), async (req, res) => {
 });
 
 // ── Teacher: messages with assistant ─────────────────────────────────────
-router.get('/staff/:assistantId', staff, async (req, res) => {
+router.get('/staff/:assistantId', staff, perm, async (req, res) => {
   try {
     const aid = req.params.assistantId;
     const { rows } = await pool.query(
@@ -216,7 +224,7 @@ router.get('/staff/:assistantId', staff, async (req, res) => {
 });
 
 // ── Teacher: send to assistant ────────────────────────────────────────────
-router.post('/staff/:assistantId/send', staff, async (req, res) => {
+router.post('/staff/:assistantId/send', staff, perm, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
@@ -228,12 +236,15 @@ router.post('/staff/:assistantId/send', staff, async (req, res) => {
       [req.user.id, req.user.role, req.user.name,
        req.params.assistantId, aRes.rows[0].name, message.trim()]
     );
+    pushToUser('assistant', Number(req.params.assistantId), {
+      title: `💬 رسالة من ${req.user.name}`, body: message.trim().slice(0, 100), url: '/teacher/chat',
+    }).catch(() => {});
     res.status(201).json(rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
 // ── Staff: edit a message (own messages only) ─────────────────────────────
-router.put('/messages/:id', staff, async (req, res) => {
+router.put('/messages/:id', staff, perm, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
@@ -248,7 +259,7 @@ router.put('/messages/:id', staff, async (req, res) => {
 });
 
 // ── Staff: delete a message (own messages only) ───────────────────────────
-router.delete('/messages/:id', staff, async (req, res) => {
+router.delete('/messages/:id', staff, perm, async (req, res) => {
   try {
     const { rows } = await pool.query(
       'DELETE FROM chat_messages WHERE id=$1 AND from_id=$2 RETURNING id',
@@ -260,7 +271,7 @@ router.delete('/messages/:id', staff, async (req, res) => {
 });
 
 // ── Staff: bulk delete messages ───────────────────────────────────────────
-router.post('/messages/bulk-delete', staff, async (req, res) => {
+router.post('/messages/bulk-delete', staff, perm, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0)
