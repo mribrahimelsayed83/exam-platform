@@ -5,6 +5,7 @@ import mr from '../mr.png';
 import { useAuth } from '../context/AuthContext';
 import SEO from '../components/SEO';
 import { FaSun, FaMoon, FaGraduationCap, FaPencilAlt, FaBookOpen, FaFlask, FaSchool } from 'react-icons/fa';
+import { GRADES } from '../utils/grades';
 
 const CENTER_URL = 'https://center.mribrahimfarouk.com/';
 
@@ -148,7 +149,6 @@ function GalleryCarousel({ images, bg, interval = 2000 }) {
   );
 }
 
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
 const MEDALS = { 1:'🥇', 2:'🥈', 3:'🥉', 4:'4️⃣', 5:'5️⃣' };
 
 const DEFAULT_SECTIONS = [

@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS students (
   last_name        VARCHAR(100) NOT NULL DEFAULT '',
   name             VARCHAR(200) NOT NULL,
   email            VARCHAR(200) UNIQUE,
-  grade            SMALLINT NOT NULL CHECK (grade IN (4,5,6,7,8,9,10,11,12)),
+  grade            SMALLINT NOT NULL CHECK (grade IN (9,10,11)),
   phone            VARCHAR(20) NOT NULL DEFAULT '',
   parent_phone     VARCHAR(20) NOT NULL DEFAULT '',
   status           VARCHAR(20) NOT NULL DEFAULT 'pending'
@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS exams (
   id           SERIAL PRIMARY KEY,
   title        VARCHAR(200) NOT NULL,
   description  TEXT DEFAULT '',
-  grade        SMALLINT NOT NULL CHECK (grade IN (4,5,6,7,8,9,10,11,12)),
+  grade        SMALLINT NOT NULL CHECK (grade IN (9,10,11)),
   duration     INTEGER NOT NULL DEFAULT 30,
   pass_score   INTEGER NOT NULL DEFAULT 50,
   is_active    BOOLEAN DEFAULT TRUE,
@@ -100,7 +100,7 @@ CREATE TABLE IF NOT EXISTS playlists (
   title       VARCHAR(200) NOT NULL,
   description TEXT DEFAULT '',
   thumbnail   VARCHAR(500) DEFAULT '',  -- URL صورة الغلاف
-  grade       SMALLINT NOT NULL CHECK (grade IN (4,5,6,7,8,9,10,11,12)),
+  grade       SMALLINT NOT NULL CHECK (grade IN (9,10,11)),
   position    INTEGER DEFAULT 0,        -- ترتيب القائمة
   created_at  TIMESTAMPTZ DEFAULT NOW()
 );

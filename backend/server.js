@@ -216,18 +216,19 @@ async function runMigrations() {
     await pool.query(`
       ALTER TABLE landing_settings ADD COLUMN IF NOT EXISTS og_image TEXT DEFAULT '';
     `);
-    // Restrict grades to 9-12 only (drop old constraint, add new one).
-    // Isolated in its own try/catch: existing out-of-range rows (e.g. a
-    // legacy student from before the 9-12 restriction) make the ADD
-    // CONSTRAINT fail, and that must not abort every migration statement
+    // Restrict grades to 9-11 only — platform now covers 3rd-prep + 1st/2nd
+    // secondary; grade 12 was dropped (never had exams/payments, only unapproved
+    // registrations) and the grade-6 legacy account was removed by the teacher.
+    // Isolated in its own try/catch: existing out-of-range rows would make the
+    // ADD CONSTRAINT fail, and that must not abort every migration statement
     // that follows it in this shared function.
     try {
       await pool.query(`ALTER TABLE students DROP CONSTRAINT IF EXISTS students_grade_check;`);
-      await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11,12));`);
+      await pool.query(`ALTER TABLE students ADD CONSTRAINT students_grade_check CHECK (grade IN (9,10,11));`);
       await pool.query(`ALTER TABLE exams DROP CONSTRAINT IF EXISTS exams_grade_check;`);
-      await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11,12));`);
+      await pool.query(`ALTER TABLE exams ADD CONSTRAINT exams_grade_check CHECK (grade IN (9,10,11));`);
       await pool.query(`ALTER TABLE playlists DROP CONSTRAINT IF EXISTS playlists_grade_check;`);
-      await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11,12));`);
+      await pool.query(`ALTER TABLE playlists ADD CONSTRAINT playlists_grade_check CHECK (grade IN (9,10,11));`);
     } catch (err) {
       console.error('⚠️  Grade-check constraint migration skipped:', err.message);
     }

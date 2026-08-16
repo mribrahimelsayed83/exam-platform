@@ -2,7 +2,6 @@ export const GRADES = {
   9:  'ثالث إعدادي',
   10: 'أول ثانوي',
   11: 'ثاني ثانوي',
-  12: 'ثالث ثانوي',
 };
 
 export const GRADE_LIST = Object.entries(GRADES).map(([value, label]) => ({

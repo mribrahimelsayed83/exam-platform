@@ -3,12 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
 import ImportExamModal from './ImportExamModal';
 import CreateExam from './CreateExam';
-
-const GRADE_LABELS = {
-  4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي',
-  7:'أول إعدادي',   8:'ثاني إعدادي',  9:'ثالث إعدادي',
-  10:'أول ثانوي',  11:'ثاني ثانوي',  12:'ثالث ثانوي',
-};
+import { GRADES } from '../../utils/grades';
 
 export default function ExamsList() {
   const [exams, setExams]         = useState([]);
@@ -91,7 +86,7 @@ export default function ExamsList() {
                 ${selectedGrade === g
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>
-              {GRADE_LABELS[g] || `صف ${g}`}
+              {GRADES[g] || `صف ${g}`}
             </button>
           ))}
           {grades.length > 1 && (
@@ -134,7 +129,7 @@ export default function ExamsList() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap mb-1">
                     <h3 className="font-bold text-slate-800">{exam.title}</h3>
-                    <span className="badge badge-blue">{GRADE_LABELS[exam.grade] || exam.grade}</span>
+                    <span className="badge badge-blue">{GRADES[exam.grade] || exam.grade}</span>
                     <span className={`badge ${exam.is_active ? 'badge-green' : 'badge-gray'}`}>
                       {exam.is_active ? '● مفعّل' : '○ موقوف'}
                     </span>
@@ -267,7 +262,7 @@ function EditInfoTab({ exam, onSave }) {
         <div>
           <label className="block text-xs font-bold text-slate-500 mb-1">الصف</label>
           <select className="input" value={form.grade} onChange={e=>set('grade',e.target.value)}>
-            {Object.entries(GRADE_LABELS).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+            {Object.entries(GRADES).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <div>
@@ -367,10 +362,10 @@ function EditQuestionsTab({ exam, onSave }) {
       await api.put(`/exams/${exam.id}/questions`, {
         questions: questions.map(q=>
           q.type==='mcq'
-            ? {type:'mcq',      text:q.text, options:q.options, correct:q.correct}
+            ? {id:q.id, type:'mcq',      text:q.text, options:q.options, correct:q.correct}
             : q.type==='truefalse'
-            ? {type:'truefalse', text:q.text, options:['صح','خطأ'], correct:Number(q.correct)}
-            : {type:'essay',    text:q.text, maxScore:Number(q.maxScore)}
+            ? {id:q.id, type:'truefalse', text:q.text, options:['صح','خطأ'], correct:Number(q.correct)}
+            : {id:q.id, type:'essay',    text:q.text, maxScore:Number(q.maxScore)}
         )
       });
       onSave();
@@ -442,7 +437,7 @@ function EditQuestionsTab({ exam, onSave }) {
         ))}
       </div>
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 text-xs text-amber-700">
-        ⚠️ تعديل الأسئلة مش هيأثر على الإجابات اللي اتسلمت قبل التعديل
+        ⚠️ تعديل الإجابة الصحيحة لسؤال هيعيد حساب نتيجة كل الطلاب اللي سلّموا الامتحان تلقائيًا — حتى لو الامتحان اتصحح خلاص
       </div>
       <button onClick={handleSave} className="btn-primary w-full" disabled={saving}>
         {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ الأسئلة'}

@@ -7,8 +7,7 @@ import StudentChat from './StudentChat';
 import SearchModal from './SearchModal';
 import PushPrompt from './PushPrompt';
 import api from '../../utils/api';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+import { GRADES } from '../../utils/grades';
 
 function ChangePasswordModal({ onClose }) {
   const [form, setForm]   = useState({ old: '', new: '', confirm: '' });

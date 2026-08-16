@@ -2,11 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../utils/api';
 import Navbar from '../components/shared/Navbar';
+import { GRADES } from '../utils/grades';
 
-const GRADES = {
-  9:'ثالث إعدادي',
-  10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي',
-};
 const gradingLabels = {
   fully_graded: { label:'مصحّح',        cls:'badge-green' },
   auto_graded:  { label:'قيد التصحيح', cls:'badge-amber' },

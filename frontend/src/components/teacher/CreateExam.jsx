@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../../utils/api';
+import { GRADES } from '../../utils/grades';
 
 const emptyMCQ   = () => ({ type:'mcq',   text:'', options:['','','',''], correct:0 });
 const emptyEssay = () => ({ type:'essay', text:'', maxScore:10 });
@@ -9,7 +10,7 @@ const emptyTF    = () => ({ type:'truefalse', text:'', correct:0 }); // 0=صح, 
 export default function CreateExam({ onSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    title:'', description:'', grade:'4', duration:30, passScore:50,
+    title:'', description:'', grade:'9', duration:30, passScore:50,
     startsAt:'', endsAt:'', examComment:'', price:0,
     shuffleQuestions: false, shuffleOptions: false, requirePreviousExams: false,
   });
@@ -203,15 +204,7 @@ export default function CreateExam({ onSuccess }) {
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5">الصف *</label>
             <select className="input" value={form.grade} onChange={e=>setF('grade',e.target.value)}>
-              <option value="4">رابع ابتدائي</option>
-              <option value="5">خامس ابتدائي</option>
-              <option value="6">سادس ابتدائي</option>
-              <option value="7">أول إعدادي</option>
-              <option value="8">ثاني إعدادي</option>
-              <option value="9">ثالث إعدادي</option>
-              <option value="10">أول ثانوي</option>
-              <option value="11">ثاني ثانوي</option>
-              <option value="12">ثالث ثانوي</option>
+              {Object.entries(GRADES).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
           <div>

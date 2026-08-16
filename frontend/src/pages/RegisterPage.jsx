@@ -3,8 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import api from '../utils/api';
 import SEO from '../components/SEO';
 import { EGYPT_GOVERNORATES } from '../utils/governorates';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+import { GRADES } from '../utils/grades';
 
 export default function RegisterPage() {
   const [form, setForm] = useState({

@@ -4,9 +4,7 @@ import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import StudentDetail from './StudentDetail';
 import { EGYPT_GOVERNORATES } from '../../utils/governorates';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
-const gradeLabel = (g) => GRADES[g] || '—';
+import { GRADES, gradeLabel } from '../../utils/grades';
 
 const statusMap = {
   pending:  { label:'في الانتظار', cls:'badge-amber' },

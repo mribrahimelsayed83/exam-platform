@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+import { GRADES } from '../../utils/grades';
 
 export default function NotificationsSender() {
   const [sent, setSent]       = useState([]);

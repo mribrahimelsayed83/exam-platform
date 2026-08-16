@@ -4,8 +4,7 @@ import Navbar from '../components/shared/Navbar';
 import api from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import StudentChat from '../components/shared/StudentChat';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+import { GRADES } from '../utils/grades';
 
 export default function StudentDashboard() {
   const [exams, setExams]     = useState([]);

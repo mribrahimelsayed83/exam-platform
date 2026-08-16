@@ -1,8 +1,7 @@
 import { useState, useRef } from 'react';
 // xlsx loaded dynamically on use to keep initial bundle lean
 import api from '../../utils/api';
-
-const GRADES = {9:'ثالث إعدادي',10:'أول ثانوي',11:'ثاني ثانوي',12:'ثالث ثانوي'};
+import { GRADES } from '../../utils/grades';
 
 /*
   Excel format expected:

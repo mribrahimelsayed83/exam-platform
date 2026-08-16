@@ -83,6 +83,10 @@ router.get('/:id/questions/edit', staff, perm, async (req, res) => {
 });
 
 // ── PUT /exams/:id/questions — staff replaces all questions ───────────────
+// Existing question rows are UPDATEd in place (id preserved) instead of
+// delete+reinsert, so that already-submitted answers (keyed by question id)
+// stay matchable — this is what lets regradeSubmissionsForExam() below
+// recompute scores after the teacher fixes a wrong correct-answer.
 router.put('/:id/questions', staff, perm, async (req, res) => {
   const { questions } = req.body;
   if (!questions?.length)
@@ -91,40 +95,115 @@ router.put('/:id/questions', staff, perm, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Delete old questions
-    await client.query('DELETE FROM questions WHERE exam_id=$1', [req.params.id]);
-    // Insert new questions
+    const { rows: existing } = await client.query(
+      'SELECT id FROM questions WHERE exam_id=$1', [req.params.id]
+    );
+    const existingIds = new Set(existing.map(r => r.id));
+    const keptIds = new Set();
+
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
       if (!q.text) throw new Error(`السؤال ${i+1}: النص مطلوب`);
+
+      let opts = null, correct = null, maxScore = null;
       if (q.type === 'mcq' || q.type === 'truefalse') {
-        const opts = q.type === 'truefalse' ? ['صح','خطأ'] : q.options;
+        opts = q.type === 'truefalse' ? ['صح','خطأ'] : q.options;
         if (!opts || opts.length < 2 || q.correct === undefined)
           throw new Error(`السؤال ${i+1}: ناقص`);
-        await client.query(
-          `INSERT INTO questions (exam_id,text,type,options,correct,position)
-           VALUES ($1,$2,$3,$4,$5,$6)`,
-          [req.params.id, q.text, q.type, JSON.stringify(opts), q.correct, i]
-        );
+        correct = q.correct;
       } else {
         if (!q.maxScore || q.maxScore < 1)
           throw new Error(`السؤال ${i+1}: الدرجة القصوى مطلوبة`);
+        maxScore = q.maxScore;
+      }
+
+      if (q.id && existingIds.has(q.id)) {
+        keptIds.add(q.id);
         await client.query(
-          `INSERT INTO questions (exam_id,text,type,max_score,position)
-           VALUES ($1,$2,'essay',$3,$4)`,
-          [req.params.id, q.text, q.maxScore, i]
+          `UPDATE questions SET text=$1, type=$2, options=$3, correct=$4, max_score=$5, position=$6
+           WHERE id=$7`,
+          [q.text, q.type, opts ? JSON.stringify(opts) : null, correct, maxScore, i, q.id]
         );
+      } else {
+        const { rows: [inserted] } = await client.query(
+          `INSERT INTO questions (exam_id,text,type,options,correct,max_score,position)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+          [req.params.id, q.text, q.type, opts ? JSON.stringify(opts) : null, correct, maxScore, i]
+        );
+        keptIds.add(inserted.id);
       }
     }
+
+    const removedIds = [...existingIds].filter(id => !keptIds.has(id));
+    if (removedIds.length) {
+      await client.query('DELETE FROM questions WHERE id = ANY($1::int[])', [removedIds]);
+    }
     await client.query('COMMIT');
-    res.json({ message: 'تم تعديل الأسئلة' });
   } catch (err) {
     await client.query('ROLLBACK');
-    res.status(400).json({ message: err.message || 'خطأ في السيرفر' });
+    return res.status(400).json({ message: err.message || 'خطأ في السيرفر' });
   } finally {
     client.release();
   }
+
+  try {
+    await regradeSubmissionsForExam(req.params.id);
+  } catch (err) {
+    console.error('Regrade error:', err);
+  }
+  res.json({ message: 'تم تعديل الأسئلة' });
 });
+
+// ── Recompute existing submissions' MCQ scores against updated correct
+// answers — runs after questions are edited, even for already-graded exams.
+async function regradeSubmissionsForExam(examId) {
+  const { rows: qRows } = await pool.query(
+    `SELECT id, text, options, correct FROM questions WHERE exam_id=$1 AND type IN ('mcq','truefalse')`,
+    [examId]
+  );
+  const qMap = new Map(qRows.map(q => [q.id, q]));
+
+  const { rows: subs } = await pool.query(
+    `SELECT id, review, mcq_total, essay_total, essay_score, essay_max, grading_status
+     FROM submissions WHERE exam_id=$1`,
+    [examId]
+  );
+
+  for (const sub of subs) {
+    const newReview = sub.review.map(r => {
+      if (r.type !== 'mcq') return r;
+      const q = qMap.get(r.questionId);
+      if (!q) return r; // question deleted since submission — keep original snapshot
+      const isCorrect = r.chosen !== null && r.chosen !== undefined && Number(r.chosen) === q.correct;
+      return { ...r, question: q.text, options: q.options, correct: q.correct, isCorrect };
+    });
+
+    const mcqCorrect = newReview.filter(r => r.type === 'mcq' && r.isCorrect).length;
+    const mcqScore = sub.mcq_total > 0 ? Math.round((mcqCorrect / sub.mcq_total) * 100) : 100;
+
+    let finalScore = null;
+    if (sub.essay_total === 0) {
+      finalScore = mcqScore;
+    } else if (sub.grading_status === 'fully_graded') {
+      const mcqPoints = sub.mcq_total, essayPoints = sub.essay_max, essayEarned = sub.essay_score || 0;
+      if (mcqPoints + essayPoints === 0) finalScore = 0;
+      else if (mcqPoints === 0) finalScore = Math.round((essayEarned / essayPoints) * 100);
+      else if (essayPoints === 0) finalScore = mcqScore;
+      else {
+        const mcqPct = (mcqCorrect / mcqPoints) * 100;
+        const essayPct = (essayEarned / essayPoints) * 100;
+        finalScore = Math.round((mcqPct * mcqPoints + essayPct * essayPoints) / (mcqPoints + essayPoints));
+      }
+    }
+    // else: essay still pending grading — final_score stays null until graded,
+    // and grade-essay will read the updated mcq_correct/mcq_score below then.
+
+    await pool.query(
+      `UPDATE submissions SET review=$1, mcq_correct=$2, mcq_score=$3, final_score=$4 WHERE id=$5`,
+      [JSON.stringify(newReview), mcqCorrect, mcqScore, finalScore, sub.id]
+    );
+  }
+}
 
 router.get('/:id/questions', auth('student'), async (req, res) => {
   try {
