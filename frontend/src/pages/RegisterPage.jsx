@@ -69,26 +69,26 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">الاسم الأول *</label>
-              <input className="input" placeholder="أحمد" value={form.first_name}
+              <input className="input" placeholder="أحمد" value={form.first_name} name="given-name" autoComplete="given-name"
                 onChange={e=>set('first_name',e.target.value)} required/>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">الاسم الأخير *</label>
-              <input className="input" placeholder="محمد" value={form.last_name}
+              <input className="input" placeholder="محمد" value={form.last_name} name="family-name" autoComplete="family-name"
                 onChange={e=>set('last_name',e.target.value)} required/>
             </div>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">اسم المستخدم *</label>
-            <input className="input" placeholder="بدون مسافات — إنجليزي فقط" value={form.username} dir="ltr"
+            <input className="input" placeholder="بدون مسافات — إنجليزي فقط" value={form.username} dir="ltr" name="username" autoComplete="username"
               onChange={e=>set('username', e.target.value.replace(/[^a-zA-Z0-9_.@-]/g, '').toLowerCase())} required/>
             <p className="text-xs text-slate-400 mt-1">هيُستخدم للدخول — لا يمكن تغييره</p>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1">البريد الإلكتروني *</label>
-            <input type="email" className="input" placeholder="example@gmail.com" value={form.email}
+            <input type="email" className="input" placeholder="example@gmail.com" value={form.email} name="email" autoComplete="email"
               onChange={e=>set('email',e.target.value)} required/>
             <p className="text-xs text-slate-400 mt-1">يُستخدم لاستعادة كلمة المرور</p>
           </div>
@@ -107,13 +107,13 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">تليفون الطالب *</label>
-              <input className="input" placeholder="01xxxxxxxxx" value={form.phone}
+              <input className="input" placeholder="01xxxxxxxxx" value={form.phone} name="tel" autoComplete="tel"
                 onChange={e=>set('phone',e.target.value.replace(/\D/g,'').slice(0,11))}
                 pattern="01[0-9]{9}" maxLength={11} inputMode="numeric" required/>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">تليفون ولي الأمر *</label>
-              <input className="input" placeholder="01xxxxxxxxx" value={form.parent_phone}
+              <input className="input" placeholder="01xxxxxxxxx" value={form.parent_phone} name="parent-tel" autoComplete="off"
                 onChange={e=>set('parent_phone',e.target.value.replace(/\D/g,'').slice(0,11))}
                 pattern="01[0-9]{9}" maxLength={11} inputMode="numeric" required/>
             </div>
@@ -123,14 +123,14 @@ export default function RegisterPage() {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">المحافظة *</label>
-              <select className="input" value={form.governorate} onChange={e=>set('governorate',e.target.value)} required>
+              <select className="input" value={form.governorate} name="address-level1" autoComplete="address-level1" onChange={e=>set('governorate',e.target.value)} required>
                 <option value="">اختار المحافظة</option>
                 {EGYPT_GOVERNORATES.map(g => <option key={g} value={g}>{g}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">المدينة *</label>
-              <input className="input" placeholder="اسم المدينة أو المركز" value={form.city}
+              <input className="input" placeholder="اسم المدينة أو المركز" value={form.city} name="address-level2" autoComplete="address-level2"
                 onChange={e=>set('city',e.target.value)} required/>
             </div>
           </div>
@@ -140,7 +140,7 @@ export default function RegisterPage() {
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">كلمة المرور *</label>
               <div className="relative">
-                <input type={showPass ? 'text' : 'password'} className="input pl-10" placeholder="6+ حروف"
+                <input type={showPass ? 'text' : 'password'} className="input pl-10" placeholder="6+ حروف" name="new-password" autoComplete="new-password"
                   value={form.password} onChange={e=>set('password',e.target.value)} required/>
                 <button type="button" onClick={()=>setShowPass(v=>!v)}
                   aria-label={showPass ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'}
@@ -155,7 +155,7 @@ export default function RegisterPage() {
             <div>
               <label className="block text-xs font-bold text-slate-500 mb-1">تأكيد كلمة المرور *</label>
               <div className="relative">
-                <input type={showConfirm ? 'text' : 'password'} className="input pl-10" placeholder="أعد الكتابة"
+                <input type={showConfirm ? 'text' : 'password'} className="input pl-10" placeholder="أعد الكتابة" name="confirm-new-password" autoComplete="new-password"
                   value={form.confirm} onChange={e=>set('confirm',e.target.value)} required/>
                 <button type="button" onClick={()=>setShowConfirm(v=>!v)}
                   aria-label={showConfirm ? 'إخفاء تأكيد كلمة المرور' : 'إظهار تأكيد كلمة المرور'}
