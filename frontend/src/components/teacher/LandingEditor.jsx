@@ -101,7 +101,11 @@ export default function LandingEditor() {
   const handleSave = async () => {
     setSaving(true); setError(''); setSuccess(''); setSaveProgress(0);
     try {
-      await api.put('/landing', form, {
+      // hero_image / gallery / og_image are saved instantly through their own
+      // endpoints as soon as they're picked — excluding them here keeps this
+      // save small and fast even when the gallery has many photos.
+      const { hero_image, gallery, og_image, ...settings } = form;
+      await api.put('/landing', settings, {
         onUploadProgress: (e) => {
           if (e.total) setSaveProgress(Math.round((e.loaded / e.total) * 100));
         },
@@ -207,6 +211,7 @@ export default function LandingEditor() {
                   placeholder="أو الصق رابط صورة https://..."
                   value={form.hero_image?.startsWith('data:') ? '' : (form.hero_image || '')}
                   onChange={e => set('hero_image', e.target.value)}
+                  onBlur={e => api.put('/landing/hero-image', { hero_image: e.target.value }).catch(()=>{})}
                 />
                 <button
                   type="button"
@@ -228,10 +233,16 @@ export default function LandingEditor() {
                   const file = e.target.files[0];
                   if (!file) return;
                   setProcessingHero(true);
-                  const base64 = await resizeImage(file, 500, 0.82);
-                  set('hero_image', base64);
-                  setProcessingHero(false);
-                  e.target.value = '';
+                  try {
+                    const base64 = await resizeImage(file, 500, 0.82);
+                    await api.put('/landing/hero-image', { hero_image: base64 });
+                    set('hero_image', base64);
+                  } catch {
+                    setError('تعذّر حفظ الصورة');
+                  } finally {
+                    setProcessingHero(false);
+                    e.target.value = '';
+                  }
                 }}
               />
               {form.hero_image && (
@@ -240,7 +251,7 @@ export default function LandingEditor() {
                     className="w-32 h-32 object-cover rounded-xl border border-slate-200"/>
                   <button
                     type="button"
-                    onClick={() => set('hero_image', '')}
+                    onClick={async () => { set('hero_image', ''); await api.put('/landing/hero-image', { hero_image: '' }).catch(()=>{}); }}
                     className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full text-xs font-bold hover:bg-red-600"
                   >✕</button>
                 </div>
@@ -266,7 +277,7 @@ export default function LandingEditor() {
                 {form.og_image && (
                   <button
                     type="button"
-                    onClick={() => set('og_image', '')}
+                    onClick={async () => { set('og_image', ''); await api.put('/landing/og-image', { og_image: '' }).catch(()=>{}); }}
                     className="px-4 py-2 bg-red-500 text-white rounded-xl text-sm font-bold hover:bg-red-600 whitespace-nowrap"
                   >
                     🗑️ حذف
@@ -282,10 +293,16 @@ export default function LandingEditor() {
                   const file = e.target.files[0];
                   if (!file) return;
                   setProcessingOg(true);
-                  const base64 = await resizeImage(file, 1200, 0.85);
-                  set('og_image', base64);
-                  setProcessingOg(false);
-                  e.target.value = '';
+                  try {
+                    const base64 = await resizeImage(file, 1200, 0.85);
+                    await api.put('/landing/og-image', { og_image: base64 });
+                    set('og_image', base64);
+                  } catch {
+                    setError('تعذّر حفظ الصورة');
+                  } finally {
+                    setProcessingOg(false);
+                    e.target.value = '';
+                  }
                 }}
               />
               {form.og_image ? (
@@ -426,15 +443,20 @@ export default function LandingEditor() {
                 if (!files.length) return;
                 setUploadingGallery(true);
                 setGalleryProgress({ current: 0, total: files.length });
-                const results = [];
-                for (let i = 0; i < files.length; i++) {
-                  setGalleryProgress({ current: i + 1, total: files.length });
-                  results.push(await resizeImage(files[i], 1200, 0.80));
+                try {
+                  for (let i = 0; i < files.length; i++) {
+                    setGalleryProgress({ current: i + 1, total: files.length });
+                    const base64 = await resizeImage(files[i], 1200, 0.80);
+                    await api.post('/landing/gallery', { image: base64 });
+                    setForm(f => ({ ...f, gallery: [...(f.gallery || []), base64] }));
+                  }
+                } catch {
+                  setError('تعذّر رفع إحدى الصور');
+                } finally {
+                  setUploadingGallery(false);
+                  setGalleryProgress({ current: 0, total: 0 });
+                  e.target.value = '';
                 }
-                setForm(f => ({ ...f, gallery: [...(f.gallery || []), ...results] }));
-                setUploadingGallery(false);
-                setGalleryProgress({ current: 0, total: 0 });
-                e.target.value = '';
               }}
             />
             <button
@@ -479,7 +501,10 @@ export default function LandingEditor() {
                       className="w-full aspect-square object-cover rounded-xl border border-slate-200"/>
                     <button
                       type="button"
-                      onClick={() => setForm(f => ({ ...f, gallery: f.gallery.filter((_,idx) => idx !== i) }))}
+                      onClick={async () => {
+                        setForm(f => ({ ...f, gallery: f.gallery.filter((_,idx) => idx !== i) }));
+                        await api.delete(`/landing/gallery/${i}`).catch(()=>{});
+                      }}
                       className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
                     >✕</button>
                     <div className="absolute bottom-1 left-1 bg-black/50 text-white text-xs px-1.5 py-0.5 rounded-lg">
