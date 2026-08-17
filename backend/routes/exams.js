@@ -53,16 +53,101 @@ router.get('/all', staff, perm, async (req, res) => {
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
               e.is_active, e.starts_at, e.ends_at, e.exam_comment, e.created_at,
-              e.price, e.shuffle_questions, e.shuffle_options,
+              e.price, e.shuffle_questions, e.shuffle_options, e.list_id,
+              el.title AS list_title,
               COUNT(DISTINCT q.id)::int  AS question_count,
               COUNT(DISTINCT s.id)::int  AS submission_count,
               COUNT(DISTINCT q.id) FILTER (WHERE q.type='essay')::int AS essay_count
        FROM exams e
-       LEFT JOIN questions q  ON q.exam_id = e.id
-       LEFT JOIN submissions s ON s.exam_id = e.id
-       GROUP BY e.id ORDER BY e.created_at DESC`
+       LEFT JOIN questions q     ON q.exam_id = e.id
+       LEFT JOIN submissions s   ON s.exam_id = e.id
+       LEFT JOIN exam_lists el   ON el.id = e.list_id
+       GROUP BY e.id, el.title ORDER BY e.created_at DESC`
     );
     res.json(exams.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ════════════════════════════════════════
+// EXAM UNITS (lists) — folders that group exams within a grade
+// ════════════════════════════════════════
+
+// ── GET /exams/lists?grade=X — staff sees units for a grade ────────────────
+router.get('/lists', staff, perm, async (req, res) => {
+  try {
+    const { grade } = req.query;
+    const params = [];
+    let where = '';
+    if (grade) { params.push(grade); where = 'WHERE el.grade=$1'; }
+    const result = await pool.query(
+      `SELECT el.id, el.grade, el.title, el.description, el.position, el.created_at,
+              COUNT(e.id)::int AS exam_count
+       FROM exam_lists el
+       LEFT JOIN exams e ON e.list_id = el.id
+       ${where}
+       GROUP BY el.id ORDER BY el.grade, el.position, el.created_at`,
+      params
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── POST /exams/lists — create a unit ───────────────────────────────────────
+router.post('/lists', staff, perm, async (req, res) => {
+  const { title, description, grade } = req.body;
+  if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
+  try {
+    const maxPos = await pool.query('SELECT COALESCE(MAX(position),0) AS m FROM exam_lists WHERE grade=$1', [grade]);
+    const position = maxPos.rows[0].m + 1;
+    const result = await pool.query(
+      `INSERT INTO exam_lists (grade,title,description,position) VALUES ($1,$2,$3,$4) RETURNING *`,
+      [Number(grade), title, description || '', position]
+    );
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── PUT /exams/lists/reorder — reorder units within a grade (قبل /:id) ─────
+router.put('/lists/reorder', staff, perm, async (req, res) => {
+  const { ids } = req.body;
+  if (!ids?.length) return res.status(400).json({ message: 'ids مطلوبة' });
+  try {
+    for (let i = 0; i < ids.length; i++) {
+      await pool.query('UPDATE exam_lists SET position=$1 WHERE id=$2', [i, ids[i]]);
+    }
+    res.json({ message: 'تم إعادة الترتيب' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── PUT /exams/lists/:id — edit a unit's title/description ─────────────────
+router.put('/lists/:id', staff, perm, async (req, res) => {
+  const { title, description } = req.body;
+  if (!title) return res.status(400).json({ message: 'العنوان مطلوب' });
+  try {
+    await pool.query(
+      'UPDATE exam_lists SET title=$1, description=$2 WHERE id=$3',
+      [title, description || '', req.params.id]
+    );
+    res.json({ message: 'تم التعديل' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── DELETE /exams/lists/:id — delete a unit (exams inside become unassigned,
+// not deleted — ON DELETE SET NULL on exams.list_id) ────────────────────────
+router.delete('/lists/:id', staff, perm, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM exam_lists WHERE id=$1', [req.params.id]);
+    res.json({ message: 'تم حذف الوحدة' });
   } catch (err) {
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
@@ -270,7 +355,7 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
 
 router.post('/', staff, perm, async (req, res) => {
   const { title, description, grade, duration, passScore, questions, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
+          shuffleQuestions, shuffleOptions, price, requirePreviousExams, listId } = req.body;
   if (!title || !grade || !questions?.length)
     return res.status(400).json({ message: 'العنوان والصف والأسئلة مطلوبة' });
   if (questions.length > 200)
@@ -284,10 +369,10 @@ router.post('/', staff, perm, async (req, res) => {
   try {
     await client.query('BEGIN');
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams,list_id)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
       [title, description||'', Number(grade), validDuration, validPassScore, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, validPrice, !!requirePreviousExams]
+       !!shuffleQuestions, !!shuffleOptions, validPrice, !!requirePreviousExams, listId || null]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
@@ -344,7 +429,7 @@ router.put('/reorder', staff, perm, async (req, res) => {
 // ── PUT /exams/:id — edit exam ────────────────────────────────────────────
 router.put('/:id', staff, perm, async (req, res) => {
   const { title, description, grade, duration, passScore, startsAt, endsAt, examComment,
-          shuffleQuestions, shuffleOptions, price, requirePreviousExams } = req.body;
+          shuffleQuestions, shuffleOptions, price, requirePreviousExams, listId } = req.body;
   if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
   const validPrice     = Math.max(0, Number(price) || 0);
   const validPassScore = Math.min(100, Math.max(0, Number(passScore) || 50));
@@ -354,12 +439,12 @@ router.put('/:id', staff, perm, async (req, res) => {
       `UPDATE exams SET title=$1, description=$2, grade=$3, duration=$4,
               pass_score=$5, starts_at=$6, ends_at=$7, exam_comment=$8,
               shuffle_questions=$9, shuffle_options=$10, price=$11,
-              require_previous_exams=$12
-       WHERE id=$13`,
+              require_previous_exams=$12, list_id=$13
+       WHERE id=$14`,
       [title, description||'', Number(grade), validDuration,
        validPassScore, startsAt||null, endsAt||null, examComment||'',
        !!shuffleQuestions, !!shuffleOptions, validPrice,
-       !!requirePreviousExams, req.params.id]
+       !!requirePreviousExams, listId || null, req.params.id]
     );
     res.json({ message: 'تم تعديل الامتحان' });
   } catch (err) {

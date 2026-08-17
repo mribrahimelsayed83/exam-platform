@@ -11,9 +11,10 @@ export default function CreateExam({ onSuccess }) {
   const navigate = useNavigate();
   const [form, setForm] = useState({
     title:'', description:'', grade:'9', duration:30, passScore:50,
-    startsAt:'', endsAt:'', examComment:'', price:0,
+    startsAt:'', endsAt:'', examComment:'', price:0, listId:'',
     shuffleQuestions: false, shuffleOptions: false, requirePreviousExams: false,
   });
+  const [examLists, setExamLists] = useState([]);
   const [questions, setQuestions]       = useState([emptyMCQ()]);
   const [useTimeWindow, setUseTimeWindow] = useState(false);
   const [error, setError]   = useState('');
@@ -27,6 +28,13 @@ export default function CreateExam({ onSuccess }) {
   const [selectedLessonId, setSelectedLessonId]     = useState('');
   const [loadingPlaylists, setLoadingPlaylists] = useState(false);
   const [loadingLessons, setLoadingLessons]     = useState(false);
+
+  useEffect(() => {
+    api.get(`/exams/lists?grade=${form.grade}`)
+      .then(r => setExamLists(r.data || []))
+      .catch(() => setExamLists([]));
+    setF('listId', '');
+  }, [form.grade]);
 
   useEffect(() => {
     if (examType === 'standalone') return;
@@ -90,6 +98,7 @@ export default function CreateExam({ onSuccess }) {
         endsAt:   useTimeWindow?form.endsAt:null,
         examComment: form.examComment,
         price:                Number(form.price) || 0,
+        listId:               form.listId || null,
         shuffleQuestions:     form.shuffleQuestions,
         shuffleOptions:       form.shuffleOptions,
         requirePreviousExams: form.requirePreviousExams,
@@ -207,6 +216,15 @@ export default function CreateExam({ onSuccess }) {
               {Object.entries(GRADES).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
             </select>
           </div>
+          {examType === 'standalone' && (
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">الوحدة (اختياري)</label>
+              <select className="input" value={form.listId} onChange={e=>setF('listId',e.target.value)}>
+                <option value="">بدون تصنيف</option>
+                {examLists.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+              </select>
+            </div>
+          )}
           <div>
             <label className="block text-xs font-bold text-slate-500 mb-1.5">المدة (دقائق)</label>
             <input type="number" className="input" min="5" max="180"

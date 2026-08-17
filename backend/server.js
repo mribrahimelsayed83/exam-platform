@@ -313,6 +313,25 @@ async function runMigrations() {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_push_subs_user ON push_subscriptions(user_role, user_id);`);
 
+    // Exam units — folders that group standalone exams within a grade,
+    // mirroring the playlist/sub-playlist pattern already used for videos.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exam_lists (
+        id          SERIAL PRIMARY KEY,
+        grade       SMALLINT NOT NULL CHECK (grade IN (9,10,11)),
+        title       VARCHAR(200) NOT NULL,
+        description TEXT DEFAULT '',
+        position    INTEGER DEFAULT 0,
+        created_at  TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await pool.query(`
+      ALTER TABLE exams ADD COLUMN IF NOT EXISTS list_id INTEGER
+        REFERENCES exam_lists(id) ON DELETE SET NULL;
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_exam_lists_grade ON exam_lists(grade);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_exams_list ON exams(list_id);`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

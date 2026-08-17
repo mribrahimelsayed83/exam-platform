@@ -13,6 +13,10 @@ export default function ExamsList() {
   const [importing, setImporting]   = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState(null);
+  const [lists, setLists]                 = useState([]);
+  const [selectedList, setSelectedList]   = useState(null); // null="كل الوحدات", 'unassigned', or a list id
+  const [showListModal, setShowListModal] = useState(false);
+  const [editingList, setEditingList]     = useState(null);
   const navigate = useNavigate();
 
   const load = () => {
@@ -29,10 +33,20 @@ export default function ExamsList() {
   };
   useEffect(load, []);
 
+  const loadLists = () => {
+    if (selectedGrade === null) { setLists([]); return; }
+    api.get(`/exams/lists?grade=${selectedGrade}`).then(r => setLists(r.data)).catch(() => setLists([]));
+  };
+  useEffect(() => { loadLists(); setSelectedList(null); }, [selectedGrade]);
+
   const grades = [...new Set(exams.map(e => e.grade))].sort((a,b)=>a-b);
-  const filteredExams = selectedGrade !== null
-    ? exams.filter(e => e.grade === selectedGrade)
-    : exams;
+  const examsInGrade = selectedGrade !== null ? exams.filter(e => e.grade === selectedGrade) : exams;
+  const filteredExams = selectedList === null
+    ? examsInGrade
+    : selectedList === 'unassigned'
+    ? examsInGrade.filter(e => !e.list_id)
+    : examsInGrade.filter(e => e.list_id === selectedList);
+  const unassignedCount = examsInGrade.filter(e => !e.list_id).length;
 
   const deleteExam = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
@@ -48,6 +62,12 @@ export default function ExamsList() {
     [list[idx], list[swapIdx]] = [list[swapIdx], list[idx]];
     await api.put('/exams/reorder', { ids: list.map(e => e.id) }).catch(() => {});
     load();
+  };
+  const deleteList = async (id) => {
+    if (!confirm('حذف الوحدة؟ الامتحانات جواها هتفضل موجودة وترجع "بدون تصنيف".')) return;
+    await api.delete(`/exams/lists/${id}`);
+    if (selectedList === id) setSelectedList(null);
+    loadLists(); load();
   };
 
   if (loading) return <Spinner />;
@@ -101,6 +121,47 @@ export default function ExamsList() {
         </div>
       )}
 
+      {/* Units (folders) within the selected grade */}
+      {selectedGrade !== null && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-4">
+          <button onClick={() => setSelectedList(null)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+              ${selectedList === null
+                ? 'bg-violet-600 text-white shadow-sm'
+                : 'bg-white text-slate-500 border border-slate-200 hover:border-violet-300 hover:text-violet-600'}`}>
+            📁 كل الوحدات
+          </button>
+          {lists.map(l => {
+            const count = examsInGrade.filter(e => e.list_id === l.id).length;
+            return (
+              <div key={l.id}
+                className={`flex items-center rounded-lg text-xs font-bold border transition-all
+                  ${selectedList === l.id ? 'bg-violet-600 text-white border-violet-600' : 'bg-white text-slate-500 border-slate-200 hover:border-violet-300'}`}>
+                <button onClick={() => setSelectedList(l.id)} className="px-3 py-1.5">
+                  {l.title} <span className="opacity-70">({count})</span>
+                </button>
+                <button onClick={() => { setEditingList(l); setShowListModal(true); }}
+                  title="تعديل" className="px-1.5 py-1.5 opacity-70 hover:opacity-100">✏️</button>
+                <button onClick={() => deleteList(l.id)}
+                  title="حذف" className="px-1.5 py-1.5 pl-2.5 opacity-70 hover:opacity-100">🗑️</button>
+              </div>
+            );
+          })}
+          {unassignedCount > 0 && (
+            <button onClick={() => setSelectedList('unassigned')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${selectedList === 'unassigned'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-400'}`}>
+              بدون تصنيف ({unassignedCount})
+            </button>
+          )}
+          <button onClick={() => { setEditingList(null); setShowListModal(true); }} className="btn-secondary btn-sm text-xs">
+            + وحدة جديدة
+          </button>
+        </div>
+      )}
+
       {/* Exams list */}
       {filteredExams.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
@@ -133,6 +194,7 @@ export default function ExamsList() {
                     <span className={`badge ${exam.is_active ? 'badge-green' : 'badge-gray'}`}>
                       {exam.is_active ? '● مفعّل' : '○ موقوف'}
                     </span>
+                    {exam.list_title && <span className="badge bg-violet-100 text-violet-700">📁 {exam.list_title}</span>}
                     {exam.essay_count > 0 && <span className="badge badge-amber">{exam.essay_count} مقالي</span>}
                   </div>
                   {exam.description && <p className="text-xs text-slate-500 mb-1">{exam.description}</p>}
@@ -175,6 +237,14 @@ export default function ExamsList() {
       {commenting && <CommentModal exam={commenting} onClose={()=>setCommenting(null)} onSave={()=>{setCommenting(null);load();}}/>}
       {editing    && <EditExamModal exam={editing} onClose={()=>setEditing(null)} onSave={()=>{setEditing(null);load();}}/>}
       {importing  && <ImportExamModal onClose={()=>setImporting(false)} onSave={()=>{setImporting(false);load();navigate('/teacher/exams');}}/>}
+      {showListModal && (
+        <ExamListModal
+          list={editingList}
+          grade={selectedGrade}
+          onClose={() => { setShowListModal(false); setEditingList(null); }}
+          onSave={() => { setShowListModal(false); setEditingList(null); loadLists(); load(); }}
+        />
+      )}
     </div>
   );
 }
@@ -218,6 +288,7 @@ function EditInfoTab({ exam, onSave }) {
     title:            exam.title,
     description:      exam.description || '',
     grade:            exam.grade,
+    listId:           exam.list_id || '',
     duration:         exam.duration,
     passScore:        exam.pass_score,
     examComment:      exam.exam_comment || '',
@@ -230,7 +301,14 @@ function EditInfoTab({ exam, onSave }) {
   const [useTime, setUseTime] = useState(!!(exam.starts_at||exam.ends_at));
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [examLists, setExamLists] = useState([]);
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  useEffect(() => {
+    api.get(`/exams/lists?grade=${form.grade}`)
+      .then(r => setExamLists(r.data || []))
+      .catch(() => setExamLists([]));
+  }, [form.grade]);
 
   const handleSave = async () => {
     if (!form.title) return setError('العنوان مطلوب');
@@ -242,6 +320,7 @@ function EditInfoTab({ exam, onSave }) {
         passScore: Number(form.passScore), examComment: form.examComment,
         startsAt: useTime?form.startsAt:null, endsAt: useTime?form.endsAt:null,
         price:            Number(form.price) || 0,
+        listId:           form.listId || null,
         shuffleQuestions: form.shuffleQuestions,
         shuffleOptions:   form.shuffleOptions,
       });
@@ -263,6 +342,13 @@ function EditInfoTab({ exam, onSave }) {
           <label className="block text-xs font-bold text-slate-500 mb-1">الصف</label>
           <select className="input" value={form.grade} onChange={e=>set('grade',e.target.value)}>
             {Object.entries(GRADES).map(([v,l]) => <option key={v} value={v}>{l}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-bold text-slate-500 mb-1">الوحدة (اختياري)</label>
+          <select className="input" value={form.listId} onChange={e=>set('listId',e.target.value)}>
+            <option value="">بدون تصنيف</option>
+            {examLists.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
           </select>
         </div>
         <div>
@@ -442,6 +528,55 @@ function EditQuestionsTab({ exam, onSave }) {
       <button onClick={handleSave} className="btn-primary w-full" disabled={saving}>
         {saving ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ الأسئلة'}
       </button>
+    </div>
+  );
+}
+
+// ══════════════════════════════════════════════════
+// Exam Unit (list) Create/Edit Modal
+// ══════════════════════════════════════════════════
+function ExamListModal({ list, grade, onClose, onSave }) {
+  const [form, setForm] = useState({ title: list?.title || '', description: list?.description || '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState('');
+  const set = (k,v) => setForm(f=>({...f,[k]:v}));
+
+  const handleSave = async () => {
+    if (!form.title.trim()) return setError('العنوان مطلوب');
+    setLoading(true);
+    try {
+      if (list) await api.put(`/exams/lists/${list.id}`, form);
+      else await api.post('/exams/lists', { ...form, grade });
+      onSave();
+    } catch (err) {
+      setError(err.response?.data?.message || 'خطأ في الحفظ');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
+        <h3 className="font-extrabold text-slate-800 mb-4">{list ? 'تعديل الوحدة' : 'وحدة جديدة'}</h3>
+        {error && <div className="alert alert-danger mb-3">{error}</div>}
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">عنوان الوحدة *</label>
+            <input className="input" placeholder="مثال: الوحدة الأولى" value={form.title}
+              onChange={e=>set('title',e.target.value)} autoFocus/>
+          </div>
+          <div>
+            <label className="block text-xs font-bold text-slate-500 mb-1">وصف (اختياري)</label>
+            <textarea className="input resize-none" rows={2} value={form.description}
+              onChange={e=>set('description',e.target.value)}/>
+          </div>
+        </div>
+        <div className="flex gap-3 mt-5">
+          <button onClick={handleSave} className="btn-primary flex-1" disabled={loading}>
+            {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : '💾 حفظ'}
+          </button>
+          <button onClick={onClose} className="btn-secondary flex-1">إلغاء</button>
+        </div>
+      </div>
     </div>
   );
 }

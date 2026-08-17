@@ -17,7 +17,8 @@ export default function StudentsList() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [students, setStudents] = useState([]);
   const [filter, setFilter]         = useState('all');
-  const [gradeFilter, setGradeFilter] = useState('all');
+  // null = لا يظهر أي طالب لحد ما المدرّس يضغط على صف بنفسه — هو اللي يتحكم في ظهور الأسماء
+  const [gradeFilter, setGradeFilter] = useState(null);
   const [scoreSort, setScoreSort]   = useState(null);
   const [honorSort, setHonorSort]   = useState(null);
   const [loading, setLoading]       = useState(true);
@@ -48,7 +49,9 @@ export default function StudentsList() {
     await api.delete(`/teacher/students/${id}`); load();
   };
 
-  const filtered = (gradeFilter === 'all'
+  const filtered = (gradeFilter === null
+    ? []
+    : gradeFilter === 'all'
     ? students
     : students.filter(s => String(s.grade) === gradeFilter)
   ).slice().sort((a, b) => {
@@ -126,6 +129,11 @@ export default function StudentsList() {
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+        </div>
+      ) : gradeFilter === null ? (
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-5xl mb-3">👆</div>
+          <h3 className="text-lg font-bold text-slate-600">اختر صف من فوق لعرض الطلاب</h3>
         </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-16 text-slate-400">
