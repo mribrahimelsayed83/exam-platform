@@ -218,10 +218,17 @@ export default function CreateExam({ onSuccess }) {
           </div>
           {examType === 'standalone' && (
             <div>
-              <label className="block text-xs font-bold text-slate-500 mb-1.5">الوحدة (اختياري)</label>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">الوحدة / الدرس (اختياري)</label>
               <select className="input" value={form.listId} onChange={e=>setF('listId',e.target.value)}>
                 <option value="">بدون تصنيف</option>
-                {examLists.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+                {examLists.filter(l => !l.parent_id).map(unit => (
+                  <optgroup key={unit.id} label={unit.title}>
+                    <option value={unit.id}>— مباشر (بدون درس)</option>
+                    {examLists.filter(l => l.parent_id === unit.id).map(lesson => (
+                      <option key={lesson.id} value={lesson.id}>└ {lesson.title}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
             </div>
           )}

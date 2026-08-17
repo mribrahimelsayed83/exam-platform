@@ -12,7 +12,7 @@ router.get('/', auth('student'), async (req, res) => {
     const exams = await pool.query(
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
               e.starts_at, e.ends_at, e.created_at, e.price, e.require_previous_exams,
-              e.position,
+              e.position, e.list_id,
               COUNT(q.id)::int AS question_count,
               s.id AS submission_id, s.mcq_score, s.final_score,
               s.grading_status, s.submitted_at,
@@ -30,15 +30,17 @@ router.get('/', auth('student'), async (req, res) => {
       [grade, studentId, now]
     );
     const rows = exams.rows;
-    // Mark each exam as locked if require_previous_exams=true and any earlier exam is incomplete
-    const completedIds = new Set(rows.filter(e => e.submission_id).map(e => e.id));
-    let anythingIncomplete = false;
+    // Mark each exam as locked if require_previous_exams=true and an earlier
+    // exam IN THE SAME UNIT/LESSON (list_id) is incomplete — tracked per
+    // list_id bucket so the prerequisite chain doesn't span across units.
+    const incompleteByList = new Map();
     const result = rows.map(e => {
+      const key = e.list_id ?? 'none';
       let locked = false;
       if (e.require_previous_exams) {
-        locked = anythingIncomplete;
+        locked = !!incompleteByList.get(key);
       }
-      if (!e.submission_id) anythingIncomplete = true;
+      if (!e.submission_id) incompleteByList.set(key, true);
       return { ...e, locked };
     });
     res.json(result);
@@ -74,7 +76,8 @@ router.get('/all', staff, perm, async (req, res) => {
 // EXAM UNITS (lists) — folders that group exams within a grade
 // ════════════════════════════════════════
 
-// ── GET /exams/lists?grade=X — staff sees units for a grade ────────────────
+// ── GET /exams/lists?grade=X — staff sees units AND lessons for a grade
+// (both live in exam_lists; parent_id distinguishes a lesson from a unit) ──
 router.get('/lists', staff, perm, async (req, res) => {
   try {
     const { grade } = req.query;
@@ -82,7 +85,7 @@ router.get('/lists', staff, perm, async (req, res) => {
     let where = '';
     if (grade) { params.push(grade); where = 'WHERE el.grade=$1'; }
     const result = await pool.query(
-      `SELECT el.id, el.grade, el.title, el.description, el.position, el.created_at,
+      `SELECT el.id, el.grade, el.title, el.description, el.position, el.created_at, el.parent_id,
               COUNT(e.id)::int AS exam_count
        FROM exam_lists el
        LEFT JOIN exams e ON e.list_id = el.id
@@ -96,16 +99,29 @@ router.get('/lists', staff, perm, async (req, res) => {
   }
 });
 
-// ── POST /exams/lists — create a unit ───────────────────────────────────────
+// ── POST /exams/lists — create a unit, or a lesson inside one if parentId is
+// given (grade is then inherited from the parent, matching the video/playlist
+// sub-playlist behavior) ─────────────────────────────────────────────────────
 router.post('/lists', staff, perm, async (req, res) => {
-  const { title, description, grade } = req.body;
-  if (!title || !grade) return res.status(400).json({ message: 'العنوان والصف مطلوبان' });
+  const { title, description, grade, parentId } = req.body;
+  if (!title) return res.status(400).json({ message: 'العنوان مطلوب' });
   try {
-    const maxPos = await pool.query('SELECT COALESCE(MAX(position),0) AS m FROM exam_lists WHERE grade=$1', [grade]);
+    let finalGrade = Number(grade);
+    if (parentId) {
+      const { rows: [parent] } = await pool.query('SELECT grade FROM exam_lists WHERE id=$1 AND parent_id IS NULL', [parentId]);
+      if (!parent) return res.status(404).json({ message: 'الوحدة الأصلية مش موجودة' });
+      finalGrade = parent.grade;
+    } else if (!grade) {
+      return res.status(400).json({ message: 'الصف مطلوب' });
+    }
+    const maxPos = await pool.query(
+      'SELECT COALESCE(MAX(position),0) AS m FROM exam_lists WHERE grade=$1 AND parent_id IS NOT DISTINCT FROM $2',
+      [finalGrade, parentId || null]
+    );
     const position = maxPos.rows[0].m + 1;
     const result = await pool.query(
-      `INSERT INTO exam_lists (grade,title,description,position) VALUES ($1,$2,$3,$4) RETURNING *`,
-      [Number(grade), title, description || '', position]
+      `INSERT INTO exam_lists (grade,title,description,position,parent_id) VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [finalGrade, title, description || '', position, parentId || null]
     );
     res.status(201).json(result.rows[0]);
   } catch (err) {
@@ -306,13 +322,15 @@ router.get('/:id/questions', auth('student'), async (req, res) => {
     const examRow = examRes.rows[0];
 
     // Prerequisite guard — check if student completed all previous exams
+    // in the SAME unit/lesson (list_id) — the chain doesn't span units.
     if (examRow.require_previous_exams) {
       const { rows: incomplete } = await pool.query(
         `SELECT e.id FROM exams e
          LEFT JOIN submissions s ON s.exam_id = e.id AND s.student_id = $1
          WHERE e.grade = $2 AND e.is_active = TRUE AND s.id IS NULL
+           AND e.list_id IS NOT DISTINCT FROM $5
            AND (e.position < $3 OR (e.position = $3 AND e.id < $4))`,
-        [studentId, examRow.grade, examRow.position, examRow.id]
+        [studentId, examRow.grade, examRow.position, examRow.id, examRow.list_id]
       );
       if (incomplete.length > 0)
         return res.status(403).json({ message: 'يجب إكمال جميع الامتحانات السابقة أولاً' });

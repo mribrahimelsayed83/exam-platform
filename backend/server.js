@@ -332,6 +332,14 @@ async function runMigrations() {
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_exam_lists_grade ON exam_lists(grade);`);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_exams_list ON exams(list_id);`);
 
+    // Lessons inside units — exam_lists can nest one level via parent_id,
+    // mirroring the playlist/sub-playlist pattern used for videos.
+    await pool.query(`
+      ALTER TABLE exam_lists ADD COLUMN IF NOT EXISTS parent_id INTEGER
+        REFERENCES exam_lists(id) ON DELETE CASCADE;
+    `);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_exam_lists_parent ON exam_lists(parent_id);`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

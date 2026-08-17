@@ -37,15 +37,17 @@ router.post('/', auth('student'), async (req, res) => {
         return res.status(403).json({ message: 'هذا الامتحان مدفوع — يرجى الدفع أولاً' });
     }
 
-    // require_previous_exams check — single query instead of N+1 loop
+    // require_previous_exams check — scoped to the same unit/lesson (list_id)
+    // so the prerequisite chain doesn't span across units.
     if (exam.require_previous_exams) {
       const { rows: [{ cnt }] } = await pool.query(
         `SELECT COUNT(*)::int AS cnt
          FROM exams e
          LEFT JOIN submissions s
            ON s.exam_id = e.id AND s.student_id = $1 AND s.final_score IS NOT NULL
-         WHERE e.grade = $2 AND e.position < $3 AND s.id IS NULL`,
-        [studentId, req.user.grade, exam.position]
+         WHERE e.grade = $2 AND e.position < $3 AND s.id IS NULL
+           AND e.list_id IS NOT DISTINCT FROM $4`,
+        [studentId, req.user.grade, exam.position, exam.list_id]
       );
       if (cnt > 0)
         return res.status(403).json({ message: 'يجب إكمال الامتحانات السابقة أولاً' });

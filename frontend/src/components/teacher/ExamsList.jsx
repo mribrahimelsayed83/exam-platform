@@ -13,10 +13,12 @@ export default function ExamsList() {
   const [importing, setImporting]   = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [selectedGrade, setSelectedGrade] = useState(null);
-  const [lists, setLists]                 = useState([]);
-  const [selectedList, setSelectedList]   = useState(null); // null="كل الوحدات", 'unassigned', or a list id
+  const [lists, setLists]                 = useState([]); // units AND lessons for selectedGrade (parent_id distinguishes)
+  const [selectedList, setSelectedList]   = useState(null); // null="كل الوحدات", 'unassigned', or a unit id
+  const [selectedLesson, setSelectedLesson] = useState(null); // null="كل الدروس", 'direct', or a lesson id
   const [showListModal, setShowListModal] = useState(false);
   const [editingList, setEditingList]     = useState(null);
+  const [creatingLessonIn, setCreatingLessonIn] = useState(null); // unit id, when adding a lesson
   const navigate = useNavigate();
 
   const load = () => {
@@ -38,15 +40,30 @@ export default function ExamsList() {
     api.get(`/exams/lists?grade=${selectedGrade}`).then(r => setLists(r.data)).catch(() => setLists([]));
   };
   useEffect(() => { loadLists(); setSelectedList(null); }, [selectedGrade]);
+  useEffect(() => { setSelectedLesson(null); }, [selectedList]);
 
   const grades = [...new Set(exams.map(e => e.grade))].sort((a,b)=>a-b);
   const examsInGrade = selectedGrade !== null ? exams.filter(e => e.grade === selectedGrade) : exams;
-  const filteredExams = selectedList === null
-    ? examsInGrade
-    : selectedList === 'unassigned'
-    ? examsInGrade.filter(e => !e.list_id)
-    : examsInGrade.filter(e => e.list_id === selectedList);
+  const units = lists.filter(l => !l.parent_id);
+  const lessonsOf = (unitId) => lists.filter(l => l.parent_id === unitId);
+  const unitIdsUnder = (unitId) => [unitId, ...lessonsOf(unitId).map(l => l.id)];
+
+  let filteredExams;
+  if (selectedList === null) {
+    filteredExams = examsInGrade;
+  } else if (selectedList === 'unassigned') {
+    filteredExams = examsInGrade.filter(e => !e.list_id);
+  } else if (selectedLesson === null) {
+    const ids = unitIdsUnder(selectedList);
+    filteredExams = examsInGrade.filter(e => ids.includes(e.list_id));
+  } else if (selectedLesson === 'direct') {
+    filteredExams = examsInGrade.filter(e => e.list_id === selectedList);
+  } else {
+    filteredExams = examsInGrade.filter(e => e.list_id === selectedLesson);
+  }
   const unassignedCount = examsInGrade.filter(e => !e.list_id).length;
+  const directInUnitCount = selectedList && selectedList !== 'unassigned'
+    ? examsInGrade.filter(e => e.list_id === selectedList).length : 0;
 
   const deleteExam = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الامتحان؟')) return;
@@ -63,10 +80,13 @@ export default function ExamsList() {
     await api.put('/exams/reorder', { ids: list.map(e => e.id) }).catch(() => {});
     load();
   };
-  const deleteList = async (id) => {
-    if (!confirm('حذف الوحدة؟ الامتحانات جواها هتفضل موجودة وترجع "بدون تصنيف".')) return;
+  const deleteList = async (id, isLesson) => {
+    if (!confirm(isLesson
+      ? 'حذف الدرس؟ الامتحانات جواه هتفضل موجودة وترجع مباشرة تحت الوحدة.'
+      : 'حذف الوحدة؟ الامتحانات والدروس جواها هتفضل موجودة (الدروس بتتحذف، الامتحانات بترجع "بدون تصنيف").')) return;
     await api.delete(`/exams/lists/${id}`);
     if (selectedList === id) setSelectedList(null);
+    if (selectedLesson === id) setSelectedLesson(null);
     loadLists(); load();
   };
 
@@ -131,8 +151,8 @@ export default function ExamsList() {
                 : 'bg-white text-slate-500 border border-slate-200 hover:border-violet-300 hover:text-violet-600'}`}>
             📁 كل الوحدات
           </button>
-          {lists.map(l => {
-            const count = examsInGrade.filter(e => e.list_id === l.id).length;
+          {units.map(l => {
+            const count = examsInGrade.filter(e => unitIdsUnder(l.id).includes(e.list_id)).length;
             return (
               <div key={l.id}
                 className={`flex items-center rounded-lg text-xs font-bold border transition-all
@@ -142,7 +162,7 @@ export default function ExamsList() {
                 </button>
                 <button onClick={() => { setEditingList(l); setShowListModal(true); }}
                   title="تعديل" className="px-1.5 py-1.5 opacity-70 hover:opacity-100">✏️</button>
-                <button onClick={() => deleteList(l.id)}
+                <button onClick={() => deleteList(l.id, false)}
                   title="حذف" className="px-1.5 py-1.5 pl-2.5 opacity-70 hover:opacity-100">🗑️</button>
               </div>
             );
@@ -156,8 +176,50 @@ export default function ExamsList() {
               بدون تصنيف ({unassignedCount})
             </button>
           )}
-          <button onClick={() => { setEditingList(null); setShowListModal(true); }} className="btn-secondary btn-sm text-xs">
+          <button onClick={() => { setEditingList(null); setCreatingLessonIn(null); setShowListModal(true); }} className="btn-secondary btn-sm text-xs">
             + وحدة جديدة
+          </button>
+        </div>
+      )}
+
+      {/* Lessons (folders inside the selected unit) */}
+      {selectedGrade !== null && selectedList !== null && selectedList !== 'unassigned' && (
+        <div className="flex items-center gap-1.5 flex-wrap mb-4 pr-4 border-r-2 border-violet-100">
+          <button onClick={() => setSelectedLesson(null)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+              ${selectedLesson === null
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>
+            📖 كل الدروس
+          </button>
+          {lessonsOf(selectedList).map(l => {
+            const count = examsInGrade.filter(e => e.list_id === l.id).length;
+            return (
+              <div key={l.id}
+                className={`flex items-center rounded-lg text-xs font-bold border transition-all
+                  ${selectedLesson === l.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-200 hover:border-blue-300'}`}>
+                <button onClick={() => setSelectedLesson(l.id)} className="px-3 py-1.5">
+                  {l.title} <span className="opacity-70">({count})</span>
+                </button>
+                <button onClick={() => { setEditingList(l); setShowListModal(true); }}
+                  title="تعديل" className="px-1.5 py-1.5 opacity-70 hover:opacity-100">✏️</button>
+                <button onClick={() => deleteList(l.id, true)}
+                  title="حذف" className="px-1.5 py-1.5 pl-2.5 opacity-70 hover:opacity-100">🗑️</button>
+              </div>
+            );
+          })}
+          {directInUnitCount > 0 && (
+            <button onClick={() => setSelectedLesson('direct')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all
+                ${selectedLesson === 'direct'
+                  ? 'bg-slate-700 text-white shadow-sm'
+                  : 'bg-white text-slate-500 border border-slate-200 hover:border-slate-400'}`}>
+              مباشر بدون درس ({directInUnitCount})
+            </button>
+          )}
+          <button onClick={() => { setCreatingLessonIn(selectedList); setEditingList(null); setShowListModal(true); }}
+            className="btn-secondary btn-sm text-xs">
+            + درس جديد
           </button>
         </div>
       )}
@@ -241,8 +303,9 @@ export default function ExamsList() {
         <ExamListModal
           list={editingList}
           grade={selectedGrade}
-          onClose={() => { setShowListModal(false); setEditingList(null); }}
-          onSave={() => { setShowListModal(false); setEditingList(null); loadLists(); load(); }}
+          parentId={creatingLessonIn}
+          onClose={() => { setShowListModal(false); setEditingList(null); setCreatingLessonIn(null); }}
+          onSave={() => { setShowListModal(false); setEditingList(null); setCreatingLessonIn(null); loadLists(); load(); }}
         />
       )}
     </div>
@@ -345,10 +408,17 @@ function EditInfoTab({ exam, onSave }) {
           </select>
         </div>
         <div>
-          <label className="block text-xs font-bold text-slate-500 mb-1">الوحدة (اختياري)</label>
+          <label className="block text-xs font-bold text-slate-500 mb-1">الوحدة / الدرس (اختياري)</label>
           <select className="input" value={form.listId} onChange={e=>set('listId',e.target.value)}>
             <option value="">بدون تصنيف</option>
-            {examLists.map(l => <option key={l.id} value={l.id}>{l.title}</option>)}
+            {examLists.filter(l => !l.parent_id).map(unit => (
+              <optgroup key={unit.id} label={unit.title}>
+                <option value={unit.id}>— مباشر (بدون درس)</option>
+                {examLists.filter(l => l.parent_id === unit.id).map(lesson => (
+                  <option key={lesson.id} value={lesson.id}>└ {lesson.title}</option>
+                ))}
+              </optgroup>
+            ))}
           </select>
         </div>
         <div>
@@ -535,18 +605,19 @@ function EditQuestionsTab({ exam, onSave }) {
 // ══════════════════════════════════════════════════
 // Exam Unit (list) Create/Edit Modal
 // ══════════════════════════════════════════════════
-function ExamListModal({ list, grade, onClose, onSave }) {
+function ExamListModal({ list, grade, parentId, onClose, onSave }) {
   const [form, setForm] = useState({ title: list?.title || '', description: list?.description || '' });
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
+  const isLesson = list ? !!list.parent_id : !!parentId;
 
   const handleSave = async () => {
     if (!form.title.trim()) return setError('العنوان مطلوب');
     setLoading(true);
     try {
       if (list) await api.put(`/exams/lists/${list.id}`, form);
-      else await api.post('/exams/lists', { ...form, grade });
+      else await api.post('/exams/lists', { ...form, grade, parentId });
       onSave();
     } catch (err) {
       setError(err.response?.data?.message || 'خطأ في الحفظ');
@@ -556,12 +627,14 @@ function ExamListModal({ list, grade, onClose, onSave }) {
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={e=>e.stopPropagation()}>
-        <h3 className="font-extrabold text-slate-800 mb-4">{list ? 'تعديل الوحدة' : 'وحدة جديدة'}</h3>
+        <h3 className="font-extrabold text-slate-800 mb-4">
+          {list ? (isLesson ? 'تعديل الدرس' : 'تعديل الوحدة') : (isLesson ? 'درس جديد' : 'وحدة جديدة')}
+        </h3>
         {error && <div className="alert alert-danger mb-3">{error}</div>}
         <div className="space-y-3">
           <div>
-            <label className="block text-xs font-bold text-slate-500 mb-1">عنوان الوحدة *</label>
-            <input className="input" placeholder="مثال: الوحدة الأولى" value={form.title}
+            <label className="block text-xs font-bold text-slate-500 mb-1">{isLesson ? 'عنوان الدرس *' : 'عنوان الوحدة *'}</label>
+            <input className="input" placeholder={isLesson ? 'مثال: درس 1' : 'مثال: الوحدة الأولى'} value={form.title}
               onChange={e=>set('title',e.target.value)} autoFocus/>
           </div>
           <div>
