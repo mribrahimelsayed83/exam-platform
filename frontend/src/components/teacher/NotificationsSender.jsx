@@ -114,7 +114,7 @@ export default function NotificationsSender() {
           {sent.length > 0 && (
             <div className="flex items-center gap-2">
               <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 cursor-pointer select-none">
-                <input type="checkbox" checked={allSelected} onChange={toggleSelectAll}/>
+                <input type="checkbox" className="accent-blue-600 w-4 h-4" checked={allSelected} onChange={toggleSelectAll}/>
                 تحديد الكل
               </label>
               {selected.size > 0 && (
@@ -140,7 +140,7 @@ export default function NotificationsSender() {
               <div key={n.id} className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 flex-1">
-                    <input type="checkbox" className="mt-1.5 flex-shrink-0"
+                    <input type="checkbox" className="accent-blue-600 w-4 h-4 mt-1.5 flex-shrink-0"
                       checked={selected.has(n.id)} onChange={() => toggleOne(n.id)}/>
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
