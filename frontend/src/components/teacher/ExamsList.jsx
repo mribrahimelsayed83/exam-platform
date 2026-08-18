@@ -257,6 +257,7 @@ export default function ExamsList() {
                       {exam.is_active ? '● مفعّل' : '○ موقوف'}
                     </span>
                     {exam.list_title && <span className="badge bg-violet-100 text-violet-700">📁 {exam.list_title}</span>}
+                    {exam.require_previous_exams && <span className="badge bg-slate-200 text-slate-600" title="يشترط إكمال الامتحان السابق">🔒 مقفول</span>}
                     {exam.essay_count > 0 && <span className="badge badge-amber">{exam.essay_count} مقالي</span>}
                   </div>
                   {exam.description && <p className="text-xs text-slate-500 mb-1">{exam.description}</p>}
@@ -360,6 +361,7 @@ function EditInfoTab({ exam, onSave }) {
     price:            exam.price || 0,
     shuffleQuestions: !!exam.shuffle_questions,
     shuffleOptions:   !!exam.shuffle_options,
+    requirePreviousExams: !!exam.require_previous_exams,
   });
   const [useTime, setUseTime] = useState(!!(exam.starts_at||exam.ends_at));
   const [loading, setLoading] = useState(false);
@@ -386,6 +388,7 @@ function EditInfoTab({ exam, onSave }) {
         listId:           form.listId || null,
         shuffleQuestions: form.shuffleQuestions,
         shuffleOptions:   form.shuffleOptions,
+        requirePreviousExams: form.requirePreviousExams,
       });
       onSave();
     } catch(err) {
@@ -457,6 +460,16 @@ function EditInfoTab({ exam, onSave }) {
             <span className="text-sm font-semibold text-slate-700">ترتيب الإجابات عشوائي</span>
           </label>
         </div>
+      </div>
+      <div className="pt-2 border-t border-slate-100">
+        <label className="flex items-start gap-2 cursor-pointer select-none">
+          <input type="checkbox" className="accent-blue-600 w-4 h-4 mt-0.5"
+            checked={form.requirePreviousExams} onChange={e=>set('requirePreviousExams',e.target.checked)}/>
+          <div>
+            <span className="text-sm font-bold text-slate-700">🔒 يشترط إكمال الامتحان السابق</span>
+            <p className="text-xs text-slate-400 mt-0.5">الطالب مش يقدر يدخل هذا الامتحان إلا بعد ما يسلّم الامتحان اللي قبله في نفس الوحدة/الدرس (أو بدون تصنيف لو الامتحان مش جوه وحدة)</p>
+          </div>
+        </label>
       </div>
       <div className="pt-2 border-t border-slate-100">
         <label className="flex items-center gap-2 cursor-pointer mb-3">

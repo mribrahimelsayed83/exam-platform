@@ -285,8 +285,8 @@ export default function CreateExam({ onSuccess }) {
             <input type="checkbox" className="accent-blue-600 w-4 h-4 mt-0.5"
               checked={form.requirePreviousExams} onChange={e=>setF('requirePreviousExams',e.target.checked)}/>
             <div>
-              <span className="text-sm font-bold text-slate-700">🔒 يشترط إكمال كل الامتحانات السابقة</span>
-              <p className="text-xs text-slate-400 mt-0.5">الطالب مش يقدر يدخل هذا الامتحان إلا بعد ما يسلّم كل الامتحانات اللي قبله في صفه</p>
+              <span className="text-sm font-bold text-slate-700">🔒 يشترط إكمال الامتحان السابق</span>
+              <p className="text-xs text-slate-400 mt-0.5">الطالب مش يقدر يدخل هذا الامتحان إلا بعد ما يسلّم الامتحان اللي قبله في نفس الوحدة/الدرس (أو بدون تصنيف لو الامتحان مش جوه وحدة)</p>
             </div>
           </label>
         </div>

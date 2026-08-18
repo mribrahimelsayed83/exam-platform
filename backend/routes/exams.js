@@ -56,6 +56,7 @@ router.get('/all', staff, perm, async (req, res) => {
       `SELECT e.id, e.title, e.description, e.grade, e.duration, e.pass_score,
               e.is_active, e.starts_at, e.ends_at, e.exam_comment, e.created_at,
               e.price, e.shuffle_questions, e.shuffle_options, e.list_id,
+              e.position, e.require_previous_exams,
               el.title AS list_title,
               COUNT(DISTINCT q.id)::int  AS question_count,
               COUNT(DISTINCT s.id)::int  AS submission_count,
@@ -64,7 +65,7 @@ router.get('/all', staff, perm, async (req, res) => {
        LEFT JOIN questions q     ON q.exam_id = e.id
        LEFT JOIN submissions s   ON s.exam_id = e.id
        LEFT JOIN exam_lists el   ON el.id = e.list_id
-       GROUP BY e.id, el.title ORDER BY e.created_at DESC`
+       GROUP BY e.id, el.title ORDER BY e.position ASC, e.created_at DESC`
     );
     res.json(exams.rows);
   } catch (err) {
