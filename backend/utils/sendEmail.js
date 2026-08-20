@@ -13,7 +13,10 @@ function escHtml(str) {
 
 async function sendPasswordReset(toEmail, studentName, resetLink) {
   try {
-    await resend.emails.send({
+    // The Resend SDK resolves with { data, error } instead of rejecting on
+    // API-level failures (e.g. invalid key, unverified domain) — so a bare
+    // await here would silently "succeed" even when nothing was sent.
+    const result = await resend.emails.send({
       from: FROM,
       to:   toEmail,
       subject: 'إعادة تعيين كلمة المرور — منصة الامتحانات',
@@ -34,6 +37,10 @@ async function sendPasswordReset(toEmail, studentName, resetLink) {
         </div>
       `
     });
+    if (result.error) {
+      console.error('Email send error:', result.error.message || result.error);
+      return false;
+    }
     return true;
   } catch (err) {
     console.error('Email send error:', err.message);

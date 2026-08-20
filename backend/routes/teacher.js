@@ -255,6 +255,20 @@ router.put('/assistants/:id/permissions', auth('teacher'), async (req, res) => {
   }
 });
 
+// ── POST /teacher/backup-now — teacher-only, trigger an on-demand backup
+// email in addition to the automatic nightly one (e.g. right before a risky
+// bulk change) ───────────────────────────────────────────────────────────
+router.post('/backup-now', auth('teacher'), async (req, res) => {
+  try {
+    const { runBackup } = require('../utils/dbBackup');
+    await runBackup();
+    res.json({ message: 'تم إرسال النسخة الاحتياطية على البريد الإلكتروني' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'تعذّر إنشاء النسخة الاحتياطية' });
+  }
+});
+
 // ── Stats ─────────────────────────────────────────────────────────────────
 router.get('/stats', staff, async (req, res) => {
   try {

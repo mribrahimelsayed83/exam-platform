@@ -438,3 +438,5 @@ app.use((req,res) => res.status(404).json({ message:'Route not found' }));
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`));
+
+require('./utils/dbBackup').scheduleDailyBackup();

@@ -78,7 +78,46 @@ export default function TeacherSettings() {
         </form>
       )}
 
+      {isTeacher && <BackupCard />}
       <ChangePasswordCard />
+    </div>
+  );
+}
+
+// ── On-demand database backup (teacher-only) ────────────────────────────────
+function BackupCard() {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError]     = useState('');
+
+  const handleBackup = async () => {
+    setSuccess(''); setError(''); setLoading(true);
+    try {
+      await api.post('/teacher/backup-now');
+      setSuccess('✅ تم إرسال نسخة احتياطية كاملة على البريد الإلكتروني');
+      setTimeout(() => setSuccess(''), 5000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'تعذّر إنشاء النسخة الاحتياطية');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="card mb-4">
+      <h3 className="font-bold text-slate-700 mb-1 flex items-center gap-2">💾 نسخة احتياطية</h3>
+      <p className="text-xs text-slate-400 mb-4">
+        بيانات المنصة (الطلاب، الامتحانات، الإجابات، المدفوعات) بتتنسخ احتياطيًا تلقائيًا كل يوم وتتبعت على البريد الإلكتروني.
+        تقدر كمان تطلب نسخة فورية دلوقتي، مثلاً قبل ما تعمل تعديل كبير.
+      </p>
+      {success && <div className="alert alert-success mb-3">{success}</div>}
+      {error   && <div className="alert alert-danger mb-3">{error}</div>}
+      <button onClick={handleBackup} className="btn-secondary" disabled={loading}>
+        {loading
+          ? <span className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+          : '📥 إنشاء نسخة احتياطية الآن'
+        }
+      </button>
     </div>
   );
 }

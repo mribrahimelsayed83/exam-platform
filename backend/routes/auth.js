@@ -214,8 +214,11 @@ router.post('/forgot-password', async (req, res) => {
     );
 
     const resetLink = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    await sendPasswordReset(student.email, student.name, resetLink);
+    const sent = await sendPasswordReset(student.email, student.name, resetLink);
+    if (!sent) console.error(`⚠️  Password reset email failed to send for student #${student.id}`);
 
+    // Client-facing response stays generic either way — don't reveal
+    // account existence via timing/response differences.
     res.json({ message: GENERIC_MSG });
   } catch (err) {
     console.error(err);
