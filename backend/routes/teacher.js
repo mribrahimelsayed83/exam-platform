@@ -125,6 +125,35 @@ router.put('/students/:id/reject', staff, perm, async (req, res) => {
   }
 });
 
+// ── Bulk approve / reject ────────────────────────────────────────────────
+router.post('/students/bulk-approve', staff, perm, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: 'لا يوجد طلاب محددون' });
+  try {
+    const { id, role } = req.user;
+    const col = role === 'teacher' ? 'approved_by' : 'approved_by_asst';
+    await pool.query(
+      `UPDATE students SET status='approved', ${col}=$1, approved_at=NOW() WHERE id = ANY($2::int[])`,
+      [id, ids]
+    );
+    ids.forEach(sid => notifyStudent(Number(sid), '✅ تم قبول حسابك', 'مبروك! تم قبول حسابك في المنصة. يمكنك الآن الدخول والبدء في الدراسة.'));
+    res.json({ message: `تم قبول ${ids.length} طالب` });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+router.post('/students/bulk-reject', staff, perm, async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ message: 'لا يوجد طلاب محددون' });
+  try {
+    await pool.query(`UPDATE students SET status='rejected' WHERE id = ANY($1::int[])`, [ids]);
+    res.json({ message: `تم رفض ${ids.length} طالب` });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── Edit ──────────────────────────────────────────────────────────────────
 router.put('/students/:id', staff, perm, async (req, res) => {
   const { name, grade, phone, parent_phone, email, username, governorate, city } = req.body;
@@ -290,6 +319,52 @@ router.get('/stats', staff, async (req, res) => {
       pending:     pending.rows[0].count,
     });
   } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── Analytics — teacher-only decision-support data ──────────────────────────
+router.get('/analytics', auth('teacher'), async (req, res) => {
+  try {
+    const [weakestExams, inactiveStudents, topVideos] = await Promise.all([
+      // Weakest exams by pass rate (only exams with at least one graded submission)
+      pool.query(`
+        SELECT e.id, e.title, e.grade,
+               COUNT(s.id)::int AS submission_count,
+               ROUND(100.0 * COUNT(*) FILTER (WHERE s.final_score >= e.pass_score) / COUNT(s.id))::int AS pass_rate
+        FROM exams e
+        JOIN submissions s ON s.exam_id = e.id AND s.final_score IS NOT NULL
+        GROUP BY e.id
+        ORDER BY pass_rate ASC, submission_count DESC
+        LIMIT 5
+      `),
+      // Approved students who never logged in, or haven't in 14+ days
+      pool.query(`
+        SELECT id, name, username, grade, last_login_at, created_at
+        FROM students
+        WHERE status='approved'
+          AND (last_login_at IS NULL OR last_login_at < NOW() - INTERVAL '14 days')
+        ORDER BY last_login_at ASC NULLS FIRST
+        LIMIT 15
+      `),
+      // Most-watched videos/items (title is denormalized onto video_views at watch time)
+      pool.query(`
+        SELECT item_id, title, COUNT(*)::int AS view_count,
+               COUNT(DISTINCT student_id)::int AS unique_students
+        FROM video_views
+        WHERE item_id IS NOT NULL
+        GROUP BY item_id, title
+        ORDER BY view_count DESC
+        LIMIT 10
+      `),
+    ]);
+    res.json({
+      weakestExams:     weakestExams.rows,
+      inactiveStudents: inactiveStudents.rows,
+      topVideos:        topVideos.rows,
+    });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ message: 'خطأ في السيرفر' });
   }
 });

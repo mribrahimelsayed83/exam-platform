@@ -25,6 +25,8 @@ export default function StudentsList() {
   const [editing, setEditing]       = useState(null);
   const [detailId, setDetailId]     = useState(null);
   const [resetPw, setResetPw]       = useState(null);
+  const [selected, setSelected]     = useState(new Set());
+  const [bulkLoading, setBulkLoading] = useState(false);
 
   const openId = searchParams.get('open');
   useEffect(() => {
@@ -41,12 +43,38 @@ export default function StudentsList() {
       .finally(() => setLoading(false));
   };
   useEffect(load, [filter]);
+  useEffect(() => { clearSelection(); }, [filter, gradeFilter]);
 
   const approve = async (id) => { await api.put(`/teacher/students/${id}/approve`); load(); };
   const reject  = async (id) => { await api.put(`/teacher/students/${id}/reject`);  load(); };
   const remove  = async (id) => {
     if (!confirm('هل أنت متأكد من حذف هذا الطالب؟')) return;
     await api.delete(`/teacher/students/${id}`); load();
+  };
+
+  const toggleSelect = (id) => setSelected(s => {
+    const next = new Set(s);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return next;
+  });
+  const toggleSelectGroup = (ids, allSelected) => setSelected(s => {
+    const next = new Set(s);
+    ids.forEach(id => allSelected ? next.delete(id) : next.add(id));
+    return next;
+  });
+  const clearSelection = () => setSelected(new Set());
+
+  const bulkApprove = async () => {
+    if (!confirm(`قبول ${selected.size} طالب؟`)) return;
+    setBulkLoading(true);
+    try { await api.post('/teacher/students/bulk-approve', { ids: [...selected] }); clearSelection(); load(); }
+    finally { setBulkLoading(false); }
+  };
+  const bulkReject = async () => {
+    if (!confirm(`رفض ${selected.size} طالب؟`)) return;
+    setBulkLoading(true);
+    try { await api.post('/teacher/students/bulk-reject', { ids: [...selected] }); clearSelection(); load(); }
+    finally { setBulkLoading(false); }
   };
 
   const filtered = (gradeFilter === null
@@ -126,6 +154,26 @@ export default function StudentsList() {
         ))}
       </div>
 
+      {/* Bulk action bar */}
+      {selected.size > 0 && (
+        <div className="sticky top-0 z-10 flex items-center gap-3 bg-blue-600 text-white rounded-xl px-4 py-3 mb-4 shadow-lg flex-wrap">
+          <span className="font-bold text-sm">{selected.size} محدد</span>
+          <div className="flex gap-2 flex-wrap mr-auto">
+            <button onClick={bulkApprove} disabled={bulkLoading}
+              className="btn-sm bg-white text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
+              ✅ قبول المحدد
+            </button>
+            <button onClick={bulkReject} disabled={bulkLoading}
+              className="btn-sm bg-white text-red-700 hover:bg-red-50 disabled:opacity-60">
+              ❌ رفض المحدد
+            </button>
+            <button onClick={clearSelection} className="btn-sm bg-blue-700 text-white hover:bg-blue-800">
+              إلغاء التحديد
+            </button>
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-16">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
@@ -157,6 +205,12 @@ export default function StudentsList() {
                     <table className="w-full text-sm">
                       <thead className="bg-slate-50">
                         <tr>
+                          <th className="px-4 py-3 border-b border-slate-200 w-8">
+                            <input type="checkbox" className="accent-blue-600 w-4 h-4 cursor-pointer"
+                              checked={list.length > 0 && list.every(s => selected.has(s.id))}
+                              onChange={() => toggleSelectGroup(list.map(s=>s.id), list.every(s => selected.has(s.id)))}
+                            />
+                          </th>
                           {['الاسم','التليفون','ولي الأمر','الحالة','الامتحانات'].map(h=>(
                             <th key={h} className="text-right text-xs font-bold text-slate-500 px-4 py-3 border-b border-slate-200">{h}</th>
                           ))}
@@ -187,7 +241,11 @@ export default function StudentsList() {
                       </thead>
                       <tbody>
                         {list.map(st=>(
-                          <tr key={st.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                          <tr key={st.id} className={`border-b border-slate-50 hover:bg-slate-50 transition-colors ${selected.has(st.id) ? 'bg-blue-50/50' : ''}`}>
+                            <td className="px-4 py-3">
+                              <input type="checkbox" className="accent-blue-600 w-4 h-4 cursor-pointer"
+                                checked={selected.has(st.id)} onChange={() => toggleSelect(st.id)}/>
+                            </td>
                             <td className="px-4 py-3">
                               <div className="font-semibold text-slate-800">{st.name}</div>
                               <div className="text-xs text-slate-400">{st.username}</div>

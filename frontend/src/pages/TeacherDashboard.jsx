@@ -14,6 +14,7 @@ import PaymentsOverview      from '../components/teacher/PaymentsOverview';
 import NotificationsSender from '../components/teacher/NotificationsSender';
 import LandingEditor       from '../components/teacher/LandingEditor';
 import TeacherChat         from '../components/teacher/TeacherChat';
+import TeacherAnalytics    from '../components/teacher/TeacherAnalytics';
 
 // ── Combined Settings + Landing page ─────────────────────────────────────
 function CombinedSettings() {
@@ -69,6 +70,7 @@ export default function TeacherDashboard() {
     { path:'chat',         label:'الرسائل',      icon:'💬',  teacherOnly: false },
     { path:'notifications', label:'الإشعارات',  icon:'🔔',  teacherOnly: false },
     { path:'payments',    label:'المدفوعات',    icon:'💰',  teacherOnly: false },
+    { path:'analytics',   label:'التحليلات',    icon:'📈',  teacherOnly: true  },
     { path:'assistants',  label:'المساعدون',    icon:'🤝',  teacherOnly: true  },
     { path:'settings',    label:'الإعدادات',    icon:'⚙️',  teacherOnly: true  },
   ];
@@ -128,6 +130,7 @@ export default function TeacherDashboard() {
               {hasPermission('notifications') && <Route path="notifications" element={<NotificationsSender />} />}
               {hasPermission('payments')      && <Route path="payments"      element={<PaymentsOverview />} />}
               {isTeacher && <>
+                <Route path="analytics"  element={<TeacherAnalytics />} />
                 <Route path="assistants" element={<AssistantsList />} />
                 <Route path="settings"   element={<CombinedSettings />} />
               </>}
