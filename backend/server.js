@@ -2,7 +2,7 @@ require('dotenv').config();
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
-const rateLimit   = require('express-rate-limit');
+const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const compression = require('compression');
 const pool        = require('./db/pool');
 const { generateUniqueActivationCode } = require('./utils/activationCode');
@@ -350,6 +350,13 @@ runMigrations();
 
 const app = express();
 
+// Railway sits in front of this app behind one reverse-proxy hop — without
+// this, req.ip is always the proxy's own address, so every user shares one
+// bucket in the rate limiters below (one busy user can lock out everyone
+// else, and legitimate combined traffic trips the login limiter for no
+// individual reason).
+app.set('trust proxy', 1);
+
 app.use(compression());
 
 app.use(helmet({
@@ -383,13 +390,21 @@ const forgotLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: { message: 'محاولات تسجيل كثيرة جداً — انتظر ساعة' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
 const searchLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 30,
-  keyGenerator: (req) => req.user?.id ? String(req.user.id) : req.ip,
+  keyGenerator: (req) => req.user?.id ? String(req.user.id) : ipKeyGenerator(req.ip),
   message: { message: 'طلبات كثيرة جداً — انتظر دقيقة' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -404,6 +419,7 @@ app.use('/api/auth/student/login',   loginLimiter);
 app.use('/api/auth/teacher/login',   loginLimiter);
 app.use('/api/auth/assistant/login', loginLimiter);
 app.use('/api/auth/forgot-password', forgotLimiter);
+app.use('/api/auth/register',        registerLimiter);
 app.use('/api/auth',        require('./routes/auth'));
 app.use('/api/exams',       require('./routes/exams'));
 app.use('/api/submissions', require('./routes/submissions'));

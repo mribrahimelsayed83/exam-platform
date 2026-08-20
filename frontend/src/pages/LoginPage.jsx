@@ -30,18 +30,17 @@ export default function LoginPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(''); setLoading(true);
-    for (const endpoint of ENDPOINTS) {
-      try {
-        const { data } = await api.post(endpoint, form);
-        login(data.token, data.user);
-        navigate(data.user.role === 'student' ? '/student' : '/teacher', { replace: true });
-        return;
-      } catch {
-        // try next endpoint
-      }
+    try {
+      // Try all three role endpoints in parallel instead of one-by-one —
+      // a teacher/assistant login used to pay for 2-3 sequential network
+      // round-trips before reaching the endpoint that actually matches.
+      const { data } = await Promise.any(ENDPOINTS.map(endpoint => api.post(endpoint, form)));
+      login(data.token, data.user);
+      navigate(data.user.role === 'student' ? '/student' : '/teacher', { replace: true });
+    } catch {
+      setError('اسم المستخدم أو كلمة المرور غير صحيحة');
+      setLoading(false);
     }
-    setError('اسم المستخدم أو كلمة المرور غير صحيحة');
-    setLoading(false);
   };
 
   return (
