@@ -6,6 +6,23 @@ const { rateLimit, ipKeyGenerator } = require('express-rate-limit');
 const compression = require('compression');
 const pool        = require('./db/pool');
 const { generateUniqueActivationCode } = require('./utils/activationCode');
+const { alertAdmin } = require('./utils/alertAdmin');
+
+// Last line of defense — a bug that throws outside any try/catch (or an
+// unhandled promise rejection) would otherwise crash the process silently.
+// Alert before exiting; Railway restarts the container automatically, so
+// the goal here is just "know it happened," not prevent the exit.
+process.on('uncaughtException', (err) => {
+  console.error('❌ Uncaught exception — process will exit:', err);
+  alertAdmin('السيرفر وقع بسبب خطأ غير متوقع (uncaughtException)', err.stack || err.message)
+    .finally(() => process.exit(1));
+});
+process.on('unhandledRejection', (reason) => {
+  const detail = reason instanceof Error ? (reason.stack || reason.message) : String(reason);
+  console.error('❌ Unhandled promise rejection:', detail);
+  alertAdmin('السيرفر وقع بسبب خطأ غير متوقع (unhandledRejection)', detail)
+    .finally(() => process.exit(1));
+});
 
 // ── Auto-migration: run on every startup (safe — uses IF NOT EXISTS) ──────
 async function runMigrations() {
