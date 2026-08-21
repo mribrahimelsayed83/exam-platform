@@ -361,6 +361,18 @@ async function runMigrations() {
     await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS two_factor_secret TEXT DEFAULT NULL;`);
     await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
 
+    // Automatic reminders — dedupe tables/columns so a student is only
+    // pinged once per exam deadline, and at most once a week for inactivity.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS exam_deadline_reminders (
+        exam_id    INTEGER NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+        student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+        sent_at    TIMESTAMPTZ DEFAULT NOW(),
+        PRIMARY KEY (exam_id, student_id)
+      );
+    `);
+    await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_inactivity_reminder_at TIMESTAMPTZ DEFAULT NULL;`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
@@ -461,3 +473,4 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`🚀 Server on http://localhost:${PORT}`));
 
 require('./utils/dbBackup').scheduleDailyBackup();
+require('./utils/reminders').scheduleDailyReminders();

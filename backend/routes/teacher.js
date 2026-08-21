@@ -298,6 +298,19 @@ router.post('/backup-now', auth('teacher'), async (req, res) => {
   }
 });
 
+// ── POST /teacher/reminders-now — teacher-only, run the reminder checks
+// immediately instead of waiting for the daily scheduled run ───────────────
+router.post('/reminders-now', auth('teacher'), async (req, res) => {
+  try {
+    const { runReminders } = require('../utils/reminders');
+    await runReminders();
+    res.json({ message: 'تم إرسال التذكيرات' });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'تعذّر إرسال التذكيرات' });
+  }
+});
+
 // ── Stats ─────────────────────────────────────────────────────────────────
 router.get('/stats', staff, async (req, res) => {
   try {
@@ -386,7 +399,7 @@ router.put('/settings', auth('teacher'), async (req, res) => {
   try {
     await pool.query(
       'UPDATE teachers SET name=$1, subject=$2, platform_name=$3 WHERE id=$4',
-      [name, subject||'', platformName||'منصة الامتحانات', req.user.id]
+      [name, subject||'', platformName||'منصة الفاروق', req.user.id]
     );
     res.json({ message: 'تم حفظ الإعدادات' });
   } catch (err) {
@@ -416,7 +429,7 @@ router.post('/2fa/setup', auth('teacher'), async (req, res) => {
     const secret = generateSecret();
     await pool.query('UPDATE teachers SET two_factor_secret=$1, two_factor_enabled=FALSE WHERE id=$2', [secret, req.user.id]);
     const { rows: [teacher] } = await pool.query('SELECT username FROM teachers WHERE id=$1', [req.user.id]);
-    const otpauth = generateURI({ issuer: 'منصة الامتحانات', label: teacher.username, secret });
+    const otpauth = generateURI({ issuer: 'منصة الفاروق', label: teacher.username, secret });
     const qrCode  = await QRCode.toDataURL(otpauth);
     res.json({ secret, qrCode });
   } catch (err) {

@@ -53,7 +53,7 @@ export default function TeacherSettings() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 mb-1.5">اسم المنصة</label>
-                <input className="input" placeholder="منصة الامتحانات" value={form.platformName}
+                <input className="input" placeholder="منصة الفاروق" value={form.platformName}
                   onChange={e => set('platformName', e.target.value)} />
               </div>
               <div>

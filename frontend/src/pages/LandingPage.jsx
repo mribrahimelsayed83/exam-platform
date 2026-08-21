@@ -274,7 +274,7 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{background:bg}}/>
-            <span className="font-extrabold text-slate-800 text-base sm:text-lg truncate">{data.platform_tagline || 'منصة الامتحانات'}</span>
+            <span className="font-extrabold text-slate-800 text-base sm:text-lg truncate">{data.platform_tagline || 'منصة الفاروق'}</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {/* Theme pill toggle */}

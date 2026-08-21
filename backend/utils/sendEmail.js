@@ -19,10 +19,10 @@ async function sendPasswordReset(toEmail, studentName, resetLink) {
     const result = await resend.emails.send({
       from: FROM,
       to:   toEmail,
-      subject: 'إعادة تعيين كلمة المرور — منصة الامتحانات',
+      subject: 'إعادة تعيين كلمة المرور — منصة الفاروق',
       html: `
         <div dir="rtl" style="font-family:Arial,sans-serif;max-width:500px;margin:0 auto;padding:24px">
-          <h2 style="color:#2563eb">منصة الامتحانات</h2>
+          <h2 style="color:#2563eb">منصة الفاروق</h2>
           <p>مرحباً ${escHtml(studentName)}،</p>
           <p>تلقّينا طلباً لإعادة تعيين كلمة المرور الخاصة بك.</p>
           <p>اضغط على الزر التالي لإعادة التعيين:</p>
@@ -33,7 +33,7 @@ async function sendPasswordReset(toEmail, studentName, resetLink) {
           <p style="color:#666;font-size:13px">الرابط صالح لمدة <strong>30 دقيقة</strong> فقط.</p>
           <p style="color:#666;font-size:13px">لو لم تطلب إعادة التعيين، تجاهل هذا الإيميل.</p>
           <hr style="border:none;border-top:1px solid #eee;margin:24px 0"/>
-          <p style="color:#999;font-size:12px">منصة الامتحانات الإلكترونية</p>
+          <p style="color:#999;font-size:12px">منصة الفاروق التعليمية</p>
         </div>
       `
     });

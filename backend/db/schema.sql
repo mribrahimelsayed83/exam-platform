@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS teachers (
   password      TEXT NOT NULL,
   name          VARCHAR(100) NOT NULL,
   subject       VARCHAR(100) DEFAULT '',
-  platform_name VARCHAR(100) DEFAULT 'منصة الامتحانات',
+  platform_name VARCHAR(100) DEFAULT 'منصة الفاروق',
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 

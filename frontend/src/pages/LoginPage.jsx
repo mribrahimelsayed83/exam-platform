@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
-  const [platformName, setPlatformName] = useState('منصة الامتحانات');
+  const [platformName, setPlatformName] = useState('منصة الفاروق');
   const [pending2FA, setPending2FA] = useState(null); // { tempToken } once password is confirmed but a TOTP code is still needed
   const [code, setCode] = useState('');
   const { login } = useAuth();
@@ -103,9 +103,10 @@ export default function LoginPage() {
       />
       <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">📚</div>
-          <h1 className="text-2xl font-extrabold text-slate-800">{platformName}</h1>
-          <p className="text-slate-500 text-sm mt-1">الامتحانات الإلكترونية التفاعلية</p>
+          <Link to="/" className="inline-block">
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg hover:shadow-xl transition-shadow">📚</div>
+            <h1 className="text-2xl font-extrabold text-slate-800 hover:text-blue-600 transition-colors">{platformName}</h1>
+          </Link>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

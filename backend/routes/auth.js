@@ -193,9 +193,9 @@ router.post('/assistant/login', async (req, res) => {
 router.get('/platform-name', async (_req, res) => {
   try {
     const result = await pool.query('SELECT platform_name FROM teachers ORDER BY id LIMIT 1');
-    res.json({ platform_name: result.rows[0]?.platform_name || 'منصة الامتحانات' });
+    res.json({ platform_name: result.rows[0]?.platform_name || 'منصة الفاروق' });
   } catch {
-    res.json({ platform_name: 'منصة الامتحانات' });
+    res.json({ platform_name: 'منصة الفاروق' });
   }
 });
 
@@ -216,7 +216,7 @@ router.get('/me', auth(), async (req, res) => {
       result = await pool.query(
         `SELECT s.id, s.name, s.username, s.grade, s.email, s.phone, s.created_at,
                 s.governorate, s.city, s.activation_code,
-                COALESCE(t.platform_name, 'منصة الامتحانات') AS platform_name
+                COALESCE(t.platform_name, 'منصة الفاروق') AS platform_name
          FROM students s
          LEFT JOIN teachers t ON t.id = s.approved_by
          WHERE s.id=$1`,

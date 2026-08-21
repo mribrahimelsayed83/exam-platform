@@ -220,7 +220,7 @@ export default function Navbar({ title }) {
           <a href="https://mribrahimfarouk.com/" className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
             <span className="font-extrabold text-blue-600 text-base">
-              {title || user?.platform_name || 'منصة الامتحانات'}
+              {title || user?.platform_name || 'منصة الفاروق'}
             </span>
           </a>
           {user?.role === 'student' && !isStudentHome && (
