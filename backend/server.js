@@ -379,6 +379,13 @@ async function runMigrations() {
     `);
     await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_inactivity_reminder_at TIMESTAMPTZ DEFAULT NULL;`);
 
+    // Index review — questions(exam_id) was hit on every exam load/regrade
+    // with zero coverage; the other two back the analytics and per-student
+    // notification-list queries.
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_questions_exam ON questions(exam_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_video_views_item ON video_views(item_id);`);
+    await pool.query(`CREATE INDEX IF NOT EXISTS idx_notifications_student ON notifications(student_id);`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);
