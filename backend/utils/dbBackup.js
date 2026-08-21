@@ -4,7 +4,8 @@ const pool   = require('../db/pool');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM   = process.env.FROM_EMAIL   || 'onboarding@resend.dev';
-const TO     = process.env.BACKUP_EMAIL || '';
+// BACKUP_EMAIL may be a single address or several comma-separated ones.
+const TO     = (process.env.BACKUP_EMAIL || '').split(',').map(e => e.trim()).filter(Boolean);
 
 // Core business data — excludes push_subscriptions (ephemeral browser state)
 // and landing_settings (cosmetic content with large embedded images, not
@@ -25,7 +26,7 @@ const TABLES = [
 // the nightly scheduler logs and swallows it, the manual route lets it
 // surface as a real failure response instead of a false "sent" message.
 async function runBackup() {
-  if (!process.env.RESEND_API_KEY || !TO) {
+  if (!process.env.RESEND_API_KEY || TO.length === 0) {
     throw new Error('RESEND_API_KEY أو BACKUP_EMAIL غير مضبوطين');
   }
 
