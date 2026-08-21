@@ -1,4 +1,5 @@
 const { Resend } = require('resend');
+const Sentry = require('@sentry/node');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM   = process.env.FROM_EMAIL   || 'onboarding@resend.dev';
@@ -7,6 +8,14 @@ const TO     = (process.env.BACKUP_EMAIL || '').split(',').map(e => e.trim()).fi
 // Best-effort — called from crash/error handlers, so it must never throw
 // and never block whatever cleanup/exit is happening around it.
 async function alertAdmin(subject, detail) {
+  // Every call site here (uncaught exceptions, unhandled rejections, DB pool
+  // errors) is exactly the class of failure Sentry exists for — routing
+  // them there too means Sentry coverage grows automatically as more crash
+  // paths call alertAdmin(), without touching every individual route file.
+  if (process.env.SENTRY_DSN) {
+    Sentry.captureException(detail instanceof Error ? detail : new Error(`${subject}: ${String(detail || '').slice(0, 500)}`));
+  }
+
   if (!process.env.RESEND_API_KEY || TO.length === 0) return;
   try {
     await resend.emails.send({

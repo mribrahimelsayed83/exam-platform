@@ -1,4 +1,10 @@
 require('dotenv').config();
+
+const Sentry = require('@sentry/node');
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN, sendDefaultPii: false });
+}
+
 const express     = require('express');
 const cors        = require('cors');
 const helmet      = require('helmet');
@@ -467,6 +473,11 @@ app.use('/api/push',          require('./routes/push'));
 app.use('/api/search',        searchLimiter, require('./routes/search'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
+
+// Catches errors passed to next(err) — most routes here catch and respond
+// locally instead, so this mainly protects future code that doesn't.
+if (process.env.SENTRY_DSN) Sentry.setupExpressErrorHandler(app);
+
 app.use((req,res) => res.status(404).json({ message:'Route not found' }));
 
 const PORT = process.env.PORT || 5000;
