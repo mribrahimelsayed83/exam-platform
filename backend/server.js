@@ -340,6 +340,10 @@ async function runMigrations() {
     `);
     await pool.query(`CREATE INDEX IF NOT EXISTS idx_exam_lists_parent ON exam_lists(parent_id);`);
 
+    // Two-factor auth (TOTP) — teacher account only, the most privileged role.
+    await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS two_factor_secret TEXT DEFAULT NULL;`);
+    await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS two_factor_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
+
     console.log('✅ Migrations applied');
   } catch (err) {
     console.error('❌ Migration error:', err.message);

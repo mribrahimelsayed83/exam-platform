@@ -78,8 +78,119 @@ export default function TeacherSettings() {
         </form>
       )}
 
+      {isTeacher && <TwoFactorCard />}
       {isTeacher && <BackupCard />}
       <ChangePasswordCard />
+    </div>
+  );
+}
+
+// ── Two-factor authentication (TOTP, teacher-only) ──────────────────────────
+function TwoFactorCard() {
+  const [enabled, setEnabled] = useState(null); // null = loading
+  const [setupData, setSetupData] = useState(null); // { secret, qrCode }
+  const [code, setCode]       = useState('');
+  const [disablePassword, setDisablePassword] = useState('');
+  const [showDisableForm, setShowDisableForm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState('');
+  const [error, setError]     = useState('');
+
+  const loadStatus = () => api.get('/teacher/2fa/status').then(r => setEnabled(r.data.enabled));
+  useEffect(() => { loadStatus(); }, []);
+
+  const startSetup = async () => {
+    setError(''); setSuccess(''); setLoading(true);
+    try {
+      const { data } = await api.post('/teacher/2fa/setup');
+      setSetupData(data);
+    } catch {
+      setError('تعذّر بدء الإعداد');
+    } finally { setLoading(false); }
+  };
+
+  const confirmSetup = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      await api.post('/teacher/2fa/verify', { code });
+      setSuccess('✅ تم تفعيل التحقق بخطوتين بنجاح');
+      setSetupData(null); setCode('');
+      loadStatus();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'الكود غلط');
+    } finally { setLoading(false); }
+  };
+
+  const disable = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      await api.post('/teacher/2fa/disable', { password: disablePassword });
+      setSuccess('تم تعطيل التحقق بخطوتين');
+      setShowDisableForm(false); setDisablePassword('');
+      loadStatus();
+      setTimeout(() => setSuccess(''), 4000);
+    } catch (err) {
+      setError(err.response?.data?.message || 'كلمة المرور غلط');
+    } finally { setLoading(false); }
+  };
+
+  return (
+    <div className="card mb-4">
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="font-bold text-slate-700 flex items-center gap-2">🛡️ التحقق بخطوتين (2FA)</h3>
+        {enabled !== null && (
+          <span className={`badge ${enabled ? 'badge-green' : 'badge-gray'}`}>{enabled ? '✅ مفعّل' : 'غير مفعّل'}</span>
+        )}
+      </div>
+      <p className="text-xs text-slate-400 mb-4">
+        طبقة حماية إضافية لحسابك — بعد كتابة كلمة المرور، هتحتاج كمان كود من تطبيق مصادقة (زي Google Authenticator) عشان تدخل.
+      </p>
+
+      {success && <div className="alert alert-success mb-3">{success}</div>}
+      {error   && <div className="alert alert-danger mb-3">{error}</div>}
+
+      {enabled === null ? null : enabled ? (
+        showDisableForm ? (
+          <form onSubmit={disable} className="max-w-sm space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">كلمة المرور — للتأكيد</label>
+              <input type="password" className="input" dir="ltr" value={disablePassword}
+                onChange={e => setDisablePassword(e.target.value)} required autoFocus/>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-danger btn-sm" disabled={loading}>تعطيل التحقق بخطوتين</button>
+              <button type="button" onClick={() => { setShowDisableForm(false); setDisablePassword(''); }} className="btn-secondary btn-sm">إلغاء</button>
+            </div>
+          </form>
+        ) : (
+          <button onClick={() => setShowDisableForm(true)} className="btn-secondary btn-sm">تعطيل</button>
+        )
+      ) : setupData ? (
+        <div className="max-w-sm">
+          <p className="text-xs font-bold text-slate-500 mb-2">١. امسح الكود ده بتطبيق المصادقة (Google Authenticator أو أي تطبيق مشابه)</p>
+          <img src={setupData.qrCode} alt="QR Code" className="w-40 h-40 border border-slate-200 rounded-xl mb-3"/>
+          <p className="text-xs text-slate-400 mb-1">أو أدخل المفتاح ده يدويًا:</p>
+          <code dir="ltr" className="block bg-slate-100 text-slate-700 text-xs p-2 rounded-lg mb-4 break-all">{setupData.secret}</code>
+          <form onSubmit={confirmSetup} className="space-y-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-500 mb-1.5">٢. اكتب الكود المكوّن من 6 أرقام من التطبيق</label>
+              <input className="input" dir="ltr" inputMode="numeric" maxLength={6} placeholder="000000"
+                value={code} onChange={e => setCode(e.target.value.replace(/\D/g,'').slice(0,6))} required autoFocus/>
+            </div>
+            <div className="flex gap-2">
+              <button type="submit" className="btn-primary btn-sm" disabled={loading || code.length !== 6}>تأكيد وتفعيل</button>
+              <button type="button" onClick={() => { setSetupData(null); setCode(''); }} className="btn-secondary btn-sm">إلغاء</button>
+            </div>
+          </form>
+        </div>
+      ) : (
+        <button onClick={startSetup} className="btn-primary btn-sm" disabled={loading}>
+          {loading ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : 'تفعيل التحقق بخطوتين'}
+        </button>
+      )}
     </div>
   );
 }

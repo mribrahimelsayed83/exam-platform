@@ -395,6 +395,71 @@ router.put('/settings', auth('teacher'), async (req, res) => {
 });
 
 // ════════════════════════════════════════
+// TWO-FACTOR AUTH (TOTP) — teacher account only
+// ════════════════════════════════════════
+
+router.get('/2fa/status', auth('teacher'), async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT two_factor_enabled FROM teachers WHERE id=$1', [req.user.id]);
+    res.json({ enabled: !!rows[0]?.two_factor_enabled });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// Generates and stores a new secret (not yet enabled — only takes effect
+// once confirmed via /2fa/verify) and returns a QR code to scan.
+router.post('/2fa/setup', auth('teacher'), async (req, res) => {
+  try {
+    const { generateSecret, generateURI } = require('otplib');
+    const QRCode = require('qrcode');
+    const secret = generateSecret();
+    await pool.query('UPDATE teachers SET two_factor_secret=$1, two_factor_enabled=FALSE WHERE id=$2', [secret, req.user.id]);
+    const { rows: [teacher] } = await pool.query('SELECT username FROM teachers WHERE id=$1', [req.user.id]);
+    const otpauth = generateURI({ issuer: 'منصة الامتحانات', label: teacher.username, secret });
+    const qrCode  = await QRCode.toDataURL(otpauth);
+    res.json({ secret, qrCode });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// Confirms the code from the authenticator app and flips 2FA on.
+router.post('/2fa/verify', auth('teacher'), async (req, res) => {
+  const { code } = req.body;
+  if (!code) return res.status(400).json({ message: 'الكود مطلوب' });
+  try {
+    const { verify } = require('otplib');
+    const { rows } = await pool.query('SELECT two_factor_secret FROM teachers WHERE id=$1', [req.user.id]);
+    const secret = rows[0]?.two_factor_secret;
+    if (!secret) return res.status(400).json({ message: 'لازم تبدأ الإعداد الأول' });
+    const result = await verify({ token: String(code).trim(), secret });
+    if (!result.valid) return res.status(400).json({ message: 'الكود غلط — جرّب تاني' });
+    await pool.query('UPDATE teachers SET two_factor_enabled=TRUE WHERE id=$1', [req.user.id]);
+    res.json({ message: 'تم تفعيل التحقق بخطوتين بنجاح' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// Requires the current password to confirm — prevents disabling 2FA from a
+// hijacked-but-still-logged-in session without knowing the actual password.
+router.post('/2fa/disable', auth('teacher'), async (req, res) => {
+  const { password } = req.body;
+  if (!password) return res.status(400).json({ message: 'كلمة المرور مطلوبة للتأكيد' });
+  try {
+    const { rows } = await pool.query('SELECT password FROM teachers WHERE id=$1', [req.user.id]);
+    const valid = await bcrypt.compare(password, rows[0].password);
+    if (!valid) return res.status(400).json({ message: 'كلمة المرور غلط' });
+    await pool.query('UPDATE teachers SET two_factor_enabled=FALSE, two_factor_secret=NULL WHERE id=$1', [req.user.id]);
+    res.json({ message: 'تم تعطيل التحقق بخطوتين' });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ════════════════════════════════════════
 // TEACHER NOTIFICATIONS
 // ════════════════════════════════════════
 

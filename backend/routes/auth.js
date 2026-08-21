@@ -120,6 +120,49 @@ router.post('/teacher/login', async (req, res) => {
     if (!teacher) return res.status(401).json({ message: 'بيانات الدخول غلط' });
     const valid = await bcrypt.compare(password, teacher.password);
     if (!valid) return res.status(401).json({ message: 'بيانات الدخول غلط' });
+
+    if (teacher.two_factor_enabled) {
+      // Password confirmed but 2FA still required — issue a short-lived,
+      // narrowly-scoped token that only /teacher/login/2fa will accept
+      // (checked via the pending2FA claim), not a real session token.
+      const tempToken = jwt.sign(
+        { id: teacher.id, role: 'teacher', pending2FA: true },
+        process.env.JWT_SECRET, { algorithm: 'HS256', expiresIn: '5m' }
+      );
+      return res.json({ needs2FA: true, tempToken });
+    }
+
+    const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name });
+    res.json({ token, user: { id: teacher.id, name: teacher.name, username: teacher.username, role: 'teacher' } });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
+// ── Teacher Login — step 2, TOTP code ────────────────────────────────────
+router.post('/teacher/login/2fa', async (req, res) => {
+  const { tempToken, code } = req.body;
+  if (!tempToken || !code) return res.status(400).json({ message: 'البيانات ناقصة' });
+  try {
+    let payload;
+    try {
+      payload = jwt.verify(tempToken, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+    } catch {
+      return res.status(401).json({ message: 'انتهت صلاحية الجلسة — سجّل دخول تاني' });
+    }
+    if (!payload.pending2FA || payload.role !== 'teacher')
+      return res.status(401).json({ message: 'طلب غير صالح' });
+
+    const result  = await pool.query('SELECT * FROM teachers WHERE id=$1', [payload.id]);
+    const teacher = result.rows[0];
+    if (!teacher || !teacher.two_factor_enabled || !teacher.two_factor_secret)
+      return res.status(401).json({ message: 'بيانات الدخول غلط' });
+
+    const { verify } = require('otplib');
+    const codeResult = await verify({ token: String(code).trim(), secret: teacher.two_factor_secret });
+    if (!codeResult.valid) return res.status(401).json({ message: 'الكود غلط' });
+
     const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name });
     res.json({ token, user: { id: teacher.id, name: teacher.name, username: teacher.username, role: 'teacher' } });
   } catch (err) {

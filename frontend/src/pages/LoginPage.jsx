@@ -16,6 +16,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showPass, setShowPass] = useState(false);
   const [platformName, setPlatformName] = useState('منصة الامتحانات');
+  const [pending2FA, setPending2FA] = useState(null); // { tempToken } once password is confirmed but a TOTP code is still needed
+  const [code, setCode] = useState('');
   const { login } = useAuth();
   const navigate  = useNavigate();
 
@@ -35,6 +37,11 @@ export default function LoginPage() {
       // a teacher/assistant login used to pay for 2-3 sequential network
       // round-trips before reaching the endpoint that actually matches.
       const { data } = await Promise.any(ENDPOINTS.map(endpoint => api.post(endpoint, form)));
+      if (data.needs2FA) {
+        setPending2FA({ tempToken: data.tempToken });
+        setLoading(false);
+        return;
+      }
       login(data.token, data.user);
       navigate(data.user.role === 'student' ? '/student' : '/teacher', { replace: true });
     } catch {
@@ -42,6 +49,50 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const handle2FASubmit = async (e) => {
+    e.preventDefault();
+    setError(''); setLoading(true);
+    try {
+      const { data } = await api.post('/auth/teacher/login/2fa', { tempToken: pending2FA.tempToken, code });
+      login(data.token, data.user);
+      navigate('/teacher', { replace: true });
+    } catch (err) {
+      setError(err.response?.data?.message || 'الكود غلط');
+      setLoading(false);
+    }
+  };
+
+  if (pending2FA) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-blue-400 p-4">
+        <SEO title="التحقق بخطوتين" url="/login"/>
+        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
+          <div className="text-center mb-8">
+            <div className="w-16 h-16 bg-blue-600 rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4 shadow-lg">🛡️</div>
+            <h1 className="text-xl font-extrabold text-slate-800">التحقق بخطوتين</h1>
+            <p className="text-slate-500 text-sm mt-1">اكتب الكود المكوّن من 6 أرقام من تطبيق المصادقة</p>
+          </div>
+          <form onSubmit={handle2FASubmit} className="space-y-4">
+            {error && <div className="alert alert-danger">{error}</div>}
+            <input className="input text-center text-2xl tracking-[0.5em] font-bold" dir="ltr" inputMode="numeric"
+              maxLength={6} placeholder="000000" value={code} autoFocus
+              onChange={e=>setCode(e.target.value.replace(/\D/g,'').slice(0,6))} required/>
+            <button type="submit" className="btn-primary btn-lg btn-block" disabled={loading || code.length !== 6}>
+              {loading
+                ? <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"/>
+                : 'تأكيد'
+              }
+            </button>
+            <button type="button" onClick={()=>{ setPending2FA(null); setCode(''); setError(''); }}
+              className="text-xs text-slate-400 hover:text-slate-600 block mx-auto">
+              ← رجوع لتسجيل الدخول
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-700 via-blue-600 to-blue-400 p-4">
