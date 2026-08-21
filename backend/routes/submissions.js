@@ -4,6 +4,7 @@ const pool   = require('../db/pool');
 const auth          = require('../middleware/auth');
 const staff         = auth.staff;
 const perm          = auth.permission('submissions');
+const { gradeSubmission, computeFinalScore } = require('../utils/scoring');
 
 // ── POST /submissions — student submits exam ──────────────────────────────
 router.post('/', auth('student'), async (req, res) => {
@@ -58,43 +59,9 @@ router.post('/', auth('student'), async (req, res) => {
     );
     const questions = questionsRes.rows;
 
-    // ── Grade MCQ questions automatically ──
-    let mcqCorrect = 0, mcqTotal = 0;
-    let essayTotal = 0, essayMax = 0;
-
-    const review = questions.map(q => {
-      const chosen = answers[q.id];
-      if (q.type === 'mcq' || q.type === 'truefalse') {
-        mcqTotal++;
-        const isCorrect = chosen !== undefined && Number(chosen) === q.correct;
-        if (isCorrect) mcqCorrect++;
-        return {
-          questionId: q.id, type: 'mcq',
-          question: q.text, options: q.options,
-          correct: q.correct,
-          chosen: chosen !== undefined ? Number(chosen) : null,
-          isCorrect,
-        };
-      } else {
-        // essay — not graded yet
-        essayTotal++;
-        essayMax += q.max_score || 10;
-        return {
-          questionId: q.id, type: 'essay',
-          question: q.text,
-          maxScore: q.max_score || 10,
-          answer: chosen || '',       // إجابة الطالب
-          earnedScore: null,          // الدرجة (بيحطها المصحح)
-          comment: '',                // تعليق المصحح
-          graded: false,
-        };
-      }
-    });
-
-    const mcqScore = mcqTotal > 0 ? Math.round((mcqCorrect / mcqTotal) * 100) : 100;
-    const gradingStatus = essayTotal > 0 ? 'auto_graded' : 'fully_graded';
-    // finalScore = null لو في مقالي لسه — بيتحسب بعد تصحيح المقالي
-    const finalScore = essayTotal === 0 ? mcqScore : null;
+    // ── Grade MCQ questions automatically (essay stays ungraded for now) ──
+    const { review, mcqCorrect, mcqTotal, essayTotal, essayMax, mcqScore, gradingStatus, finalScore } =
+      gradeSubmission(questions, answers);
 
     const result = await pool.query(
       `INSERT INTO submissions
@@ -299,29 +266,11 @@ router.put('/:id/grade-essay', staff, perm, async (req, res) => {
     const allGraded    = essayGraded === sub.essay_total;
     const gradingStatus = allGraded ? 'fully_graded' : 'partial';
 
-    // ── Compute final score when fully graded ──
-    // Formula: weighted average of MCQ + Essay
-    // MCQ weight = mcq_total questions, Essay weight = essay_max points
-    let finalScore = null;
-    if (allGraded) {
-      const mcqPoints   = sub.mcq_total;   // عدد أسئلة MCQ
-      const essayPoints = sub.essay_max;   // مجموع الدرجات القصوى للمقالي
-
-      if (mcqPoints + essayPoints === 0) {
-        finalScore = 0;
-      } else if (mcqPoints === 0) {
-        // امتحان مقالي بحت
-        finalScore = Math.round((essayEarned / essayPoints) * 100);
-      } else if (essayPoints === 0) {
-        // امتحان MCQ بحت
-        finalScore = sub.mcq_score;
-      } else {
-        // مختلط — MCQ كنسبة + مقالي كنسبة، متوسط مرجّح بعدد الأسئلة
-        const mcqPct   = (sub.mcq_correct / sub.mcq_total) * 100;
-        const essayPct = (essayEarned / essayPoints) * 100;
-        finalScore = Math.round((mcqPct * mcqPoints + essayPct * essayPoints) / (mcqPoints + essayPoints));
-      }
-    }
+    // ── Compute final score when fully graded — weighted average of MCQ
+    // (weighted by question count) + essay (weighted by max points) ──
+    const finalScore = allGraded
+      ? computeFinalScore({ mcqCorrect: sub.mcq_correct, mcqTotal: sub.mcq_total, essayEarned, essayMax: sub.essay_max })
+      : null;
 
     await pool.query(
       `UPDATE submissions SET

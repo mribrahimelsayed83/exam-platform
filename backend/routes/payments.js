@@ -1,9 +1,9 @@
 const express = require('express');
 const router  = express.Router();
-const crypto  = require('crypto');
 const pool    = require('../db/pool');
 const auth    = require('../middleware/auth');
 const perm    = auth.permission('payments');
+const { computePaymobHmac } = require('../utils/paymobHmac');
 
 const PAYMOB_SECRET_KEY     = process.env.PAYMOB_API_KEY;        // egy_sk_test_...
 const PAYMOB_PUBLIC_KEY     = process.env.PAYMOB_PUBLIC_KEY;     // egy_pk_test_...
@@ -142,18 +142,7 @@ router.post('/callback', async (req, res) => {
       console.warn('PayMob callback missing HMAC');
       return res.status(400).json({ message: 'invalid hmac' });
     }
-    const concat = [
-      obj.amount_cents, obj.created_at, obj.currency, obj.error_occured,
-      obj.has_parent_transaction, obj.id, obj.integration_id,
-      obj.is_3d_secure, obj.is_auth, obj.is_capture, obj.is_refunded,
-      obj.is_standalone_payment, obj.is_voided,
-      obj.order?.id, obj.owner, obj.pending,
-      obj.source_data?.pan, obj.source_data?.sub_type, obj.source_data?.type,
-      obj.success,
-    ].map(v => String(v ?? '')).join('');
-
-    const expected = crypto.createHmac('sha512', PAYMOB_HMAC_SECRET)
-      .update(concat).digest('hex');
+    const expected = computePaymobHmac(obj, PAYMOB_HMAC_SECRET);
 
     if (hmac !== expected) {
       console.warn('PayMob HMAC mismatch');

@@ -4,6 +4,7 @@ const auth   = require('../middleware/auth');
 const staff  = auth.staff;
 const perm   = auth.permission('exams');
 const { notifyGrade } = require('../utils/studentNotif');
+const { computeFinalScore, computeMcqScore } = require('../utils/scoring');
 
 router.get('/', auth('student'), async (req, res) => {
   try {
@@ -281,21 +282,16 @@ async function regradeSubmissionsForExam(examId) {
     });
 
     const mcqCorrect = newReview.filter(r => r.type === 'mcq' && r.isCorrect).length;
-    const mcqScore = sub.mcq_total > 0 ? Math.round((mcqCorrect / sub.mcq_total) * 100) : 100;
+    const mcqScore = computeMcqScore(mcqCorrect, sub.mcq_total);
 
     let finalScore = null;
     if (sub.essay_total === 0) {
       finalScore = mcqScore;
     } else if (sub.grading_status === 'fully_graded') {
-      const mcqPoints = sub.mcq_total, essayPoints = sub.essay_max, essayEarned = sub.essay_score || 0;
-      if (mcqPoints + essayPoints === 0) finalScore = 0;
-      else if (mcqPoints === 0) finalScore = Math.round((essayEarned / essayPoints) * 100);
-      else if (essayPoints === 0) finalScore = mcqScore;
-      else {
-        const mcqPct = (mcqCorrect / mcqPoints) * 100;
-        const essayPct = (essayEarned / essayPoints) * 100;
-        finalScore = Math.round((mcqPct * mcqPoints + essayPct * essayPoints) / (mcqPoints + essayPoints));
-      }
+      finalScore = computeFinalScore({
+        mcqCorrect, mcqTotal: sub.mcq_total,
+        essayEarned: sub.essay_score || 0, essayMax: sub.essay_max,
+      });
     }
     // else: essay still pending grading — final_score stays null until graded,
     // and grade-essay will read the updated mcq_correct/mcq_score below then.
