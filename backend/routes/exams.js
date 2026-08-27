@@ -383,11 +383,20 @@ router.post('/', staff, perm, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
+    // New exams go at the end of their group (same grade + same unit/lesson),
+    // matching exactly the scope the teacher reorders within on the exams
+    // list — otherwise a fresh exam defaults to position 0 and jumps to the
+    // very top of the list instead of appearing after the last exam.
+    const maxPos = await client.query(
+      'SELECT COALESCE(MAX(position),0) AS m FROM exams WHERE grade=$1 AND list_id IS NOT DISTINCT FROM $2',
+      [Number(grade), listId || null]
+    );
+    const position = maxPos.rows[0].m + 1;
     const examRes = await client.query(
-      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams,list_id)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+      `INSERT INTO exams (title,description,grade,duration,pass_score,starts_at,ends_at,exam_comment,shuffle_questions,shuffle_options,price,require_previous_exams,list_id,position)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING id`,
       [title, description||'', Number(grade), validDuration, validPassScore, startsAt||null, endsAt||null, examComment||'',
-       !!shuffleQuestions, !!shuffleOptions, validPrice, !!requirePreviousExams, listId || null]
+       !!shuffleQuestions, !!shuffleOptions, validPrice, !!requirePreviousExams, listId || null, position]
     );
     const examId = examRes.rows[0].id;
     for (let i = 0; i < questions.length; i++) {
