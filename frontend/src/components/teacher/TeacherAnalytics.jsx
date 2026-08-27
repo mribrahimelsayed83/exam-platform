@@ -10,10 +10,39 @@ function daysSince(dateStr) {
 export default function TeacherAnalytics() {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId]   = useState(null); // student id currently being reminded/deleted
+  const [remindedIds, setRemindedIds] = useState(new Set());
 
-  useEffect(() => {
+  const load = () => {
     api.get('/teacher/analytics').then(r => setData(r.data)).finally(() => setLoading(false));
-  }, []);
+  };
+  useEffect(load, []);
+
+  const remindStudent = async (student) => {
+    setBusyId(student.id);
+    try {
+      await api.post('/notifications', {
+        studentId: student.id,
+        title: '👋 وحشتنا!',
+        body: 'مذاكرتش من فترة — يلا ارجع كمّل المذاكرة والامتحانات مستنياك',
+      });
+      setRemindedIds(s => new Set(s).add(student.id));
+    } catch {
+      alert('تعذّر إرسال التذكير');
+    } finally { setBusyId(null); }
+  };
+
+  const removeStudent = async (student) => {
+    if (!confirm(`حذف حساب "${student.name}"؟ الإجراء ده مينفعش يترجع.`)) return;
+    setBusyId(student.id);
+    try {
+      await api.delete(`/teacher/students/${student.id}`);
+      load();
+    } catch {
+      alert('تعذّر حذف الحساب');
+      setBusyId(null);
+    }
+  };
 
   if (loading) return (
     <div className="flex justify-center py-20">
@@ -88,7 +117,7 @@ export default function TeacherAnalytics() {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    {['الاسم', 'الصف', 'آخر دخول'].map(h => (
+                    {['الاسم', 'الصف', 'آخر دخول', 'إجراءات'].map(h => (
                       <th key={h} className="text-right text-xs font-bold text-slate-400 pb-2 px-2">{h}</th>
                     ))}
                   </tr>
@@ -96,6 +125,7 @@ export default function TeacherAnalytics() {
                 <tbody>
                   {inactiveStudents.map(s => {
                     const days = daysSince(s.last_login_at);
+                    const busy = busyId === s.id;
                     return (
                       <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50">
                         <td className="py-2 px-2">
@@ -107,6 +137,18 @@ export default function TeacherAnalytics() {
                           {days === null
                             ? <span className="badge badge-red text-xs">لم يسجل دخول أبدًا</span>
                             : <span className="badge badge-amber text-xs">من {days} يوم</span>}
+                        </td>
+                        <td className="py-2 px-2">
+                          <div className="flex gap-1.5">
+                            <button onClick={() => remindStudent(s)} disabled={busy || remindedIds.has(s.id)}
+                              className="btn-secondary btn-sm text-xs disabled:opacity-50">
+                              {remindedIds.has(s.id) ? '✅ اتبعت' : busy ? '...' : '🔔 تذكير'}
+                            </button>
+                            <button onClick={() => removeStudent(s)} disabled={busy}
+                              className="btn-danger btn-sm text-xs disabled:opacity-50">
+                              🗑️ حذف
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

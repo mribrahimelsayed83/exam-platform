@@ -1,20 +1,25 @@
 const router = require('express').Router();
 const pool   = require('../db/pool');
 const auth   = require('../middleware/auth');
+const { pushToUser } = require('../utils/webPush');
 const staff  = auth.staff;
 const perm   = auth.permission('notifications');
 
-// ── Staff: إرسال إشعار ────────────────────────────────────────────────────
+// ── Staff: إرسال إشعار (لصف كامل، أو لطالب واحد بالتحديد لو studentId اتبعت) ──
 router.post('/', staff, perm, async (req, res) => {
-  const { title, body, grade } = req.body;
+  const { title, body, grade, studentId } = req.body;
   if (!title || !body)
     return res.status(400).json({ message: 'العنوان والمحتوى مطلوبان' });
   try {
     const result = await pool.query(
-      `INSERT INTO notifications (title, body, grade, created_by)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [title, body, grade || null, req.user.id]
+      `INSERT INTO notifications (title, body, grade, student_id, created_by)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [title, body, studentId ? null : (grade || null), studentId || null, req.user.id]
     );
+    // A targeted single-student notification also gets pushed immediately —
+    // unlike a grade-wide one, it's usually time-sensitive (e.g. an
+    // inactivity nudge) and there's just the one recipient to reach.
+    if (studentId) pushToUser('student', studentId, { title, body, url: '/student' }).catch(() => {});
     res.status(201).json(result.rows[0]);
   } catch (err) {
     console.error(err);
@@ -26,12 +31,13 @@ router.post('/', staff, perm, async (req, res) => {
 router.get('/sent', staff, perm, async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT n.*, t.name AS sender_name,
+      `SELECT n.*, t.name AS sender_name, s.name AS student_name,
               COUNT(nr.student_id)::int AS read_count
        FROM notifications n
        LEFT JOIN teachers t ON t.id = n.created_by
+       LEFT JOIN students s ON s.id = n.student_id
        LEFT JOIN notification_reads nr ON nr.notification_id = n.id
-       GROUP BY n.id, t.name
+       GROUP BY n.id, t.name, s.name
        ORDER BY n.created_at DESC`
     );
     res.json(result.rows);

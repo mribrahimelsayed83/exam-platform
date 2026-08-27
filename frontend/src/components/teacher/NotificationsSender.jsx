@@ -145,8 +145,8 @@ export default function NotificationsSender() {
                     <div className="flex-1">
                       <div className="flex items-center gap-2 flex-wrap mb-1">
                         <span className="font-bold text-slate-800 text-sm">{n.title}</span>
-                        <span className={`badge text-xs ${n.grade ? 'badge-blue' : 'badge-gray'}`}>
-                          {n.grade ? GRADES[n.grade] : 'كل الطلاب'}
+                        <span className={`badge text-xs ${n.student_id ? 'badge-amber' : n.grade ? 'badge-blue' : 'badge-gray'}`}>
+                          {n.student_id ? `🎯 ${n.student_name || 'طالب محذوف'}` : n.grade ? GRADES[n.grade] : 'كل الطلاب'}
                         </span>
                       </div>
                       <p className="text-xs text-slate-600 leading-relaxed mb-2">{n.body}</p>
