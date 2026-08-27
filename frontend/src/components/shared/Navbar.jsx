@@ -217,6 +217,16 @@ export default function Navbar({ title }) {
     <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200">
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {user && (
+            <button
+              onClick={() => navigate(-1)}
+              title="رجوع"
+              className="flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-blue-600 transition-colors px-2 py-1 rounded-lg hover:bg-blue-50 dark:text-slate-400 dark:hover:text-blue-400 dark:hover:bg-slate-700"
+            >
+              <span className="text-base leading-none">←</span>
+              <span className="hidden sm:inline">رجوع</span>
+            </button>
+          )}
           <a href="https://mribrahimfarouk.com/" className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-600 inline-block"/>
             <span className="font-extrabold text-blue-600 text-base">

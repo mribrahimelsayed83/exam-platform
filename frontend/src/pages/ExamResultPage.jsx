@@ -1,6 +1,7 @@
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
+import Navbar from '../components/shared/Navbar';
 
 export default function ExamResultPage() {
   const { state } = useLocation();
@@ -45,8 +46,9 @@ export default function ExamResultPage() {
     : 'border-red-500 text-red-600';
 
   return (
-    <div className="min-h-screen bg-slate-100 py-10 px-4">
-      <div className="max-w-xl mx-auto space-y-4">
+    <div className="min-h-screen bg-slate-100">
+      <Navbar />
+      <div className="max-w-xl mx-auto px-4 py-10 space-y-4">
 
         {/* ── Score Card ── */}
         <div className="card text-center">
