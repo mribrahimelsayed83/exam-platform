@@ -1,11 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import { gradeLabel } from '../../utils/grades';
 
-const gradeLabel    = { 
-  4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي',
-  7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي',
-  10:'أول ثانوي', 11:'ثاني ثانوي'
-};
 const gradingLabels = {
   fully_graded: { label:'مصحّح',        cls:'badge-green'  },
   auto_graded:  { label:'قيد التصحيح', cls:'badge-amber'  },
@@ -67,7 +63,7 @@ export default function StudentDetail({ studentId, onBack }) {
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">
-              <span className="badge badge-blue">{gradeLabel[student.grade]}</span>
+              <span className="badge badge-blue">{gradeLabel(student.grade)}</span>
               <span className={`badge ${student.status==='approved'?'badge-green':student.status==='pending'?'badge-amber':'badge-red'}`}>
                 {student.status==='approved'?'مقبول':student.status==='pending'?'في الانتظار':'مرفوض'}
               </span>

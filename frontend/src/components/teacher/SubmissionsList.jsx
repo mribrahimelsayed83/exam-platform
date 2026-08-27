@@ -2,10 +2,8 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 // xlsx loaded dynamically on first export to keep teacher bundle lean
 import api from '../../utils/api';
+import { gradeLabel } from '../../utils/grades';
 
-const gradeLabel = {
-  4:'رابع ابتدائي', 5:'خامس ابتدائي', 6:'سادس ابتدائي', 7:'أول إعدادي', 8:'ثاني إعدادي', 9:'ثالث إعدادي', 10:'أول ثانوي', 11:'ثاني ثانوي', 12:'ثالث ثانوي'
-};
 const statusMap  = {
   auto_graded:  { label:'قيد التصحيح', cls:'badge-amber' },
   partial:      { label:'تصحيح جزئي',  cls:'badge-amber' },
@@ -106,7 +104,7 @@ export default function SubmissionsList() {
                 ${filterGrade === String(g)
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-white text-slate-500 border border-slate-200 hover:border-blue-300 hover:text-blue-600'}`}>
-              {gradeLabel[g] || `صف ${g}`}
+              {gradeLabel(g)}
             </button>
           ))}
         </div>
@@ -153,7 +151,7 @@ export default function SubmissionsList() {
                   return (
                     <tr key={s.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
                       <td className="px-4 py-3 font-semibold text-slate-700">{s.student_name}</td>
-                      <td className="px-4 py-3"><span className="badge badge-blue text-xs">{gradeLabel[s.student_grade]}</span></td>
+                      <td className="px-4 py-3"><span className="badge badge-blue text-xs">{gradeLabel(s.student_grade)}</span></td>
                       <td className="px-4 py-3 text-slate-600 text-xs">{s.exam_title}</td>
                       <td className="px-4 py-3 text-sm">
                         {s.mcq_total > 0 ? <span className="font-semibold text-blue-600">{s.mcq_score}%</span> : <span className="text-slate-300">—</span>}

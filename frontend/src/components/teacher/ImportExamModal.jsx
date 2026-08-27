@@ -79,7 +79,7 @@ export default function ImportExamModal({ onClose, onSave }) {
   const [file, setFile]       = useState(null);
   const [questions, setQuestions] = useState([]);
   const [parseError, setParseError] = useState('');
-  const [form, setForm]       = useState({ title:'', grade:'4', duration:30, passScore:50 });
+  const [form, setForm]       = useState({ title:'', grade:'9', duration:30, passScore:50 });
   const [saving, setSaving]   = useState(false);
   const [error, setError]     = useState('');
   const inputRef = useRef(null);

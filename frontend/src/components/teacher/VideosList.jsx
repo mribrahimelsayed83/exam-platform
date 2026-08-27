@@ -206,7 +206,7 @@ function PlaylistModal({ playlist, onClose, onSave }) {
     title:       playlist?.title || '',
     description: playlist?.description || '',
     thumbnail:   playlist?.thumbnail || '',
-    grade:       playlist?.grade || 4,
+    grade:       playlist?.grade || 9,
     price:       playlist?.price || 0,
   });
   const [loading, setLoading]   = useState(false);
