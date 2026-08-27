@@ -20,10 +20,6 @@ frontend/build/
 *.log
 npm-debug.log*
 
-# Package locks (optional — remove if you want to track them)
-backend/package-lock.json
-frontend/package-lock.json
-
 # OS files
 .DS_Store
 Thumbs.db
