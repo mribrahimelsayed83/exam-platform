@@ -10,6 +10,13 @@ function authMiddleware(role) {
     const token = authHeader.split(' ')[1];
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ['HS256'] });
+      // A pending-2FA token (issued after password-only, before the TOTP
+      // code) must never work as a real session token anywhere — only
+      // POST /auth/teacher/login/2fa may consume it. Without this check,
+      // anyone who obtains just the password could skip 2FA entirely by
+      // using the temp token directly on any teacher-only route.
+      if (decoded.pending2FA)
+        return res.status(401).json({ message: 'يجب إكمال التحقق بخطوتين أولاً' });
       // role يمكن يكون string واحد أو array
       if (role) {
         const allowed = Array.isArray(role) ? role : [role];
