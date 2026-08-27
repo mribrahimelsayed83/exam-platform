@@ -13,23 +13,39 @@ const perm  = auth.permission('students');
 // so "duplicates" doesn't get swallowed as an :id. ─────────────────────────
 router.get('/students/duplicates', staff, perm, async (req, res) => {
   try {
+    // last_login_at + submission_count are the "which one does the student
+    // actually use" signal — computed once here, then each group orders its
+    // students with the most-recently-active one first (NULLS LAST) so the
+    // frontend can flag it as the live account without a second query.
+    const statsCTE = `
+      WITH student_stats AS (
+        SELECT st.*, COUNT(s.id)::int AS submission_count
+        FROM students st
+        LEFT JOIN submissions s ON s.student_id = st.id
+        GROUP BY st.id
+      )
+    `;
     const byPhone = await pool.query(`
+      ${statsCTE}
       SELECT phone AS key, json_agg(json_build_object(
                'id', id, 'name', name, 'username', username, 'grade', grade,
-               'parent_phone', parent_phone, 'status', status, 'created_at', created_at
-             ) ORDER BY created_at) AS students
-      FROM students
+               'parent_phone', parent_phone, 'status', status, 'created_at', created_at,
+               'last_login_at', last_login_at, 'submission_count', submission_count
+             ) ORDER BY last_login_at DESC NULLS LAST, submission_count DESC) AS students
+      FROM student_stats
       WHERE phone <> ''
       GROUP BY phone
       HAVING COUNT(*) > 1
       ORDER BY MAX(created_at) DESC
     `);
     const byName = await pool.query(`
+      ${statsCTE}
       SELECT name AS key, grade, json_agg(json_build_object(
                'id', id, 'name', name, 'username', username, 'grade', grade,
-               'phone', phone, 'status', status, 'created_at', created_at
-             ) ORDER BY created_at) AS students
-      FROM students
+               'phone', phone, 'status', status, 'created_at', created_at,
+               'last_login_at', last_login_at, 'submission_count', submission_count
+             ) ORDER BY last_login_at DESC NULLS LAST, submission_count DESC) AS students
+      FROM student_stats
       WHERE name <> ''
       GROUP BY name, grade
       HAVING COUNT(*) > 1

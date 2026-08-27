@@ -336,17 +336,33 @@ function DuplicatesView({ onBack, onOpenStudent, onChanged }) {
     finally { setBusyId(null); }
   };
 
-  const GroupRow = ({ st }) => (
-    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0">
+  // Groups arrive sorted (most-recently-active first, NULLS LAST) — so the
+  // group's active account, if any student in it has ever logged in, is
+  // always its first entry.
+  const activeIdOf = (students) => students[0]?.last_login_at ? students[0].id : null;
+
+  const GroupRow = ({ st, isActive }) => (
+    <div className={`flex items-center justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0 ${isActive ? 'bg-emerald-50/60 -mx-4 px-4' : ''}`}>
       <div className="min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-semibold text-slate-800 text-sm">{st.name}</span>
           <span className={`badge text-xs ${statusMap[st.status]?.cls}`}>{statusMap[st.status]?.label}</span>
           <span className="badge badge-blue text-xs">{gradeLabel(st.grade)}</span>
+          {isActive
+            ? <span className="badge badge-green text-xs">🟢 الحساب النشط</span>
+            : <span className="badge badge-gray text-xs">⚪ غير مستخدم</span>}
         </div>
         <div className="text-xs text-slate-400 mt-0.5">
           @{st.username} · {st.phone && `تليفون: ${st.phone}`} {st.parent_phone && `· ولي الأمر: ${st.parent_phone}`}
-          {' · '}{new Date(st.created_at).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric' })}
+          {' · '}تسجّل {new Date(st.created_at).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric' })}
+        </div>
+        <div className="text-xs mt-0.5">
+          {st.last_login_at
+            ? <span className="text-emerald-600 font-semibold">
+                آخر دخول: {new Date(st.last_login_at).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' })}
+              </span>
+            : <span className="text-slate-400">لم يسجّل دخول قط</span>}
+          {st.submission_count > 0 && <span className="text-slate-400"> · {st.submission_count} امتحان مُنجز</span>}
         </div>
       </div>
       <div className="flex gap-1.5 flex-shrink-0">
@@ -383,12 +399,15 @@ function DuplicatesView({ onBack, onOpenStudent, onChanged }) {
             <div>
               <h3 className="font-bold text-slate-700 text-sm mb-3">📱 نفس رقم تليفون الطالب</h3>
               <div className="space-y-3">
-                {data.byPhone.map(g => (
-                  <div key={g.key} className="card">
-                    <p className="text-xs font-bold text-slate-400 mb-1" dir="ltr">{g.key}</p>
-                    {g.students.map(st => <GroupRow key={st.id} st={st}/>)}
-                  </div>
-                ))}
+                {data.byPhone.map(g => {
+                  const activeId = activeIdOf(g.students);
+                  return (
+                    <div key={g.key} className="card">
+                      <p className="text-xs font-bold text-slate-400 mb-1" dir="ltr">{g.key}</p>
+                      {g.students.map(st => <GroupRow key={st.id} st={st} isActive={st.id === activeId}/>)}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
@@ -396,12 +415,15 @@ function DuplicatesView({ onBack, onOpenStudent, onChanged }) {
             <div>
               <h3 className="font-bold text-slate-700 text-sm mb-3">📝 نفس الاسم والصف</h3>
               <div className="space-y-3">
-                {data.byName.map(g => (
-                  <div key={`${g.key}-${g.grade}`} className="card">
-                    <p className="text-xs font-bold text-slate-400 mb-1">{g.key}</p>
-                    {g.students.map(st => <GroupRow key={st.id} st={st}/>)}
-                  </div>
-                ))}
+                {data.byName.map(g => {
+                  const activeId = activeIdOf(g.students);
+                  return (
+                    <div key={`${g.key}-${g.grade}`} className="card">
+                      <p className="text-xs font-bold text-slate-400 mb-1">{g.key}</p>
+                      {g.students.map(st => <GroupRow key={st.id} st={st} isActive={st.id === activeId}/>)}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
