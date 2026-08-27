@@ -7,6 +7,41 @@ const { notifyStudent } = require('../utils/studentNotif');
 const staff = auth.staff;
 const perm  = auth.permission('students');
 
+// ── GET /teacher/students/duplicates — students who share the same phone
+// number, or the same full name in the same grade, so the teacher can spot
+// accidental double-registrations. Must stay registered before /students/:id
+// so "duplicates" doesn't get swallowed as an :id. ─────────────────────────
+router.get('/students/duplicates', staff, perm, async (req, res) => {
+  try {
+    const byPhone = await pool.query(`
+      SELECT phone AS key, json_agg(json_build_object(
+               'id', id, 'name', name, 'username', username, 'grade', grade,
+               'parent_phone', parent_phone, 'status', status, 'created_at', created_at
+             ) ORDER BY created_at) AS students
+      FROM students
+      WHERE phone <> ''
+      GROUP BY phone
+      HAVING COUNT(*) > 1
+      ORDER BY MAX(created_at) DESC
+    `);
+    const byName = await pool.query(`
+      SELECT name AS key, grade, json_agg(json_build_object(
+               'id', id, 'name', name, 'username', username, 'grade', grade,
+               'phone', phone, 'status', status, 'created_at', created_at
+             ) ORDER BY created_at) AS students
+      FROM students
+      WHERE name <> ''
+      GROUP BY name, grade
+      HAVING COUNT(*) > 1
+      ORDER BY MAX(created_at) DESC
+    `);
+    res.json({ byPhone: byPhone.rows, byName: byName.rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── GET /teacher/students/:id ─────────────────────────────────────────────
 router.get('/students/:id', staff, perm, async (req, res) => {
   try {

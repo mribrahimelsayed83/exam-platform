@@ -27,6 +27,7 @@ export default function StudentsList() {
   const [resetPw, setResetPw]       = useState(null);
   const [selected, setSelected]     = useState(new Set());
   const [bulkLoading, setBulkLoading] = useState(false);
+  const [showDuplicates, setShowDuplicates] = useState(false);
 
   const openId = searchParams.get('open');
   useEffect(() => {
@@ -117,12 +118,22 @@ export default function StudentsList() {
   };
 
   if (detailId) return <StudentDetail studentId={detailId} onBack={() => setDetailId(null)} />;
+  if (showDuplicates) return (
+    <DuplicatesView
+      onBack={() => setShowDuplicates(false)}
+      onOpenStudent={(id) => { setShowDuplicates(false); setDetailId(id); }}
+      onChanged={load}
+    />
+  );
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <h2 className="text-xl font-extrabold text-slate-800">الطلاب</h2>
-        <button onClick={exportExcel} className="btn-secondary btn-sm">📥 تصدير Excel</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowDuplicates(true)} className="btn-secondary btn-sm">🔍 الطلاب المكررون</button>
+          <button onClick={exportExcel} className="btn-secondary btn-sm">📥 تصدير Excel</button>
+        </div>
       </div>
 
       {/* Status filter */}
@@ -299,6 +310,102 @@ export default function StudentsList() {
       )}
       {resetPw && (
         <ResetPasswordModal student={resetPw} onClose={()=>setResetPw(null)}/>
+      )}
+    </div>
+  );
+}
+
+// ── Duplicate students — grouped by matching phone number (strongest signal,
+// a student's own phone is rarely shared) and by matching name+grade
+// (weaker, but catches re-registrations under a different phone) ──────────
+function DuplicatesView({ onBack, onOpenStudent, onChanged }) {
+  const [data, setData]       = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId]   = useState(null);
+
+  const load = () => {
+    setLoading(true);
+    api.get('/teacher/students/duplicates').then(r => setData(r.data)).finally(() => setLoading(false));
+  };
+  useEffect(load, []);
+
+  const remove = async (id) => {
+    if (!confirm('هل أنت متأكد من حذف هذا الطالب؟')) return;
+    setBusyId(id);
+    try { await api.delete(`/teacher/students/${id}`); load(); onChanged?.(); }
+    finally { setBusyId(null); }
+  };
+
+  const GroupRow = ({ st }) => (
+    <div className="flex items-center justify-between gap-3 py-2.5 border-b border-slate-50 last:border-0">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="font-semibold text-slate-800 text-sm">{st.name}</span>
+          <span className={`badge text-xs ${statusMap[st.status]?.cls}`}>{statusMap[st.status]?.label}</span>
+          <span className="badge badge-blue text-xs">{gradeLabel(st.grade)}</span>
+        </div>
+        <div className="text-xs text-slate-400 mt-0.5">
+          @{st.username} · {st.phone && `تليفون: ${st.phone}`} {st.parent_phone && `· ولي الأمر: ${st.parent_phone}`}
+          {' · '}{new Date(st.created_at).toLocaleDateString('ar-EG', { year:'numeric', month:'short', day:'numeric' })}
+        </div>
+      </div>
+      <div className="flex gap-1.5 flex-shrink-0">
+        <button onClick={() => onOpenStudent(st.id)} className="btn-secondary btn-sm">📋 عرض</button>
+        <button onClick={() => remove(st.id)} disabled={busyId === st.id} className="btn-danger btn-sm">
+          {busyId === st.id ? '...' : 'حذف'}
+        </button>
+      </div>
+    </div>
+  );
+
+  const noDuplicates = data && data.byPhone.length === 0 && data.byName.length === 0;
+
+  return (
+    <div>
+      <button onClick={onBack} className="btn-ghost btn-sm mb-4">← رجوع لقائمة الطلاب</button>
+      <h2 className="text-xl font-extrabold text-slate-800 mb-1">🔍 الطلاب المكررون</h2>
+      <p className="text-slate-500 text-sm mb-5">
+        حسابات بترقم تليفون الطالب نفسه، أو بنفس الاسم والصف — راجعها واحذف الحساب الزيادة لو لقيت تسجيل مكرر بالغلط
+      </p>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
+        </div>
+      ) : noDuplicates ? (
+        <div className="text-center py-16 text-slate-400">
+          <div className="text-5xl mb-3">✅</div>
+          <h3 className="text-lg font-bold text-slate-600">مفيش أي تكرار</h3>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {data.byPhone.length > 0 && (
+            <div>
+              <h3 className="font-bold text-slate-700 text-sm mb-3">📱 نفس رقم تليفون الطالب</h3>
+              <div className="space-y-3">
+                {data.byPhone.map(g => (
+                  <div key={g.key} className="card">
+                    <p className="text-xs font-bold text-slate-400 mb-1" dir="ltr">{g.key}</p>
+                    {g.students.map(st => <GroupRow key={st.id} st={st}/>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {data.byName.length > 0 && (
+            <div>
+              <h3 className="font-bold text-slate-700 text-sm mb-3">📝 نفس الاسم والصف</h3>
+              <div className="space-y-3">
+                {data.byName.map(g => (
+                  <div key={`${g.key}-${g.grade}`} className="card">
+                    <p className="text-xs font-bold text-slate-400 mb-1">{g.key}</p>
+                    {g.students.map(st => <GroupRow key={st.id} st={st}/>)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
