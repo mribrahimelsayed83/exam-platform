@@ -12,6 +12,7 @@ const TakeExamPage         = lazy(() => import('./pages/TakeExamPage'));
 const ExamResultPage       = lazy(() => import('./pages/ExamResultPage'));
 const TeacherDashboard     = lazy(() => import('./pages/TeacherDashboard'));
 const VideosPage           = lazy(() => import('./pages/VideosPage'));
+const ArticlesPage         = lazy(() => import('./pages/ArticlesPage'));
 const StudentMyReport      = lazy(() => import('./pages/StudentMyReport'));
 const PersonalExamPage         = lazy(() => import('./pages/PersonalExamPage'));
 const TakePersonalExamPage     = lazy(() => import('./pages/TakePersonalExamPage'));
@@ -61,6 +62,9 @@ export default function App() {
         }/>
         <Route path="/student/videos" element={
           <RequireAuth role="student"><VideosPage/></RequireAuth>
+        }/>
+        <Route path="/student/articles" element={
+          <RequireAuth role="student"><ArticlesPage/></RequireAuth>
         }/>
         <Route path="/student/my-report" element={
           <RequireAuth role="student"><StudentMyReport/></RequireAuth>

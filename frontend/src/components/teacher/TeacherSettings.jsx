@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 export default function TeacherSettings() {
   const { user } = useAuth();
   const isTeacher = user?.role === 'teacher';
-  const [form, setForm] = useState({ name: '', subject: '', platformName: '' });
+  const [form, setForm] = useState({ name: '', subject: '', platformName: '', articlesEnabled: false });
   const [success, setSuccess] = useState('');
   const [error, setError]     = useState('');
   const [loading, setLoading] = useState(false);
@@ -14,9 +14,10 @@ export default function TeacherSettings() {
     if (!isTeacher) return;
     api.get('/teacher/settings').then(r => {
       setForm({
-        name:         r.data.name         || '',
-        subject:      r.data.subject      || '',
-        platformName: r.data.platform_name|| '',
+        name:            r.data.name             || '',
+        subject:         r.data.subject          || '',
+        platformName:    r.data.platform_name    || '',
+        articlesEnabled: !!r.data.articles_enabled,
       });
     });
   }, [isTeacher]);
@@ -66,6 +67,16 @@ export default function TeacherSettings() {
                 <input className="input" placeholder="اسم المدرس" value={form.name}
                   onChange={e => set('name', e.target.value)} />
               </div>
+              <label className="flex items-start gap-2.5 cursor-pointer select-none pt-1">
+                <input type="checkbox" className="accent-blue-600 w-4 h-4 mt-0.5" checked={form.articlesEnabled}
+                  onChange={e => set('articlesEnabled', e.target.checked)} />
+                <span>
+                  <span className="block text-sm font-bold text-slate-700">📰 تفعيل قسم المقالات ونصائح الدراسة</span>
+                  <span className="block text-xs text-slate-400 mt-0.5">
+                    لو مفعّل، هيظهر للطلاب قسم جديد في الرئيسية يعرض المقالات اللي تنشرها من تاب "المقالات"
+                  </span>
+                </span>
+              </label>
             </div>
 
             <button type="submit" className="btn-primary mt-5" disabled={loading}>

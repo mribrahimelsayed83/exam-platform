@@ -210,13 +210,14 @@ router.get('/me', auth(), async (req, res) => {
       result = await pool.query('SELECT id,name,username,permissions FROM assistants WHERE id=$1', [id]);
       if (result.rows[0]) {
         result.rows[0].permissions = JSON.parse(result.rows[0].permissions || 'null')
-          || ['exams','submissions','students','videos','chat','notifications','payments'];
+          || ['exams','submissions','students','videos','chat','notifications','payments','articles'];
       }
     } else
       result = await pool.query(
         `SELECT s.id, s.name, s.username, s.grade, s.email, s.phone, s.created_at,
                 s.governorate, s.city, s.activation_code,
-                COALESCE(t.platform_name, 'منصة الفاروق') AS platform_name
+                COALESCE(t.platform_name, 'منصة الفاروق') AS platform_name,
+                COALESCE(t.articles_enabled, FALSE) AS articles_enabled
          FROM students s
          LEFT JOIN teachers t ON t.id = s.approved_by
          WHERE s.id=$1`,

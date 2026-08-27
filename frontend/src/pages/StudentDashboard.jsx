@@ -147,6 +147,16 @@ export default function StudentDashboard() {
               badge={chatUnread > 0 ? chatUnread : null}
               onClick={() => setShowChat(true)}
             />
+            {user?.articles_enabled && (
+              <HomeBlock
+                icon="📰"
+                title="مقالات ونصائح"
+                desc="نصائح مفيدة للمذاكرة والاستعداد للامتحانات"
+                gradient="from-teal-500 to-cyan-700"
+                shadow="shadow-teal-200"
+                onClick={() => navigate('/student/articles')}
+              />
+            )}
           </div>
           {showChat && (
             <StudentChat onClose={() => setShowChat(false)} onRead={() => setChatUnread(0)} />

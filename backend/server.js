@@ -419,6 +419,29 @@ const MIGRATION_STEPS = [
       await pool.query(`CREATE INDEX IF NOT EXISTS idx_notifications_student ON notifications(student_id);`);
     },
   },
+  {
+    // Articles / study-tips section — hidden from students until the teacher
+    // switches it on from Settings (articles_enabled), same pattern as every
+    // other opt-in toggle on the teachers row.
+    name: 'articles: study-tips section (table + teacher-controlled toggle)',
+    run: async () => {
+      await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS articles_enabled BOOLEAN NOT NULL DEFAULT FALSE;`);
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS articles (
+          id           SERIAL PRIMARY KEY,
+          title        VARCHAR(300) NOT NULL,
+          summary      TEXT DEFAULT '',
+          content      TEXT NOT NULL DEFAULT '',
+          cover_image  TEXT DEFAULT '',
+          position     INTEGER DEFAULT 0,
+          is_published BOOLEAN NOT NULL DEFAULT TRUE,
+          created_at   TIMESTAMPTZ DEFAULT NOW(),
+          updated_at   TIMESTAMPTZ DEFAULT NOW()
+        );
+      `);
+      await pool.query(`CREATE INDEX IF NOT EXISTS idx_articles_published_position ON articles(is_published, position);`);
+    },
+  },
 ];
 
 async function runMigrations() {
@@ -525,6 +548,7 @@ app.use('/api/payments',      require('./routes/payments'));
 app.use('/api/chat',          require('./routes/chat'));
 app.use('/api/push',          require('./routes/push'));
 app.use('/api/search',        searchLimiter, require('./routes/search'));
+app.use('/api/articles',      require('./routes/articles'));
 
 app.get('/api/health', (_,res) => res.json({ status:'ok' }));
 

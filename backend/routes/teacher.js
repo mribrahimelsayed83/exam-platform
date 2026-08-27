@@ -222,7 +222,7 @@ router.delete('/students/:id', staff, perm, async (req, res) => {
 
 // ── Assistants — teacher-exclusive: an assistant must never be able to
 // manage other assistants' accounts or permissions, even via a direct API call.
-const ALL_PERMISSIONS = ['exams', 'submissions', 'students', 'videos', 'chat', 'notifications', 'payments'];
+const ALL_PERMISSIONS = ['exams', 'submissions', 'students', 'videos', 'chat', 'notifications', 'payments', 'articles'];
 
 router.get('/assistants', auth('teacher'), async (req, res) => {
   try {
@@ -386,7 +386,7 @@ router.get('/analytics', auth('teacher'), async (req, res) => {
 router.get('/settings', auth('teacher'), async (req, res) => {
   try {
     const r = await pool.query(
-      'SELECT name,subject,platform_name FROM teachers WHERE id=$1', [req.user.id]
+      'SELECT name,subject,platform_name,articles_enabled FROM teachers WHERE id=$1', [req.user.id]
     );
     res.json(r.rows[0]);
   } catch (err) {
@@ -395,11 +395,11 @@ router.get('/settings', auth('teacher'), async (req, res) => {
 });
 
 router.put('/settings', auth('teacher'), async (req, res) => {
-  const { name, subject, platformName } = req.body;
+  const { name, subject, platformName, articlesEnabled } = req.body;
   try {
     await pool.query(
-      'UPDATE teachers SET name=$1, subject=$2, platform_name=$3 WHERE id=$4',
-      [name, subject||'', platformName||'منصة الفاروق', req.user.id]
+      'UPDATE teachers SET name=$1, subject=$2, platform_name=$3, articles_enabled=$4 WHERE id=$5',
+      [name, subject||'', platformName||'منصة الفاروق', !!articlesEnabled, req.user.id]
     );
     res.json({ message: 'تم حفظ الإعدادات' });
   } catch (err) {

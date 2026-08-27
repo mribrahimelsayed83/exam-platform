@@ -9,6 +9,7 @@ const PERMISSIONS = [
   { key:'chat',          label:'💬 الرسائل' },
   { key:'notifications', label:'🔔 الإشعارات' },
   { key:'payments',      label:'💰 المدفوعات' },
+  { key:'articles',      label:'📰 المقالات' },
 ];
 const ALL_KEYS = PERMISSIONS.map(p => p.key);
 
