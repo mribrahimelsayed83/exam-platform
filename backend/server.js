@@ -461,6 +461,18 @@ const MIGRATION_STEPS = [
       await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS current_session_token TEXT DEFAULT NULL;`);
     },
   },
+  {
+    // chat_messages never recorded WHICH specific teacher/assistant sent a
+    // message (only from_role + from_name) — so the edit/delete routes in
+    // routes/chat.js, which filter on from_id, were querying a column that
+    // never existed and always 500ing. Existing rows get NULL (unknown
+    // sender id, so effectively un-editable) — no way to recover that
+    // retroactively, only new messages get a real one.
+    name: 'chat_messages: from_id (fixes edit/delete, which relied on it already)',
+    run: async () => {
+      await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS from_id INTEGER DEFAULT NULL;`);
+    },
+  },
 ];
 
 async function runMigrations() {

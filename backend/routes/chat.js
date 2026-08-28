@@ -141,9 +141,9 @@ router.post('/teacher/:studentId/reply', staff, perm, async (req, res) => {
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
     if (message.trim().length > 2000) return res.status(400).json({ message: 'الرسالة طويلة جداً (2000 حرف كحد أقصى)' });
     const { rows } = await pool.query(
-      `INSERT INTO chat_messages (student_id, from_role, from_name, message)
-       VALUES ($1,$2,$3,$4) RETURNING *`,
-      [req.params.studentId, req.user.role, req.user.name, message.trim()]
+      `INSERT INTO chat_messages (student_id, from_role, from_name, from_id, message)
+       VALUES ($1,$2,$3,$4,$5) RETURNING *`,
+      [req.params.studentId, req.user.role, req.user.name, req.user.id, message.trim()]
     );
     pushToUser('student', Number(req.params.studentId), {
       title: `💬 رسالة من ${req.user.name}`, body: message.trim().slice(0, 100), url: '/student',
@@ -243,40 +243,62 @@ router.post('/staff/:assistantId/send', staff, perm, async (req, res) => {
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
-// ── Staff: edit a message (own messages only) ─────────────────────────────
+// ── Staff: edit a message (own messages only) — a staff member's chat with
+// a student lives in chat_messages, their chat with the other staff role
+// lives in staff_messages, and a single :id could in principle exist in
+// either, so try both. Ownership is checked on from_id AND from_role
+// together — from_id alone isn't enough, since teachers.id and
+// assistants.id are independent sequences that can collide. ─────────────
 router.put('/messages/:id', staff, perm, async (req, res) => {
   try {
     const { message } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: 'الرسالة فارغة' });
-    const { rows } = await pool.query(
-      `UPDATE chat_messages SET message=$1
-       WHERE id=$2 AND from_id=$3 AND from_role=ANY($4) RETURNING *`,
-      [message.trim(), req.params.id, req.user.id, ['teacher', 'assistant']]
+    let result = await pool.query(
+      `UPDATE chat_messages SET message=$1 WHERE id=$2 AND from_id=$3 AND from_role=$4 RETURNING *`,
+      [message.trim(), req.params.id, req.user.id, req.user.role]
     );
-    if (!rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
-    res.json(rows[0]);
+    if (!result.rows[0]) {
+      result = await pool.query(
+        `UPDATE staff_messages SET message=$1 WHERE id=$2 AND from_id=$3 AND from_role=$4 RETURNING *`,
+        [message.trim(), req.params.id, req.user.id, req.user.role]
+      );
+    }
+    if (!result.rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
+    res.json(result.rows[0]);
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
-// ── Staff: delete a message (own messages only) ───────────────────────────
+// ── Staff: delete a message (own messages only) — same dual-table + role
+// check as edit above. ─────────────────────────────────────────────────
 router.delete('/messages/:id', staff, perm, async (req, res) => {
   try {
-    const { rows } = await pool.query(
-      'DELETE FROM chat_messages WHERE id=$1 AND from_id=$2 RETURNING id',
-      [req.params.id, req.user.id]
+    let result = await pool.query(
+      'DELETE FROM chat_messages WHERE id=$1 AND from_id=$2 AND from_role=$3 RETURNING id',
+      [req.params.id, req.user.id, req.user.role]
     );
-    if (!rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
+    if (!result.rows[0]) {
+      result = await pool.query(
+        'DELETE FROM staff_messages WHERE id=$1 AND from_id=$2 AND from_role=$3 RETURNING id',
+        [req.params.id, req.user.id, req.user.role]
+      );
+    }
+    if (!result.rows[0]) return res.status(404).json({ message: 'رسالة غير موجودة أو ليست لك' });
     res.json({ message: 'تم الحذف' });
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
 
-// ── Staff: bulk delete messages ───────────────────────────────────────────
+// ── Staff: bulk delete messages — deliberately NOT restricted to the
+// caller's own messages (unlike single edit/delete above): this backs the
+// chat UI's multi-select mode, which lets staff moderate a conversation by
+// removing any message in it, including ones the student sent. Tries both
+// tables since a conversation's messages could be in either. ────────────
 router.post('/messages/bulk-delete', staff, perm, async (req, res) => {
   try {
     const { ids } = req.body;
     if (!Array.isArray(ids) || ids.length === 0)
       return res.status(400).json({ message: 'لا توجد رسائل' });
     await pool.query('DELETE FROM chat_messages WHERE id = ANY($1::int[])', [ids]);
+    await pool.query('DELETE FROM staff_messages WHERE id = ANY($1::int[])', [ids]);
     res.json({ message: 'تم الحذف' });
   } catch { res.status(500).json({ message: 'خطأ' }); }
 });
