@@ -142,7 +142,9 @@ router.post('/teacher/login', async (req, res) => {
       return res.json({ needs2FA: true, tempToken });
     }
 
-    const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name });
+    const sessionToken = crypto.randomBytes(24).toString('hex');
+    await pool.query('UPDATE teachers SET current_session_token=$2 WHERE id=$1', [teacher.id, sessionToken]);
+    const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name, sessionToken });
     res.json({ token, user: { id: teacher.id, name: teacher.name, username: teacher.username, role: 'teacher' } });
   } catch (err) {
     console.error(err);
@@ -173,7 +175,9 @@ router.post('/teacher/login/2fa', async (req, res) => {
     const codeResult = await verify({ token: String(code).trim(), secret: teacher.two_factor_secret });
     if (!codeResult.valid) return res.status(401).json({ message: 'الكود غلط' });
 
-    const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name });
+    const sessionToken = crypto.randomBytes(24).toString('hex');
+    await pool.query('UPDATE teachers SET current_session_token=$2 WHERE id=$1', [teacher.id, sessionToken]);
+    const token = sign({ id: teacher.id, role: 'teacher', name: teacher.name, sessionToken });
     res.json({ token, user: { id: teacher.id, name: teacher.name, username: teacher.username, role: 'teacher' } });
   } catch (err) {
     console.error(err);
@@ -191,7 +195,9 @@ router.post('/assistant/login', async (req, res) => {
     if (!asst) return res.status(401).json({ message: 'بيانات الدخول غلط' });
     const valid = await bcrypt.compare(password, asst.password);
     if (!valid) return res.status(401).json({ message: 'بيانات الدخول غلط' });
-    const token = sign({ id: asst.id, role: 'assistant', name: asst.name });
+    const sessionToken = crypto.randomBytes(24).toString('hex');
+    await pool.query('UPDATE assistants SET current_session_token=$2 WHERE id=$1', [asst.id, sessionToken]);
+    const token = sign({ id: asst.id, role: 'assistant', name: asst.name, sessionToken });
     res.json({ token, user: { id: asst.id, name: asst.name, username: asst.username, role: 'assistant' } });
   } catch (err) {
     console.error(err);

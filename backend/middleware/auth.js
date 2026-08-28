@@ -1,6 +1,9 @@
 const jwt  = require('jsonwebtoken');
 const pool = require('../db/pool');
 
+// Fixed whitelist, never user input — safe to interpolate into SQL.
+const SESSION_TABLE = { student: 'students', teacher: 'teachers', assistant: 'assistants' };
+
 function authMiddleware(role) {
   return async (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -23,12 +26,15 @@ function authMiddleware(role) {
         if (!allowed.includes(decoded.role))
           return res.status(403).json({ message: 'ممنوع — صلاحيات غير كافية' });
       }
-      // تحقق إن الطالب لسه approved في الـ DB (مش بس في التوكن)
-      if (decoded.role === 'student') {
-        const { rows } = await pool.query(
-          'SELECT status, current_session_token FROM students WHERE id=$1', [decoded.id]
-        );
-        if (!rows[0] || rows[0].status !== 'approved')
+      // تحقق إن الطالب لسه approved في الـ DB (مش بس في التوكن)، وتحقق إن كل
+      // الأدوار الثلاثة (طالب/مدرس/مساعد) لسه على نفس الجهاز اللي سجّلوا منه.
+      const table = SESSION_TABLE[decoded.role];
+      if (table) {
+        const cols = decoded.role === 'student' ? 'status, current_session_token' : 'current_session_token';
+        const { rows } = await pool.query(`SELECT ${cols} FROM ${table} WHERE id=$1`, [decoded.id]);
+        if (!rows[0])
+          return res.status(403).json({ message: 'الحساب غير موجود' });
+        if (decoded.role === 'student' && rows[0].status !== 'approved')
           return res.status(403).json({ message: 'حسابك موقوف أو غير مفعّل — تواصل مع المدرس' });
         // Single active device: only reject once the account actually HAS a
         // session token on record and it doesn't match this token's — a

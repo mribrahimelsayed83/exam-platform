@@ -473,6 +473,16 @@ const MIGRATION_STEPS = [
       await pool.query(`ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS from_id INTEGER DEFAULT NULL;`);
     },
   },
+  {
+    // Single active device, extended to teacher and assistant accounts too
+    // (students got this earlier — see the current_session_token migration
+    // above). Same mechanism: middleware/auth.js.
+    name: 'teachers/assistants: current_session_token (single-device login)',
+    run: async () => {
+      await pool.query(`ALTER TABLE teachers ADD COLUMN IF NOT EXISTS current_session_token TEXT DEFAULT NULL;`);
+      await pool.query(`ALTER TABLE assistants ADD COLUMN IF NOT EXISTS current_session_token TEXT DEFAULT NULL;`);
+    },
+  },
 ];
 
 async function runMigrations() {

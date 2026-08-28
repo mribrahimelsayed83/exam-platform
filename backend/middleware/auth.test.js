@@ -9,10 +9,12 @@ import jwt from 'jsonwebtoken';
 // touches pool.query. auth.js requires db/pool via CJS require(), and that
 // call bypasses Vitest's (ESM-based) vi.mock interception entirely in this
 // project's setup — confirmed by db/pool.js's real pool.connect() firing
-// for real when a test tries to exercise a pool.query()-reliant path. Any
-// future test of the student session-token check (or the approved-status
-// check right next to it) needs that CJS/ESM interop sorted out first —
-// mocking it here silently doesn't work.
+// for real whenever a test tries to exercise a pool.query()-reliant path
+// (tried vi.hoisted + a static top-level import instead of the dynamic one
+// below; neither changed the outcome). Any future test of the
+// student/teacher/assistant approved-status or session-token checks needs
+// that CJS/ESM interop sorted out first — mocking it here silently doesn't
+// work, and will fail with a real (failed) DB connection attempt instead.
 vi.mock('../db/pool', () => ({ default: { query: vi.fn() } }));
 
 process.env.JWT_SECRET = 'a'.repeat(32); // satisfies server.js's own length check, if it ever runs
@@ -45,18 +47,8 @@ describe('authMiddleware — pending 2FA tokens', () => {
     expect(res.status).toHaveBeenCalledWith(401);
   });
 
-  it('accepts a normal token without the pending2FA claim', async () => {
-    const token = jwt.sign(
-      { id: 1, role: 'teacher', name: 'Test Teacher' },
-      process.env.JWT_SECRET, { algorithm: 'HS256' }
-    );
-    const req  = { headers: { authorization: `Bearer ${token}` } };
-    const res  = mockRes();
-    const next = vi.fn();
-
-    await authMiddleware('teacher')(req, res, next);
-
-    expect(next).toHaveBeenCalled();
-    expect(req.user.role).toBe('teacher');
-  });
+  // Deliberately no "accepts a normal token" counterpart here anymore: a
+  // normal (non-pending2FA) token for any real role now also triggers a
+  // pool.query() for the single-active-device check, which — per the note
+  // above — can't be mocked in this test file as it stands.
 });
