@@ -23,8 +23,11 @@ export default function PersonalExamResultPage() {
 
   if (loading || !result) return <Spinner />;
 
-  const score  = result.score  ?? result.score;
-  const total  = result.total  ?? result.total;
+  // score/total are named the same in both response shapes (submit vs. the
+  // GET-by-id fetch) — only "correct" needs bridging, since submit returns
+  // it as `correct` but the DB fetch returns the raw column `correct_count`.
+  const score   = result.score;
+  const total   = result.total;
   const correct = result.correct ?? result.correct_count;
   const pass   = score >= 60;
   const review = detail?.review || [];
