@@ -20,6 +20,16 @@ self.addEventListener('push', (event) => {
       dir: 'rtl',
       lang: 'ar',
       data: { url: data.url || '/' },
+    }).then(() => {
+      // Best-effort app-icon badge bump while the app itself isn't open to
+      // do the precise server-synced count (see AppBadgeSync.jsx) — approximate
+      // via how many OS notifications are currently showing. Feature-detected;
+      // a no-op wherever the Badging API isn't available in the SW context.
+      if ('setAppBadge' in self.navigator) {
+        self.registration.getNotifications().then((notifs) => {
+          self.navigator.setAppBadge(notifs.length).catch(() => {});
+        }).catch(() => {});
+      }
     })
   );
 });

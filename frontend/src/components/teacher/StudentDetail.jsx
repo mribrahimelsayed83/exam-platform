@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../utils/api';
+import OnlineStatus from '../shared/OnlineStatus';
 import { gradeLabel } from '../../utils/grades';
 
 const gradingLabels = {
@@ -60,6 +61,7 @@ export default function StudentDetail({ studentId, onBack }) {
               <div>
                 <h2 className="font-extrabold text-slate-800 text-lg">{student.name}</h2>
                 <p className="text-xs text-slate-400">@{student.username}</p>
+                <OnlineStatus student={student} />
               </div>
             </div>
             <div className="flex flex-wrap gap-2 mt-2">

@@ -442,6 +442,17 @@ const MIGRATION_STEPS = [
       await pool.query(`CREATE INDEX IF NOT EXISTS idx_articles_published_position ON articles(is_published, position);`);
     },
   },
+  {
+    // Online status — separate from last_login_at (which only updates once,
+    // at the login *event*). last_seen_at is refreshed by a periodic
+    // heartbeat while the student has the app open, so the teacher can tell
+    // who's online right now (recently-refreshed) vs. just when they last
+    // logged in.
+    name: 'students: last_seen_at (online-status heartbeat)',
+    run: async () => {
+      await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NULL;`);
+    },
+  },
 ];
 
 async function runMigrations() {

@@ -1,6 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
+import AppBadgeSync from './components/shared/AppBadgeSync';
+import StudentHeartbeat from './components/shared/StudentHeartbeat';
 
 const LoginPage            = lazy(() => import('./pages/LoginPage'));
 const RegisterPage         = lazy(() => import('./pages/RegisterPage'));
@@ -44,6 +46,8 @@ export default function App() {
   const { user } = useAuth();
   return (
     <Suspense fallback={<PageLoader />}>
+      <AppBadgeSync />
+      <StudentHeartbeat />
       <Routes>
         <Route path="/"              element={<LandingPage />}/>
         <Route path="/login"            element={<LoginPage />}/>

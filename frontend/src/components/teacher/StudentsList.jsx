@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import api from '../../utils/api';
 import { useAuth } from '../../context/AuthContext';
 import StudentDetail from './StudentDetail';
+import OnlineStatus from '../shared/OnlineStatus';
 import { EGYPT_GOVERNORATES } from '../../utils/governorates';
 import { GRADES, gradeLabel } from '../../utils/grades';
 
@@ -260,6 +261,7 @@ export default function StudentsList() {
                             <td className="px-4 py-3">
                               <div className="font-semibold text-slate-800">{st.name}</div>
                               <div className="text-xs text-slate-400">{st.username}</div>
+                              <OnlineStatus student={st} />
                             </td>
                             <td className="px-4 py-3 text-slate-600 text-xs">{st.phone}</td>
                             <td className="px-4 py-3 text-slate-600 text-xs">{st.parent_phone}</td>

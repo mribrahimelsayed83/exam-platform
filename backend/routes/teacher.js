@@ -63,7 +63,8 @@ router.get('/students/:id', staff, perm, async (req, res) => {
   try {
     const studentRes = await pool.query(
       `SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
-              st.email, st.status, st.created_at, st.last_login_at,
+              st.email, st.status, st.created_at, st.last_login_at, st.last_seen_at,
+              (st.last_seen_at > NOW() - INTERVAL '3 minutes') AS is_online,
               st.governorate, st.city, st.activation_code,
               t.name AS approved_by_name,
               a.name AS approved_by_asst_name
@@ -126,7 +127,8 @@ router.get('/students', staff, perm, async (req, res) => {
     let query = `
       SELECT st.id, st.name, st.username, st.grade, st.phone, st.parent_phone,
              st.email, st.status, st.created_at, st.approved_at,
-             st.governorate, st.city, st.activation_code,
+             st.governorate, st.city, st.activation_code, st.last_seen_at,
+             (st.last_seen_at > NOW() - INTERVAL '3 minutes') AS is_online,
              t.name AS approved_by_name,
              a.name AS approved_by_asst_name,
              COUNT(s.id)::int AS submission_count,

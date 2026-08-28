@@ -270,6 +270,18 @@ router.post('/forgot-password', async (req, res) => {
   }
 });
 
+// ── Heartbeat — pinged periodically while a student has the app open, so
+// the teacher can see who's online right now vs. just when they last
+// logged in. Fire-and-forget on the client; kept deliberately tiny. ───────
+router.post('/heartbeat', auth('student'), async (req, res) => {
+  try {
+    await pool.query('UPDATE students SET last_seen_at=NOW() WHERE id=$1', [req.user.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ message: 'خطأ في السيرفر' });
+  }
+});
+
 // ── Change Password (logged-in student) ───────────────────────────────────
 router.post('/change-password', auth('student'), async (req, res) => {
   const { oldPassword, newPassword } = req.body;
