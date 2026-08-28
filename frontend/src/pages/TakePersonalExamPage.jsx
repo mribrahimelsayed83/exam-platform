@@ -55,7 +55,10 @@ export default function TakePersonalExamPage() {
     <div className="min-h-screen bg-slate-100">
 
       {/* Sticky header */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      {/* paddingTop clears the phone's status bar / notch when installed as a PWA
+          — see Navbar.jsx for the same fix and why it's a no-op elsewhere. */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto px-4 py-3">
           <div className="flex items-center justify-between mb-2">
             <span className="font-bold text-slate-700 text-sm">🎯 امتحانك الخاص</span>

@@ -142,8 +142,11 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Mobile bottom navigation bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] dark:bg-slate-800 dark:border-slate-700">
+      {/* Mobile bottom navigation bar — paddingBottom clears the home-indicator
+          gesture bar on an installed PWA (no-op elsewhere, same as the top
+          safe-area padding in Navbar.jsx). */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.08)] dark:bg-slate-800 dark:border-slate-700"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
         <div className="flex">
           {navItems.map(item => (
             <button key={item.path} onClick={() => go(item.path)}

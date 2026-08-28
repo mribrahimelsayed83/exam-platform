@@ -172,7 +172,10 @@ export default function TakeExamPage() {
   return (
     <div className="min-h-screen bg-slate-100" dir="rtl">
       {/* ── Sticky Header ────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm">
+      {/* paddingTop clears the phone's status bar / notch when installed as a PWA
+          — see Navbar.jsx for the same fix and why it's a no-op elsewhere. */}
+      <div className="bg-white border-b border-slate-200 sticky top-0 z-50 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-2xl mx-auto px-4 pt-3 pb-2">
           {/* Title + Timer */}
           <div className="flex items-center justify-between mb-2">

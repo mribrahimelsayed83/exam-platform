@@ -270,7 +270,12 @@ export default function LandingPage() {
       />
 
       {/* ── Navbar ─────────────────────────────────────────────────────── */}
-      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm">
+      {/* paddingTop clears the phone's status bar / notch when installed as a PWA
+          (env() resolves to 0 on anything without a safe area, so this is a no-op
+          in a normal browser tab) — otherwise the nav sits flush under the clock/
+          battery icons and its buttons become hard to tap. */}
+      <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur border-b border-slate-100 shadow-sm"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2 min-w-0">
             <span className="w-3 h-3 rounded-full flex-shrink-0" style={{background:bg}}/>

@@ -214,7 +214,12 @@ export default function Navbar({ title }) {
   return (
     <>
     {showSearch && <SearchModal onClose={() => setShowSearch(false)} />}
-    <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200">
+    {/* paddingTop clears the phone's status bar / notch when installed as a PWA
+        (env() resolves to 0 on anything without a safe area, so this is a no-op
+        in a normal browser tab) — otherwise the nav sits flush under the clock/
+        battery icons and its buttons become hard to tap. */}
+    <nav className="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 shadow-sm sticky top-0 z-50 transition-colors duration-200"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}>
       <div className="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
           {user && (
