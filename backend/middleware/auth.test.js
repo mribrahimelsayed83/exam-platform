@@ -4,6 +4,15 @@ import jwt from 'jsonwebtoken';
 // db/pool opens a real pg connection at module load — the pending2FA
 // rejection happens before any DB access, so a stub is enough here and
 // keeps this test from needing a real database.
+//
+// Note: this only actually covers the pending2FA path below, which never
+// touches pool.query. auth.js requires db/pool via CJS require(), and that
+// call bypasses Vitest's (ESM-based) vi.mock interception entirely in this
+// project's setup — confirmed by db/pool.js's real pool.connect() firing
+// for real when a test tries to exercise a pool.query()-reliant path. Any
+// future test of the student session-token check (or the approved-status
+// check right next to it) needs that CJS/ESM interop sorted out first —
+// mocking it here silently doesn't work.
 vi.mock('../db/pool', () => ({ default: { query: vi.fn() } }));
 
 process.env.JWT_SECRET = 'a'.repeat(32); // satisfies server.js's own length check, if it ever runs

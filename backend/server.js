@@ -453,6 +453,14 @@ const MIGRATION_STEPS = [
       await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ DEFAULT NULL;`);
     },
   },
+  {
+    // Single active device per student — see routes/auth.js student login
+    // and middleware/auth.js for how this gets enforced.
+    name: 'students: current_session_token (single-device login)',
+    run: async () => {
+      await pool.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS current_session_token TEXT DEFAULT NULL;`);
+    },
+  },
 ];
 
 async function runMigrations() {

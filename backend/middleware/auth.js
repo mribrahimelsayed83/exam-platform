@@ -26,10 +26,17 @@ function authMiddleware(role) {
       // تحقق إن الطالب لسه approved في الـ DB (مش بس في التوكن)
       if (decoded.role === 'student') {
         const { rows } = await pool.query(
-          'SELECT status FROM students WHERE id=$1', [decoded.id]
+          'SELECT status, current_session_token FROM students WHERE id=$1', [decoded.id]
         );
         if (!rows[0] || rows[0].status !== 'approved')
           return res.status(403).json({ message: 'حسابك موقوف أو غير مفعّل — تواصل مع المدرس' });
+        // Single active device: only reject once the account actually HAS a
+        // session token on record and it doesn't match this token's — a
+        // NULL db value (a session issued before this feature existed, or
+        // never refreshed) is left alone rather than force-logging everyone
+        // out the moment this ships.
+        if (rows[0].current_session_token && decoded.sessionToken !== rows[0].current_session_token)
+          return res.status(401).json({ message: 'تم تسجيل الدخول من جهاز آخر', code: 'SESSION_REPLACED' });
       }
       req.user = decoded;
       next();

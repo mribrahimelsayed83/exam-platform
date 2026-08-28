@@ -27,6 +27,14 @@ export default function LoginPage() {
       .catch(() => {});
   }, []);
 
+  // Shows why a previous session was ended (e.g. logged in from another
+  // device) — stashed by the axios 401 interceptor right before the
+  // redirect that lands here. Shown once, then cleared.
+  useEffect(() => {
+    const flash = sessionStorage.getItem('flashMessage');
+    if (flash) { setError(flash); sessionStorage.removeItem('flashMessage'); }
+  }, []);
+
   const set = (k,v) => setForm(f=>({...f,[k]:v}));
 
   const handleSubmit = async (e) => {

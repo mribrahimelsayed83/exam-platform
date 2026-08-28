@@ -85,6 +85,11 @@ export default function StudentsList() {
     ? students
     : students.filter(s => String(s.grade) === gradeFilter)
   ).slice().sort((a, b) => {
+    // Online students always float to the top first, regardless of
+    // whichever other sort is active — the other sort still applies
+    // within each of the online/offline groups.
+    const onlineDiff = (b.is_online ? 1 : 0) - (a.is_online ? 1 : 0);
+    if (onlineDiff !== 0) return onlineDiff;
     if (honorSort) {
       const av = a.avg_score != null ? a.avg_score * a.submission_count : -1;
       const bv = b.avg_score != null ? b.avg_score * b.submission_count : -1;
@@ -130,8 +135,17 @@ export default function StudentsList() {
   return (
     <div>
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
-        <h2 className="text-xl font-extrabold text-slate-800">الطلاب</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="text-xl font-extrabold text-slate-800">الطلاب</h2>
+          <span className="flex items-center gap-1.5 badge badge-green">
+            <span className="w-2 h-2 bg-emerald-500 rounded-full inline-block"/>
+            {students.filter(s => s.is_online).length} متصل الآن
+          </span>
+        </div>
         <div className="flex gap-2">
+          <button onClick={load} disabled={loading} className="btn-secondary btn-sm disabled:opacity-50" title="تحديث">
+            {loading ? <span className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin inline-block"/> : '🔄'} تحديث
+          </button>
           <button onClick={() => setShowDuplicates(true)} className="btn-secondary btn-sm">🔍 الطلاب المكررون</button>
           <button onClick={exportExcel} className="btn-secondary btn-sm">📥 تصدير Excel</button>
         </div>

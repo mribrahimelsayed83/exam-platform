@@ -93,12 +93,22 @@ router.post('/student/login', async (req, res) => {
     const valid = await bcrypt.compare(password, student.password);
     if (!valid) return res.status(401).json({ message: 'اسم المستخدم أو كلمة المرور غلط' });
 
-    await pool.query('UPDATE students SET last_login_at=NOW() WHERE id=$1', [student.id]);
+    // One active device at a time: a fresh session token is stored on the
+    // account and embedded in the new JWT. authMiddleware rejects any
+    // request whose token carries an older session token — so logging in
+    // elsewhere silently signs this device out on its next request, with a
+    // clear "logged in from another device" message rather than a generic
+    // expired-session one.
+    const sessionToken = crypto.randomBytes(24).toString('hex');
+    await pool.query(
+      'UPDATE students SET last_login_at=NOW(), current_session_token=$2 WHERE id=$1',
+      [student.id, sessionToken]
+    );
 
     notify('login', '🔑 تسجيل دخول طالب',
       `${student.name} سجّل دخوله للمنصة`, 'student', student.id);
 
-    const token = sign({ id: student.id, role: 'student', grade: student.grade, name: student.name });
+    const token = sign({ id: student.id, role: 'student', grade: student.grade, name: student.name, sessionToken });
     res.json({
       token,
       user: { id: student.id, name: student.name, username: student.username,
